@@ -1,0 +1,125 @@
+package io.github.egorkor;
+
+import io.github.egorkor.query.Filter;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.Persistence;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Predicate;
+import org.junit.jupiter.api.*;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import java.util.List;
+
+public class FilterTest {
+    private static EntityManagerFactory emf;
+    private EntityManager em;
+
+    @BeforeAll
+    static void setup() {
+        try {
+            emf = Persistence.createEntityManagerFactory("test-pu");
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw e;
+        }
+    }
+
+    @BeforeEach
+    void init() {
+        em = emf.createEntityManager();
+        em.getTransaction().begin();
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (em.getTransaction().isActive()) {
+            em.getTransaction().rollback();
+        }
+        if (em.isOpen()) {
+            em.close();
+        }
+    }
+
+    @AfterAll
+    static void close() {
+        if (emf != null && emf.isOpen()) {
+            emf.close();
+        }
+    }
+
+
+    @Test
+    void testFilterJPA1() {
+        Filter<TestEntity> filter = new Filter<>();
+        filter.setFilter(
+                List.of(
+                        "id,=,10", "name,like,some name"
+                )
+        );
+        CriteriaBuilder cb = em.getCriteriaBuilder();
+        CriteriaQuery<TestEntity> cq = cb.createQuery(TestEntity.class);
+        Predicate predicate = filter.toPredicate(cq.from(TestEntity.class), cq, cb);
+        System.out.println(predicate);
+        Assertions.assertEquals(predicate.getExpressions().size(), 2);
+    }
+
+    @Test
+    void testFilterJPA2() {
+        Filter<TestNestedEntity> filter = new Filter<>();
+        filter.setFilter(
+                List.of("parent.id,=,10")
+        );
+        CriteriaBuilder cb = em.getCriteriaBuilder();
+        CriteriaQuery<TestNestedEntity> cq = cb.createQuery(TestNestedEntity.class);
+        Predicate predicate = filter.toPredicate(cq.from(TestNestedEntity.class), cq, cb);
+        System.out.println(predicate);
+
+        Assertions.assertEquals(predicate.getExpressions().size(), 1);
+    }
+
+    @Test
+    void testFilterEmptySQL(){
+        Filter<TestEntity> filter = new Filter<>();
+
+        Assertions.assertEquals("",filter.toSQLFilter());
+    }
+
+    @Test
+    void testFilterSQL1() {
+        Filter<TestEntity> filter = new Filter<>();
+        filter.setFilter(
+                List.of(
+                        "id,=,10", "name,like,some name"
+                )
+        );
+        System.out.println(filter.toSQLFilter());
+        Assertions.assertEquals("WHERE id = '10' AND name LIKE %some name%",
+                filter.toSQLFilter().trim());
+    }
+
+    @Test
+    void testFilterSQL2() {
+        Filter<TestNestedEntity> filter = new Filter<>();
+        filter.setFilter(
+                List.of("id,!=,10")
+        );
+        System.out.println(filter.toSQLFilter());
+        Assertions.assertEquals("WHERE id <> '10'",
+                filter.toSQLFilter().trim());
+    }
+
+    @Test
+    void testFilterSQL3() {
+        Filter<TestNestedEntity> filter = new Filter<>();
+        filter.setFilter(
+                List.of("id,IN,10;15;23")
+        );
+        System.out.println(filter.toSQLFilter());
+        Assertions.assertEquals("WHERE id IN ( '10' , '15' , '23' )"
+                ,filter.toSQLFilter().trim());
+    }
+
+
+}
