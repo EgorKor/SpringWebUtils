@@ -5,5 +5,5 @@ public interface BatchResult {
 
     String getDetails();
 
-    OperationResultStatus getStatus();
+    BatchOperationStatus getStatus();
 }

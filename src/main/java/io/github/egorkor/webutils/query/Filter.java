@@ -6,7 +6,24 @@ import org.springframework.data.jpa.domain.Specification;
 
 import java.util.*;
 
-
+/**
+ * Параметр запроса для фильтрации запрашиваемых ресурсов.
+ * Пример использования в контроллере:
+ * <pre>{@code
+ * public void controllerMethod(@RequestParam Filter filter)
+ * }</pre>
+ * Пример использования с JPA репозиториями сортировка,пагинация и сортировка
+ * <pre>
+ * {@code
+ * public List<Entity> query(Filter filter, SortParams sort, Pagination pagination){
+ *     repository.findAll(filter,pagination.toJpaPageable(sort));
+ * }
+ * }
+ * </pre>
+ *
+ * @author EgorKor
+ * @since 2025
+ */
 @Data
 public class Filter<T> implements Specification<T> {
     private List<String> filter = new ArrayList<>();

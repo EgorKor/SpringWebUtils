@@ -1,5 +1,5 @@
 package io.github.egorkor.template;
 
-public enum OperationResultStatus {
+public enum BatchOperationStatus {
     SUCCESS, FAILED
 }

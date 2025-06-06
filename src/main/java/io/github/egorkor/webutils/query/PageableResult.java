@@ -4,6 +4,21 @@ import lombok.AllArgsConstructor;
 
 import java.util.function.Function;
 
+/**
+ * PageableResult - класс обёртка для результата запроса с учётом пагинации.
+ * Пример оборачивания результата запроса в PageableResult:
+ * <pre>
+ *     {@code
+ *     public PageableResult<List<User>> getAll(Filter filter, Pagination pagination){
+ *         return PageableResult.of(userRepository.findAll(pagination.toJpaPageable(),
+ *            filter.toJpaFilter()), userRepository.count(filter.toJpaFilter()), pagination.getPageSize());
+ *     }
+ *     }
+ * </pre>
+ *
+ * @author EgorKor
+ * @since 2025
+ */
 @AllArgsConstructor
 public class PageableResult<T> {
     private T data;

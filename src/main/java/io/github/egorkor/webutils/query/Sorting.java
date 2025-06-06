@@ -16,7 +16,7 @@ import java.util.List;
  * <pre>
  * {@code
  * public List<Entity> query(SortParams sort){
- *     repository.findAll(sort.toSpaSort());
+ *     repository.findAll(sort.toJpaSort());
  * }
  * }
  * </pre>

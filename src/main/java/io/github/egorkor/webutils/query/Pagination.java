@@ -8,6 +8,24 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
+/**
+ * Параметр запроса для пагинации запрашиваемых ресурсов.
+ * Пример использования в контроллере:
+ * <pre>{@code
+ * public void controllerMethod(@RequestParam Pagination pagination)
+ * }</pre>
+ * Пример использования с JPA репозиториями сортировка и пагинация
+ * <pre>
+ * {@code
+ * public List<Entity> query(SortParams sort, Pagination pagination){
+ *     repository.findAll(pagination.toJpaPageable(sort));
+ * }
+ * }
+ * </pre>
+ *
+ * @author EgorKor
+ * @since 2025
+ */
 @Data
 public class Pagination {
     private int size;
