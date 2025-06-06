@@ -4,7 +4,7 @@ import org.modelmapper.ModelMapper;
 
 import java.util.List;
 
-public class DtoConverter {
+public class DtoMapper {
     private final ModelMapper modelMapper = new ModelMapper();
 
     public <M, D> D toDto(M model, Class<D> destination) {

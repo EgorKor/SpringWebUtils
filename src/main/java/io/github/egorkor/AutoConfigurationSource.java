@@ -7,8 +7,8 @@ import org.springframework.context.annotation.Bean;
 public class AutoConfigurationSource {
 
     @Bean
-    public DtoConverter dtoConverter() {
-        return new DtoConverter();
+    public DtoMapper dtoConverter() {
+        return new DtoMapper();
     }
 
 
