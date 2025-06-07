@@ -1,9 +1,9 @@
-package io.github.egorkor.template;
+package io.github.egorkor.webutils.template;
 
-import io.github.egorkor.query.Filter;
-import io.github.egorkor.query.PageableResult;
-import io.github.egorkor.query.Pagination;
-import io.github.egorkor.query.Sorting;
+import io.github.egorkor.webutils.query.Filter;
+import io.github.egorkor.webutils.query.PageableResult;
+import io.github.egorkor.webutils.query.Pagination;
+import io.github.egorkor.webutils.query.Sorting;
 
 import java.util.List;
 

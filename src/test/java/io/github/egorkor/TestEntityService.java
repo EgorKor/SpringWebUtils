@@ -1,4 +1,7 @@
 package io.github.egorkor;
 
-public interface TestEntityService {
+import io.github.egorkor.webutils.template.CRUDLService;
+
+public interface TestEntityService extends CRUDLService<TestEntity, Long> {
+
 }

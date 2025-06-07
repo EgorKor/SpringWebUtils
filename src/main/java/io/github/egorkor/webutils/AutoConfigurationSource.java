@@ -1,4 +1,4 @@
-package io.github.egorkor;
+package io.github.egorkor.webutils;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -10,6 +10,5 @@ public class AutoConfigurationSource {
     public DtoMapper dtoConverter() {
         return new DtoMapper();
     }
-
 
 }

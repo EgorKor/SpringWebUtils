@@ -1,4 +1,4 @@
-package io.github.egorkor;
+package io.github.egorkor.webutils;
 
 import org.modelmapper.ModelMapper;
 
@@ -30,7 +30,7 @@ import java.util.List;
  *         private List<Node> children;
  *     }
  *
- *     class NodeDTO{
+ *     class NodeDto{
  *        private Long id;
  *        private Long parentId;// будет преобразовано из parent -> id
  *     }

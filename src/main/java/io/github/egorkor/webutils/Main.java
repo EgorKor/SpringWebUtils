@@ -1,7 +1,4 @@
-package io.github.egorkor;
-
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+package io.github.egorkor.webutils;
 
 public class Main {
     public static void main(String[] args) {}

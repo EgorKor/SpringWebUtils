@@ -1,6 +1,6 @@
 package io.github.egorkor;
 
-import io.github.egorkor.query.Filter;
+import io.github.egorkor.webutils.query.Filter;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.Persistence;
@@ -8,7 +8,6 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
 import org.junit.jupiter.api.*;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
 
@@ -120,6 +119,8 @@ public class FilterTest {
         Assertions.assertEquals("WHERE id IN ( '10' , '15' , '23' )"
                 ,filter.toSQLFilter().trim());
     }
+
+
 
 
 }

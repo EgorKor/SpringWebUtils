@@ -1,4 +1,4 @@
-package io.github.egorkor.template;
+package io.github.egorkor.webutils.template;
 
 import java.util.List;
 
