@@ -5,6 +5,7 @@ import io.github.egorkor.webutils.query.Filter;
 import io.github.egorkor.webutils.query.PageableResult;
 import io.github.egorkor.webutils.query.Pagination;
 import io.github.egorkor.webutils.query.Sorting;
+import io.github.egorkor.webutils.service.async.AsyncCRUDLService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -19,7 +20,7 @@ import java.util.concurrent.CompletableFuture;
 
 @Transactional
 @RequiredArgsConstructor
-public abstract class AbstractAsyncCRUDLService<T, ID> implements AsyncCRUDLService<T, ID> {
+public class JpaAsyncService<T, ID> implements AsyncCRUDLService<T, ID> {
     protected final JpaRepository<T, ID> jpaRepository;
     protected final JpaSpecificationExecutor<T> jpaSpecificationExecutor;
     private Class<T> type;

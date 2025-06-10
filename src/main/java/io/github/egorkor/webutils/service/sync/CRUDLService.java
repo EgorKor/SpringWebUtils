@@ -1,4 +1,4 @@
-package io.github.egorkor.webutils.template;
+package io.github.egorkor.webutils.service.sync;
 
 import io.github.egorkor.webutils.query.Filter;
 import io.github.egorkor.webutils.query.PageableResult;

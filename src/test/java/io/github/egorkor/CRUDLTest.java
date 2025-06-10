@@ -1,7 +1,6 @@
 package io.github.egorkor;
 
 import io.github.egorkor.webutils.exception.ResourceNotFoundException;
-import io.github.egorkor.webutils.template.CRUDLService;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;

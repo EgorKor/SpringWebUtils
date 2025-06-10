@@ -1,5 +1,7 @@
 package io.github.egorkor.webutils.template;
 
+import io.github.egorkor.webutils.service.batching.BatchOperationStatus;
+import io.github.egorkor.webutils.service.batching.BatchResultWithData;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
