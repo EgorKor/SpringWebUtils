@@ -1,6 +1,7 @@
 package io.github.egorkor.webutils.query;
 
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 
 import java.util.function.Function;
 
@@ -19,6 +20,7 @@ import java.util.function.Function;
  * @author EgorKor
  * @since 2025
  */
+@Getter
 @AllArgsConstructor
 public class PageableResult<T> {
     private T data;

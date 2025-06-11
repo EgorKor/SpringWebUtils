@@ -26,8 +26,8 @@ import org.springframework.data.domain.Sort;
  */
 @Data
 public class Pagination {
-    private int size;
-    private int page = 10;
+    private int size = 10;
+    private int page;
 
     public Pageable toJpaPageable() {
         return PageRequest.of(page, size);

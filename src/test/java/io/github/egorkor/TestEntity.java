@@ -17,4 +17,5 @@ public class TestEntity {
     private String name;
     @OneToMany
     private List<TestNestedEntity> nested;
+    private Boolean isDeleted;
 }

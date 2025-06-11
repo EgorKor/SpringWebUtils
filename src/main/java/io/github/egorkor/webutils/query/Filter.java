@@ -58,10 +58,9 @@ public class Filter<T> implements Specification<T> {
 
 
     private String parseCondition(String filter, String prefix) {
-        filter = filter.toLowerCase();
-        String[] parts = filter.split(",");
+        String[] parts = filter.split(":");
         String field = parts[0];
-        String operation = parts[1];
+        String operation = parts[1].toLowerCase();
         String value = parts[2];
 
         operation = mapOperation(operation);
@@ -104,9 +103,9 @@ public class Filter<T> implements Specification<T> {
                                  CriteriaQuery<?> query,
                                  CriteriaBuilder cb) {
         List<Predicate> predicates = new ArrayList<>();
-        filter.forEach(f -> {
-            predicates.add(parsePredicate(f.toLowerCase(), root, query, cb));
-        });
+        filter.forEach(f ->
+                predicates.add(parsePredicate(f, root, query, cb))
+        );
         return cb.and(predicates.toArray(new Predicate[0]));
     }
 
@@ -114,15 +113,17 @@ public class Filter<T> implements Specification<T> {
                                      Root<T> root,
                                      CriteriaQuery<?> query,
                                      CriteriaBuilder cb) {
-        String[] parts = filter.split(",");
+        String[] parts = filter.split(":");
 
         String field = parts[0];
-        String operation = parts[1];
+        String operation = parts[1].toLowerCase();
         String value = parts[2];
 
 
         Path<T> path = field.contains(".") ? getNestedPath(root, field) : root.get(field);
         return switch (operation) {
+            case "is" ->
+                    value.equalsIgnoreCase("true") ? cb.isTrue((Path<Boolean>) path) : cb.isFalse((Path<Boolean>) path);
             case "=" -> cb.equal(path, value);
             case ">" -> cb.greaterThan(path.as(Comparable.class), (Comparable) value);
             case "<" -> cb.lessThan(path.as(Comparable.class), (Comparable) value);

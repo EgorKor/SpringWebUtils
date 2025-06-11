@@ -54,21 +54,21 @@ public class FilterTest {
         Filter<TestEntity> filter = new Filter<>();
         filter.setFilter(
                 List.of(
-                        "id,=,10", "name,like,some name"
+                        "id:=:10", "name:like:some name","isDeleted:is:true"
                 )
         );
         CriteriaBuilder cb = em.getCriteriaBuilder();
         CriteriaQuery<TestEntity> cq = cb.createQuery(TestEntity.class);
         Predicate predicate = filter.toPredicate(cq.from(TestEntity.class), cq, cb);
         System.out.println(predicate);
-        Assertions.assertEquals(predicate.getExpressions().size(), 2);
+        Assertions.assertEquals(predicate.getExpressions().size(), 3);
     }
 
     @Test
     void testFilterJPA2() {
         Filter<TestNestedEntity> filter = new Filter<>();
         filter.setFilter(
-                List.of("parent.id,=,10")
+                List.of("parent.id:=:10")
         );
         CriteriaBuilder cb = em.getCriteriaBuilder();
         CriteriaQuery<TestNestedEntity> cq = cb.createQuery(TestNestedEntity.class);
@@ -79,10 +79,10 @@ public class FilterTest {
     }
 
     @Test
-    void testFilterEmptySQL(){
+    void testFilterEmptySQL() {
         Filter<TestEntity> filter = new Filter<>();
 
-        Assertions.assertEquals("",filter.toSQLFilter());
+        Assertions.assertEquals("", filter.toSQLFilter());
     }
 
     @Test
@@ -90,7 +90,7 @@ public class FilterTest {
         Filter<TestEntity> filter = new Filter<>();
         filter.setFilter(
                 List.of(
-                        "id,=,10", "name,like,some name"
+                        "id:=:10", "name:like:some name"
                 )
         );
         System.out.println(filter.toSQLFilter());
@@ -102,7 +102,7 @@ public class FilterTest {
     void testFilterSQL2() {
         Filter<TestNestedEntity> filter = new Filter<>();
         filter.setFilter(
-                List.of("id,!=,10")
+                List.of("id:!=:10")
         );
         System.out.println(filter.toSQLFilter());
         Assertions.assertEquals("WHERE id <> '10'",
@@ -113,14 +113,12 @@ public class FilterTest {
     void testFilterSQL3() {
         Filter<TestNestedEntity> filter = new Filter<>();
         filter.setFilter(
-                List.of("id,IN,10;15;23")
+                List.of("id:IN:10;15;23")
         );
         System.out.println(filter.toSQLFilter());
         Assertions.assertEquals("WHERE id IN ( '10' , '15' , '23' )"
-                ,filter.toSQLFilter().trim());
+                , filter.toSQLFilter().trim());
     }
-
-
 
 
 }
