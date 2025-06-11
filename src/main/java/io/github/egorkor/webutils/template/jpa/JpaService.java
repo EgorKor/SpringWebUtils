@@ -1,4 +1,4 @@
-package io.github.egorkor.webutils.template;
+package io.github.egorkor.webutils.template.jpa;
 
 import io.github.egorkor.webutils.exception.ResourceNotFoundException;
 import io.github.egorkor.webutils.query.Filter;

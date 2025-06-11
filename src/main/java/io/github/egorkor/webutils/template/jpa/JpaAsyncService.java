@@ -1,4 +1,4 @@
-package io.github.egorkor.webutils.template;
+package io.github.egorkor.webutils.template.jpa;
 
 import io.github.egorkor.webutils.exception.ResourceNotFoundException;
 import io.github.egorkor.webutils.query.Filter;
@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -18,11 +19,11 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 
-@Transactional
 @RequiredArgsConstructor
 public class JpaAsyncService<T, ID> implements AsyncCRUDLService<T, ID> {
     protected final JpaRepository<T, ID> jpaRepository;
     protected final JpaSpecificationExecutor<T> jpaSpecificationExecutor;
+    protected final TransactionTemplate transactionTemplate;
     private Class<T> type;
 
     {
@@ -40,11 +41,12 @@ public class JpaAsyncService<T, ID> implements AsyncCRUDLService<T, ID> {
     @Override
     public CompletableFuture<PageableResult<List<T>>> getAllAsync(Filter<T> filter, Sorting sorting, Pagination pagination) {
         return CompletableFuture.supplyAsync(() ->
-                PageableResult.of(
-                        jpaSpecificationExecutor.findAll(filter, pagination.toJpaPageable(sorting)).toList(),
-                        jpaSpecificationExecutor.count(filter),
-                        pagination.getSize()
-                )
+                transactionTemplate.execute(status ->
+                        PageableResult.of(
+                                jpaSpecificationExecutor.findAll(filter, pagination.toJpaPageable(sorting)).toList(),
+                                jpaSpecificationExecutor.count(filter),
+                                pagination.getSize()
+                        ))
         );
     }
 
@@ -52,7 +54,11 @@ public class JpaAsyncService<T, ID> implements AsyncCRUDLService<T, ID> {
     @Override
     public CompletableFuture<T> getByIdAsync(ID id) {
         return CompletableFuture.supplyAsync(() ->
-                jpaRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Сущность " + getEntityName() + " c id = " + id + " не найдена."))
+                transactionTemplate.execute(status ->
+                        jpaRepository.findById(id).orElseThrow(() ->
+                                new ResourceNotFoundException("Сущность " + getEntityName()
+                                        + " c id = " + id + " не найдена."))
+                )
         );
     }
 
@@ -60,7 +66,7 @@ public class JpaAsyncService<T, ID> implements AsyncCRUDLService<T, ID> {
     @Override
     public CompletableFuture<T> createAsync(T model) {
         return CompletableFuture.supplyAsync(
-                () -> jpaRepository.save(model)
+                () -> transactionTemplate.execute(status -> jpaRepository.save(model))
         );
     }
 
@@ -68,7 +74,7 @@ public class JpaAsyncService<T, ID> implements AsyncCRUDLService<T, ID> {
     @Override
     public CompletableFuture<T> updateAsync(T model) {
         return CompletableFuture.supplyAsync(
-                () -> jpaRepository.save(model)
+                () -> transactionTemplate.execute(status -> jpaRepository.save(model))
         );
     }
 
@@ -76,7 +82,7 @@ public class JpaAsyncService<T, ID> implements AsyncCRUDLService<T, ID> {
     @Override
     public CompletableFuture<Void> deleteAsync(ID id) {
         return CompletableFuture.runAsync(
-                () -> jpaRepository.deleteById(id)
+                () -> transactionTemplate.executeWithoutResult(status -> jpaRepository.deleteById(id))
         );
     }
 }

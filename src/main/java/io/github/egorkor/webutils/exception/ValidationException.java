@@ -12,7 +12,8 @@ import java.util.Map;
 public class ValidationException extends RuntimeException {
     private final Map<String, List<String>> errors;
 
-    public ValidationException(BindingResult errors) {
+    public ValidationException(String message, BindingResult errors) {
+        super(message);
         this.errors = new HashMap<>();
         errors.getFieldErrors().forEach(e -> {
             if (this.errors.containsKey(e.getField())) {

@@ -4,6 +4,7 @@ import jakarta.persistence.criteria.*;
 import lombok.Data;
 import org.springframework.data.jpa.domain.Specification;
 
+import java.sql.Driver;
 import java.util.*;
 
 /**
@@ -28,10 +29,32 @@ import java.util.*;
 public class Filter<T> implements Specification<T> {
     private List<String> filter = new ArrayList<>();
 
+    private Driver driver = null;
+
     private static final Set<String> NO_MAPPING_OPERATORS
             = Set.of("<", "<=", "=", ">=", ">");
     private static final Set<String> BASIC_OPERATORS
             = Set.of("<", "<=", "=", ">=", ">", "<>");
+
+    public Filter<T> withSoftDeleteFlag() {
+        filter.add("isDeleted:is:false");
+        return this;
+    }
+
+    public Filter<T> withSoftDeleteTime() {
+        filter.add("deletedAt:is:not_null");
+        return this;
+    }
+
+    public Filter<T> withSoftDeleteFlag(String flagName) {
+        filter.add("%s:is:false".formatted(flagName));
+        return this;
+    }
+
+    public Filter<T> withSoftDeleteTime(String fieldName) {
+        filter.add("%s:is:not_null".formatted(fieldName));
+        return this;
+    }
 
     public String toSQLFilter() {
         return toSQLFilter("");
@@ -68,9 +91,17 @@ public class Filter<T> implements Specification<T> {
             return "%s %s '%s'".formatted(prefix + field, operation, value);
         }
         return switch (operation) {
+            case "IS" -> switch (value) {
+                case "true" -> "%s = true".formatted(prefix + field);
+                case "false" -> "%s = false".formatted(prefix + field);
+                case "null" -> "%s IS NULL".formatted(prefix + field);
+                case "not_null" -> "%s IS NOT NULL".formatted(prefix + field);
+                default ->
+                        throw new IllegalArgumentException("Invalid filter value: " + operation + "; for operation: " + value);
+            };
             case "LIKE" -> "%s LIKE ".formatted(prefix + field) + "%" + value + "%";
             case "IN" -> {
-                String inValues = "()";
+                String inValues;
                 if (value.contains(";")) {
                     inValues = "( " + String.join(" , ", Arrays
                             .stream(value.split(";"))
@@ -81,7 +112,7 @@ public class Filter<T> implements Specification<T> {
                 }
                 yield "%s IN %s".formatted(prefix + field, inValues);
             }
-            default -> throw new IllegalArgumentException("Invalid filter operation: " + filter);
+            default -> throw new IllegalArgumentException("Invalid filter operation: " + operation);
         };
 
     }
@@ -94,6 +125,7 @@ public class Filter<T> implements Specification<T> {
             case "!=" -> "<>";
             case "like" -> "LIKE";
             case "in" -> "IN";
+            case "is" -> "IS";
             default -> throw new IllegalArgumentException("Invalid filter operation: " + filter);
         };
     }
@@ -122,8 +154,14 @@ public class Filter<T> implements Specification<T> {
 
         Path<T> path = field.contains(".") ? getNestedPath(root, field) : root.get(field);
         return switch (operation) {
-            case "is" ->
-                    value.equalsIgnoreCase("true") ? cb.isTrue((Path<Boolean>) path) : cb.isFalse((Path<Boolean>) path);
+            case "is" -> switch (value) {
+                case "true" -> cb.isTrue((Path<Boolean>) path);
+                case "false" -> cb.isFalse((Path<Boolean>) path);
+                case "null" -> cb.isNull(path);
+                case "not_null" -> cb.isNotNull(path);
+                default ->
+                        throw new IllegalArgumentException("Invalid filter value: " + operation + "; for operation: " + value);
+            };
             case "=" -> cb.equal(path, value);
             case ">" -> cb.greaterThan(path.as(Comparable.class), (Comparable) value);
             case "<" -> cb.lessThan(path.as(Comparable.class), (Comparable) value);
@@ -132,7 +170,7 @@ public class Filter<T> implements Specification<T> {
             case "!=" -> cb.notEqual(path.as(Comparable.class), value);
             case "like" -> cb.like(path.as(String.class), "%" + value + "%");
             case "in" -> path.in((Object[]) value.split(";"));
-            default -> throw new IllegalArgumentException("Invalid filter operation: " + filter);
+            default -> throw new IllegalArgumentException("Invalid filter operation: " + operation);
         };
     }
 

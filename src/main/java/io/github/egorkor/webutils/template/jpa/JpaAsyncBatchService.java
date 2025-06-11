@@ -1,16 +1,13 @@
-package io.github.egorkor.webutils.template;
+package io.github.egorkor.webutils.template.jpa;
 
 import io.github.egorkor.webutils.service.async.AsyncCRUDLBatchService;
-import io.github.egorkor.webutils.service.batching.BatchOperationStatus;
 import io.github.egorkor.webutils.service.batching.BatchResult;
 import io.github.egorkor.webutils.service.batching.BatchResultWithData;
-import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -18,15 +15,13 @@ import java.util.concurrent.CompletableFuture;
 public class JpaAsyncBatchService<T, ID> extends JpaAsyncService<T, ID>
         implements AsyncCRUDLBatchService<T, ID> {
 
-    private final TransactionTemplate transactionTemplate;
     private final JpaBatchService<T, ID> batchService;
 
     public JpaAsyncBatchService(JpaRepository<T, ID> jpaRepository,
                                 JpaSpecificationExecutor<T> jpaSpecificationExecutor,
                                 TransactionTemplate transactionTemplate) {
-        super(jpaRepository, jpaSpecificationExecutor);
-        this.transactionTemplate = transactionTemplate;
-        this.batchService = new JpaBatchService<>(jpaRepository, jpaSpecificationExecutor);
+        super(jpaRepository, jpaSpecificationExecutor,transactionTemplate);
+        this.batchService = new JpaBatchService<>(jpaRepository, jpaSpecificationExecutor,transactionTemplate);
     }
 
     @Async

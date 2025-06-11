@@ -1,4 +1,4 @@
-package io.github.egorkor.webutils;
+package io.github.egorkor.webutils.dto;
 
 import org.modelmapper.ModelMapper;
 
@@ -15,10 +15,12 @@ import java.util.List;
  * UserDto dto = mapper.toDto(model, UserDto.class);
  * }
  * </pre>
+ *
  * В функциональность маппера также входит входит маппинг
  * вложенных объектов. Например, маппер может распознать
  * вложенные сущности JPA и при преобразовании в DTO преобразовать
  * их в поле.
+ *
  * <pre>
  * {@code
  *     class Node{

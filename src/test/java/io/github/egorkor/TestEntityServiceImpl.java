@@ -1,6 +1,6 @@
 package io.github.egorkor;
 
-import io.github.egorkor.webutils.template.JpaService;
+import io.github.egorkor.webutils.template.jpa.JpaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.data.jpa.repository.JpaRepository;
