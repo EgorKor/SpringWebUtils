@@ -1,10 +1,9 @@
 package io.github.egorkor.webutils.query;
 
 import jakarta.persistence.criteria.*;
-import lombok.Data;
+import lombok.*;
 import org.springframework.data.jpa.domain.Specification;
 
-import java.sql.Driver;
 import java.util.*;
 
 /**
@@ -25,35 +24,58 @@ import java.util.*;
  * @author EgorKor
  * @since 2025
  */
+@NoArgsConstructor
+@AllArgsConstructor
 @Data
 public class Filter<T> implements Specification<T> {
     private List<String> filter = new ArrayList<>();
-
-    private Driver driver = null;
 
     private static final Set<String> NO_MAPPING_OPERATORS
             = Set.of("<", "<=", "=", ">=", ">");
     private static final Set<String> BASIC_OPERATORS
             = Set.of("<", "<=", "=", ">=", ">", "<>");
 
-    public Filter<T> withSoftDeleteFlag() {
-        filter.add("isDeleted:is:false");
-        return this;
+    private <SameType> Filter<SameType> _this() {
+        return (Filter<SameType>) this;
     }
 
-    public Filter<T> withSoftDeleteTime() {
-        filter.add("deletedAt:is:not_null");
-        return this;
+    private boolean hasAnyFieldStartsWith(String fieldPrefix) {
+        return filter.stream()
+                .anyMatch(field -> field.startsWith(fieldPrefix));
     }
 
-    public Filter<T> withSoftDeleteFlag(String flagName) {
-        filter.add("%s:is:false".formatted(flagName));
-        return this;
+    public <T> Filter<T> withSoftDeleteFlag(boolean value) {
+        if (hasAnyFieldStartsWith("isDeleted")) {
+            return _this();
+        }
+        filter.add("isDeleted:is:%s".formatted(value));
+        return _this();
     }
 
-    public Filter<T> withSoftDeleteTime(String fieldName) {
-        filter.add("%s:is:not_null".formatted(fieldName));
-        return this;
+    public <T> Filter<T> withSoftDeleteTime(boolean value) {
+        if (hasAnyFieldStartsWith("deletedAt")) {
+            return _this();
+        }
+        filter.add("deletedAt:is:%s".formatted(value ? "not_null" : "null"));
+        return _this();
+    }
+
+    public <T> Filter<T> withSoftDeleteFlag(String flagName,
+                                            boolean value) {
+        if (hasAnyFieldStartsWith(flagName)) {
+            return _this();
+        }
+        filter.add("%s:is:%s".formatted(flagName, value));
+        return _this();
+    }
+
+    public Filter<T> withSoftDeleteTime(String fieldName,
+                                        boolean value) {
+        if (hasAnyFieldStartsWith(fieldName)) {
+            return _this();
+        }
+        filter.add("%s:is:%s".formatted(fieldName, value ? "not_null" : "null"));
+        return _this();
     }
 
     public String toSQLFilter() {
@@ -67,16 +89,16 @@ public class Filter<T> implements Specification<T> {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < filter.size() - 1; i++) {
             if (sb.isEmpty()) {
-                sb.append(" WHERE ");
+                sb.append("WHERE ");
             }
             sb.append(parseCondition(filter.get(i), prefix));
             sb.append(" AND ");
         }
         if (sb.isEmpty() && !filter.isEmpty()) {
-            sb.append(" WHERE ");
+            sb.append("WHERE ");
         }
         sb.append(parseCondition(filter.get(filter.size() - 1), prefix));
-        return sb.toString();
+        return sb.toString().trim();
     }
 
 

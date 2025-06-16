@@ -1,4 +1,4 @@
-package io.github.egorkor;
+package io.github.egorkor.tests;
 
 import io.github.egorkor.webutils.query.PageableResult;
 import io.github.egorkor.webutils.query.Pagination;
@@ -21,7 +21,7 @@ public class PaginationTest {
         Pagination pagination = new Pagination();
         pagination.setPage(3);
         pagination.setSize(15);
-        Assertions.assertEquals("OFFSET 45 LIMIT 15", pagination.toSQLPageable());
+        Assertions.assertEquals("LIMIT 15 OFFSET 45", pagination.toSqlPageable());
     }
 
     @Test

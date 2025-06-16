@@ -18,4 +18,16 @@ public interface CRUDLBatchService<T, ID> extends CRUDLService<T, ID> {
 
     void batchDeleteAtomic(List<ID> ids);
 
+    List<BatchResultWithData<T>> batchCreate(List<T> models, int batchSize);
+
+    List<BatchResult> batchUpdate(List<T> models, int batchSize);
+
+    List<BatchResult> batchDelete(List<ID> ids, int batchSize);
+
+    List<T> batchCreateAtomic(List<T> models, int batchSize);
+
+    List<T> batchUpdateAtomic(List<T> models, int batchSize);
+
+    void batchDeleteAtomic(List<ID> ids, int batchSize);
+
 }

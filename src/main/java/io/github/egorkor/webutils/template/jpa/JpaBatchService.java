@@ -6,6 +6,8 @@ import io.github.egorkor.webutils.service.batching.BatchResult;
 import io.github.egorkor.webutils.service.batching.BatchResultWithData;
 import io.github.egorkor.webutils.service.sync.CRUDLBatchService;
 import io.github.egorkor.webutils.template.BatchResultWithDataImpl;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -18,16 +20,53 @@ import java.util.List;
 @Slf4j
 public class JpaBatchService<T, ID> extends JpaService<T, ID> implements CRUDLBatchService<T, ID> {
     protected final TransactionTemplate transactionTemplate;
+    protected final EntityManager entityManager;
+
+    private static final int DEFAULT_BATCH_SIZE = 100;
 
     public JpaBatchService(JpaRepository<T, ID> jpaRepository,
                            JpaSpecificationExecutor<T> jpaSpecificationExecutor,
-                           TransactionTemplate template) {
+                           TransactionTemplate template,
+                           EntityManager entityManager) {
         super(jpaRepository, jpaSpecificationExecutor);
         this.transactionTemplate = template;
+        this.entityManager = entityManager;
+
     }
 
     @Override
     public List<BatchResultWithData<T>> batchCreate(List<T> models) {
+        return batchCreate(models, DEFAULT_BATCH_SIZE);
+    }
+
+    @Override
+    public List<BatchResult> batchUpdate(List<T> models) {
+        return batchUpdate(models, DEFAULT_BATCH_SIZE);
+    }
+
+    @Override
+    public List<BatchResult> batchDelete(List<ID> ids) {
+        return batchDelete(ids, DEFAULT_BATCH_SIZE);
+    }
+
+    @Override
+    public List<T> batchCreateAtomic(List<T> models) {
+        return batchCreateAtomic(models, DEFAULT_BATCH_SIZE);
+    }
+
+    @Override
+    public List<T> batchUpdateAtomic(List<T> models) {
+        return batchUpdateAtomic(models, DEFAULT_BATCH_SIZE);
+
+    }
+
+    @Override
+    public void batchDeleteAtomic(List<ID> ids) {
+        batchDeleteAtomic(ids, DEFAULT_BATCH_SIZE);
+    }
+
+    @Override
+    public List<BatchResultWithData<T>> batchCreate(List<T> models, int batchSize) {
         return transactionTemplate.execute(status -> {
             List<BatchResultWithData<T>> results = new ArrayList<>();
             int counter = 0;
@@ -50,8 +89,9 @@ public class JpaBatchService<T, ID> extends JpaService<T, ID> implements CRUDLBa
                             .build();
                     results.add(result);
                 }
-                if (++counter == 50) {
+                if (++counter % batchSize == 0) {
                     jpaRepository.flush();
+                    entityManager.clear();
                 }
             }
             return results;
@@ -59,13 +99,13 @@ public class JpaBatchService<T, ID> extends JpaService<T, ID> implements CRUDLBa
     }
 
     @Override
-    public List<BatchResult> batchUpdate(List<T> models) {
+    public List<BatchResult> batchUpdate(List<T> models, int batchSize) {
         return transactionTemplate.execute(status -> {
             List<BatchResult> results = new ArrayList<>();
             int counter = 0;
             for (T model : models) {
                 try {
-                    model = this.create(model);
+                    model = this.update(model);
                     BatchResultWithDataImpl<T> result = BatchResultWithDataImpl
                             .<T>builder()
                             .data(model)
@@ -82,8 +122,9 @@ public class JpaBatchService<T, ID> extends JpaService<T, ID> implements CRUDLBa
                             .build();
                     results.add(result);
                 }
-                if (++counter == 50) {
+                if (++counter % batchSize == 0) {
                     jpaRepository.flush();
+                    entityManager.clear();
                 }
             }
             return results;
@@ -91,7 +132,7 @@ public class JpaBatchService<T, ID> extends JpaService<T, ID> implements CRUDLBa
     }
 
     @Override
-    public List<BatchResult> batchDelete(List<ID> ids) {
+    public List<BatchResult> batchDelete(List<ID> ids, int batchSize) {
         return transactionTemplate.execute(status -> {
             List<BatchResult> results = new ArrayList<>();
             int counter = 0;
@@ -111,8 +152,9 @@ public class JpaBatchService<T, ID> extends JpaService<T, ID> implements CRUDLBa
                             .build();
                     results.add(result);
                 }
-                if (++counter == 50) {
+                if (++counter % batchSize == 0) {
                     jpaRepository.flush();
+                    entityManager.clear();
                 }
             }
             return results;
@@ -121,7 +163,7 @@ public class JpaBatchService<T, ID> extends JpaService<T, ID> implements CRUDLBa
     }
 
     @Override
-    public List<T> batchCreateAtomic(List<T> models) {
+    public List<T> batchCreateAtomic(List<T> models, int batchSize) {
         return transactionTemplate.execute((status) -> {
             List<T> results = new ArrayList<>();
             int counter = 0;
@@ -133,8 +175,9 @@ public class JpaBatchService<T, ID> extends JpaService<T, ID> implements CRUDLBa
                     status.setRollbackOnly();
                     throw new BatchOperationException(e.getMessage());
                 }
-                if (++counter == 50) {
+                if (++counter % batchSize == 0) {
                     jpaRepository.flush();
+                    entityManager.clear();
                 }
             }
             return results;
@@ -142,7 +185,7 @@ public class JpaBatchService<T, ID> extends JpaService<T, ID> implements CRUDLBa
     }
 
     @Override
-    public List<T> batchUpdateAtomic(List<T> models) {
+    public List<T> batchUpdateAtomic(List<T> models, int batchSize) {
         return transactionTemplate.execute(status -> {
             List<T> results = new ArrayList<>();
             int counter = 0;
@@ -156,8 +199,9 @@ public class JpaBatchService<T, ID> extends JpaService<T, ID> implements CRUDLBa
                     status.setRollbackOnly();
                     throw new BatchOperationException(e.getMessage());
                 }
-                if (++counter == 50) {
+                if (++counter % batchSize == 0) {
                     jpaRepository.flush();
+                    entityManager.clear();
                 }
             }
             return results;
@@ -166,7 +210,7 @@ public class JpaBatchService<T, ID> extends JpaService<T, ID> implements CRUDLBa
     }
 
     @Override
-    public void batchDeleteAtomic(List<ID> ids) {
+    public void batchDeleteAtomic(List<ID> ids, int batchSize) {
         transactionTemplate.executeWithoutResult(status -> {
             int counter = 0;
             for (ID id : ids) {
@@ -179,8 +223,9 @@ public class JpaBatchService<T, ID> extends JpaService<T, ID> implements CRUDLBa
                     status.setRollbackOnly();
                     throw new BatchOperationException(e.getMessage());
                 }
-                if (++counter == 50) {
+                if (++counter % batchSize == 0) {
                     jpaRepository.flush();
+                    entityManager.clear();
                 }
             }
         });

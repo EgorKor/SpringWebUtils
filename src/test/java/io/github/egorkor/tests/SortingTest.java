@@ -1,4 +1,4 @@
-package io.github.egorkor;
+package io.github.egorkor.tests;
 
 import io.github.egorkor.webutils.query.Sorting;
 import org.junit.jupiter.api.Assertions;

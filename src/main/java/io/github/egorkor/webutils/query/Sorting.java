@@ -38,7 +38,7 @@ public class Sorting {
             if (sb.isEmpty()) {
                 sb.append("ORDER BY ");
             }
-            String[] sortParts = s.split(",");
+            String[] sortParts = s.split(":");
             sb.append(prefix)
                     .append(sortParts[0])
                     .append(" ")
@@ -56,7 +56,7 @@ public class Sorting {
             return Sort.unsorted();
         }
         List<Sort.Order> orders = sort.stream()
-                .map(s -> s.split(","))
+                .map(s -> s.split(":"))
                 .map(param -> new Sort.Order(
                         Sort.Direction.fromString(param[1].toLowerCase()),
                         param[0].toLowerCase()

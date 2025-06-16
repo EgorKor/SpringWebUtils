@@ -9,4 +9,5 @@ public class GenericErrorDto<T> {
     private T error;
     private String message;
     private int code;
+    private String date;
 }

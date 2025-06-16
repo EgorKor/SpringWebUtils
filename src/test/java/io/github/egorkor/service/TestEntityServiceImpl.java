@@ -1,5 +1,6 @@
-package io.github.egorkor;
+package io.github.egorkor.service;
 
+import io.github.egorkor.model.TestEntity;
 import io.github.egorkor.webutils.template.jpa.JpaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;

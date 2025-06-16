@@ -8,6 +8,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 
@@ -20,6 +23,7 @@ public class ApiControllerAdvice {
         return GenericErrorDto.<Void>builder()
                 .code(500)
                 .message(e.getMessage())
+                .date(LocalDateTime.ofInstant(Instant.now(), ZoneId.of("UTC")).toString())
                 .build();
     }
 
@@ -29,6 +33,7 @@ public class ApiControllerAdvice {
         return GenericErrorDto.<Map<String, List<String>>>builder()
                 .error(e.getErrors())
                 .message(e.getMessage())
+                .date(LocalDateTime.ofInstant(Instant.now(), ZoneId.of("UTC")).toString())
                 .build();
     }
 
@@ -38,6 +43,7 @@ public class ApiControllerAdvice {
         return GenericErrorDto.<Void>builder()
                 .code(404)
                 .message(e.getMessage())
+                .date(LocalDateTime.ofInstant(Instant.now(), ZoneId.of("UTC")).toString())
                 .build();
     }
 

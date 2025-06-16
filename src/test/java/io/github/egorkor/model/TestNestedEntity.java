@@ -1,4 +1,4 @@
-package io.github.egorkor;
+package io.github.egorkor.model;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;

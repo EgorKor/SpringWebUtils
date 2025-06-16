@@ -7,8 +7,8 @@
 
     <persistence-unit name="test-pu" transaction-type="RESOURCE_LOCAL">
         <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
-        <class>io.github.egorkor.TestEntity</class>
-        <class>io.github.egorkor.TestNestedEntity</class>
+        <class>io.github.egorkor.model.TestEntity</class>
+        <class>io.github.egorkor.model.TestNestedEntity</class>
         <properties>
             <property name="javax.persistence.jdbc.url" value="jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1"/>
             <property name="javax.persistence.jdbc.driver" value="org.h2.Driver"/>

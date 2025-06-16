@@ -1,5 +1,7 @@
-package io.github.egorkor;
+package io.github.egorkor.tests;
 
+import io.github.egorkor.model.TestEntity;
+import io.github.egorkor.model.TestNestedEntity;
 import io.github.egorkor.webutils.query.Filter;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
