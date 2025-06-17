@@ -8,9 +8,9 @@ import java.util.List;
 public interface CRUDLBatchService<T, ID> extends CRUDLService<T, ID> {
     List<BatchResultWithData<T>> batchCreate(List<T> models);
 
-    List<BatchResult> batchUpdate(List<T> models);
+    List<BatchResultWithData<T>> batchUpdate(List<T> models);
 
-    List<BatchResult> batchDelete(List<ID> ids);
+    List<BatchResultWithData<ID>> batchDelete(List<ID> ids);
 
     List<T> batchCreateAtomic(List<T> models);
 
@@ -20,9 +20,9 @@ public interface CRUDLBatchService<T, ID> extends CRUDLService<T, ID> {
 
     List<BatchResultWithData<T>> batchCreate(List<T> models, int batchSize);
 
-    List<BatchResult> batchUpdate(List<T> models, int batchSize);
+    List<BatchResultWithData<T>> batchUpdate(List<T> models, int batchSize);
 
-    List<BatchResult> batchDelete(List<ID> ids, int batchSize);
+    List<BatchResultWithData<ID>> batchDelete(List<ID> ids, int batchSize);
 
     List<T> batchCreateAtomic(List<T> models, int batchSize);
 

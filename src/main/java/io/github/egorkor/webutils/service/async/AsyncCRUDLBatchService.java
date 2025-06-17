@@ -17,13 +17,13 @@ public interface AsyncCRUDLBatchService<T, ID> extends AsyncCRUDLService<T, ID> 
      * Асинхронное пакетное обновление, выполняется не атомарно, при провале
      * одной операции, выполнение продолжается
      */
-    CompletableFuture<List<BatchResult>> batchUpdateAsync(List<T> models);
+    CompletableFuture<List<BatchResultWithData<T>>> batchUpdateAsync(List<T> models);
 
     /**
      * Асинхронное пакетное удаление, выполняется не атомарно, при провале
      * одной операции, выполнение продолжается
      */
-    CompletableFuture<List<BatchResult>> batchDeleteAsync(List<ID> ids);
+    CompletableFuture<List<BatchResultWithData<ID>>> batchDeleteAsync(List<ID> ids);
 
     /**
      * Асинхронное атомарное сохранение, при провале одной операции
@@ -53,13 +53,13 @@ public interface AsyncCRUDLBatchService<T, ID> extends AsyncCRUDLService<T, ID> 
      * Асинхронное пакетное обновление, выполняется не атомарно, при провале
      * одной операции, выполнение продолжается
      */
-    CompletableFuture<List<BatchResult>> batchUpdateAsync(List<T> models, int batchSize);
+    CompletableFuture<List<BatchResultWithData<T>>> batchUpdateAsync(List<T> models, int batchSize);
 
     /**
      * Асинхронное пакетное удаление, выполняется не атомарно, при провале
      * одной операции, выполнение продолжается
      */
-    CompletableFuture<List<BatchResult>> batchDeleteAsync(List<ID> ids, int batchSize);
+    CompletableFuture<List<BatchResultWithData<ID>>> batchDeleteAsync(List<ID> ids, int batchSize);
 
     /**
      * Асинхронное атомарное сохранение, при провале одной операции

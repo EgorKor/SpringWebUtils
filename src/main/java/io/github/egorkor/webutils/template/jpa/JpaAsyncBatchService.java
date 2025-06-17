@@ -4,6 +4,7 @@ import io.github.egorkor.webutils.service.async.AsyncCRUDLBatchService;
 import io.github.egorkor.webutils.service.batching.BatchResult;
 import io.github.egorkor.webutils.service.batching.BatchResultWithData;
 import jakarta.persistence.EntityManager;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.scheduling.annotation.Async;
@@ -22,28 +23,30 @@ public class JpaAsyncBatchService<T, ID> extends JpaAsyncService<T, ID>
     public JpaAsyncBatchService(JpaRepository<T, ID> jpaRepository,
                                 JpaSpecificationExecutor<T> jpaSpecificationExecutor,
                                 TransactionTemplate transactionTemplate,
+                                ApplicationEventPublisher publisher,
                                 EntityManager entityManager) {
-        super(jpaRepository, jpaSpecificationExecutor, transactionTemplate);
-        this.batchService = new JpaBatchService<>(jpaRepository, jpaSpecificationExecutor, transactionTemplate, entityManager);
+        super(jpaRepository, jpaSpecificationExecutor, publisher, transactionTemplate);
+        batchService = new JpaBatchService<>(jpaRepository, jpaSpecificationExecutor, publisher, transactionTemplate, entityManager);
     }
+
 
     @Async
     @Override
     public CompletableFuture<List<BatchResultWithData<T>>> batchCreateAsync(List<T> models, int batchSize) {
         return CompletableFuture.supplyAsync(
-                () ->batchService.batchCreate(models, batchSize));
+                () -> batchService.batchCreate(models, batchSize));
     }
 
 
     @Async
     @Override
-    public CompletableFuture<List<BatchResult>> batchUpdateAsync(List<T> models, int batchSize) {
+    public CompletableFuture<List<BatchResultWithData<T>>> batchUpdateAsync(List<T> models, int batchSize) {
         return CompletableFuture.supplyAsync(() -> batchService.batchUpdate(models, batchSize));
     }
 
     @Async
     @Override
-    public CompletableFuture<List<BatchResult>> batchDeleteAsync(List<ID> ids, int batchSize) {
+    public CompletableFuture<List<BatchResultWithData<ID>>> batchDeleteAsync(List<ID> ids, int batchSize) {
         return CompletableFuture.supplyAsync(() -> batchService.batchDelete(ids, batchSize));
 
     }
@@ -60,7 +63,7 @@ public class JpaAsyncBatchService<T, ID> extends JpaAsyncService<T, ID>
 
     @Override
     public CompletableFuture<Void> batchDeleteAtomicAsync(List<ID> ids, int batchSize) {
-        return CompletableFuture.runAsync(() ->  batchService.batchDeleteAtomic(ids, batchSize));
+        return CompletableFuture.runAsync(() -> batchService.batchDeleteAtomic(ids, batchSize));
     }
 
     @Override
@@ -69,12 +72,12 @@ public class JpaAsyncBatchService<T, ID> extends JpaAsyncService<T, ID>
     }
 
     @Override
-    public CompletableFuture<List<BatchResult>> batchUpdateAsync(List<T> models) {
+    public CompletableFuture<List<BatchResultWithData<T>>> batchUpdateAsync(List<T> models) {
         return batchUpdateAsync(models, DEFAULT_BATCH_SIZE);
     }
 
     @Override
-    public CompletableFuture<List<BatchResult>> batchDeleteAsync(List<ID> ids) {
+    public CompletableFuture<List<BatchResultWithData<ID>>> batchDeleteAsync(List<ID> ids) {
         return batchDeleteAsync(ids, DEFAULT_BATCH_SIZE);
     }
 

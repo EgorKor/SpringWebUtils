@@ -8,6 +8,7 @@ import io.github.egorkor.webutils.query.Sorting;
 import io.github.egorkor.webutils.service.async.AsyncCRUDLService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.scheduling.annotation.Async;
@@ -19,18 +20,29 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 
-@RequiredArgsConstructor
 public class JpaAsyncService<T, ID> implements AsyncCRUDLService<T, ID> {
     protected final JpaRepository<T, ID> jpaRepository;
     protected final JpaSpecificationExecutor<T> jpaSpecificationExecutor;
     protected final TransactionTemplate transactionTemplate;
-    private Class<T> type;
+    protected final ApplicationEventPublisher applicationEventPublisher;
+    protected final JpaService<T, ID> jpaService;
+    protected Class<T> type;
 
-    {
-        Type superclass = getClass().getGenericSuperclass();
-        ParameterizedType parameterizedType = (ParameterizedType) superclass;
-        Type typeArgument = parameterizedType.getActualTypeArguments()[0];
-        this.type = (Class<T>) typeArgument;
+    public JpaAsyncService(JpaRepository<T, ID> jpaRepository,
+                           JpaSpecificationExecutor<T> jpaSpecificationExecutor,
+                           ApplicationEventPublisher applicationEventPublisher,
+                           TransactionTemplate transactionTemplate) {
+        this.jpaRepository = jpaRepository;
+        this.jpaSpecificationExecutor = jpaSpecificationExecutor;
+        this.transactionTemplate = transactionTemplate;
+        this.applicationEventPublisher = applicationEventPublisher;
+        this.jpaService = new JpaService<>(jpaRepository, jpaSpecificationExecutor, applicationEventPublisher, transactionTemplate);
+        {
+            Type superclass = getClass().getGenericSuperclass();
+            ParameterizedType parameterizedType = (ParameterizedType) superclass;
+            Type typeArgument = parameterizedType.getActualTypeArguments()[0];
+            this.type = (Class<T>) typeArgument;
+        }
     }
 
     private String getEntityName() {
@@ -40,49 +52,30 @@ public class JpaAsyncService<T, ID> implements AsyncCRUDLService<T, ID> {
     @Async
     @Override
     public CompletableFuture<PageableResult<List<T>>> getAllAsync(Filter<T> filter, Sorting sorting, Pagination pagination) {
-        return CompletableFuture.supplyAsync(() ->
-                transactionTemplate.execute(status ->
-                        PageableResult.of(
-                                jpaSpecificationExecutor.findAll(filter, pagination.toJpaPageable(sorting)).toList(),
-                                jpaSpecificationExecutor.count(filter),
-                                pagination.getSize()
-                        ))
-        );
+        return CompletableFuture.supplyAsync(() -> jpaService.getAll(filter, sorting, pagination));
     }
 
     @Async
     @Override
     public CompletableFuture<T> getByIdAsync(ID id) {
-        return CompletableFuture.supplyAsync(() ->
-                transactionTemplate.execute(status ->
-                        jpaRepository.findById(id).orElseThrow(() ->
-                                new ResourceNotFoundException("Сущность " + getEntityName()
-                                        + " c id = " + id + " не найдена."))
-                )
-        );
+        return CompletableFuture.supplyAsync(() -> jpaService.getById(id));
     }
 
     @Async
     @Override
     public CompletableFuture<T> createAsync(T model) {
-        return CompletableFuture.supplyAsync(
-                () -> transactionTemplate.execute(status -> jpaRepository.save(model))
-        );
+        return CompletableFuture.supplyAsync(() -> jpaService.create(model));
     }
 
     @Async
     @Override
     public CompletableFuture<T> updateAsync(T model) {
-        return CompletableFuture.supplyAsync(
-                () -> transactionTemplate.execute(status -> jpaRepository.save(model))
-        );
+        return CompletableFuture.supplyAsync(() -> jpaService.update(model));
     }
 
     @Async
     @Override
     public CompletableFuture<Void> deleteAsync(ID id) {
-        return CompletableFuture.runAsync(
-                () -> transactionTemplate.executeWithoutResult(status -> jpaRepository.deleteById(id))
-        );
+        return CompletableFuture.runAsync(() -> jpaService.delete(id));
     }
 }

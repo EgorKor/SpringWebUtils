@@ -1,15 +1,14 @@
 package io.github.egorkor.webutils.template.jpa;
 
+import io.github.egorkor.webutils.event.batching.*;
 import io.github.egorkor.webutils.exception.BatchOperationException;
 import io.github.egorkor.webutils.service.batching.BatchOperationStatus;
-import io.github.egorkor.webutils.service.batching.BatchResult;
 import io.github.egorkor.webutils.service.batching.BatchResultWithData;
 import io.github.egorkor.webutils.service.sync.CRUDLBatchService;
 import io.github.egorkor.webutils.template.BatchResultWithDataImpl;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityManagerFactory;
-import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -19,17 +18,16 @@ import java.util.List;
 
 @Slf4j
 public class JpaBatchService<T, ID> extends JpaService<T, ID> implements CRUDLBatchService<T, ID> {
-    protected final TransactionTemplate transactionTemplate;
     protected final EntityManager entityManager;
 
     private static final int DEFAULT_BATCH_SIZE = 100;
 
     public JpaBatchService(JpaRepository<T, ID> jpaRepository,
                            JpaSpecificationExecutor<T> jpaSpecificationExecutor,
+                           ApplicationEventPublisher applicationEventPublisher,
                            TransactionTemplate template,
                            EntityManager entityManager) {
-        super(jpaRepository, jpaSpecificationExecutor);
-        this.transactionTemplate = template;
+        super(jpaRepository, jpaSpecificationExecutor, applicationEventPublisher, template);
         this.entityManager = entityManager;
 
     }
@@ -40,12 +38,12 @@ public class JpaBatchService<T, ID> extends JpaService<T, ID> implements CRUDLBa
     }
 
     @Override
-    public List<BatchResult> batchUpdate(List<T> models) {
+    public List<BatchResultWithData<T>> batchUpdate(List<T> models) {
         return batchUpdate(models, DEFAULT_BATCH_SIZE);
     }
 
     @Override
-    public List<BatchResult> batchDelete(List<ID> ids) {
+    public List<BatchResultWithData<ID>> batchDelete(List<ID> ids) {
         return batchDelete(ids, DEFAULT_BATCH_SIZE);
     }
 
@@ -67,12 +65,15 @@ public class JpaBatchService<T, ID> extends JpaService<T, ID> implements CRUDLBa
 
     @Override
     public List<BatchResultWithData<T>> batchCreate(List<T> models, int batchSize) {
-        return transactionTemplate.execute(status -> {
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new BatchCreatingEvent<>(this, models));
+        }
+        var batchResult = transactionTemplate.execute(status -> {
             List<BatchResultWithData<T>> results = new ArrayList<>();
             int counter = 0;
             for (T model : models) {
                 try {
-                    model = this.create(model);
+                    model = jpaRepository.save(model);
                     BatchResultWithDataImpl<T> result = BatchResultWithDataImpl
                             .<T>builder()
                             .data(model)
@@ -90,27 +91,35 @@ public class JpaBatchService<T, ID> extends JpaService<T, ID> implements CRUDLBa
                     results.add(result);
                 }
                 if (++counter % batchSize == 0) {
-                    jpaRepository.flush();
+                    entityManager.flush();
                     entityManager.clear();
                 }
             }
             return results;
         });
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new BatchCreatedEvent<>(this, batchResult));
+        }
+        return batchResult;
     }
 
     @Override
-    public List<BatchResult> batchUpdate(List<T> models, int batchSize) {
-        return transactionTemplate.execute(status -> {
-            List<BatchResult> results = new ArrayList<>();
+    public List<BatchResultWithData<T>> batchUpdate(List<T> models, int batchSize) {
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new BatchUpdatingEvent(this, models));
+        }
+        var batchResult = transactionTemplate.execute(status -> {
+            List<BatchResultWithData<T>> results = new ArrayList<>();
             int counter = 0;
             for (T model : models) {
                 try {
-                    model = this.update(model);
+                    model = jpaRepository.save(model);
                     BatchResultWithDataImpl<T> result = BatchResultWithDataImpl
                             .<T>builder()
                             .data(model)
                             .status(BatchOperationStatus.SUCCESS)
                             .message("updated")
+                            .data(model)
                             .build();
                     results.add(result);
                 } catch (Exception e) {
@@ -123,24 +132,32 @@ public class JpaBatchService<T, ID> extends JpaService<T, ID> implements CRUDLBa
                     results.add(result);
                 }
                 if (++counter % batchSize == 0) {
-                    jpaRepository.flush();
+                    entityManager.flush();
                     entityManager.clear();
                 }
             }
             return results;
         });
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new BatchUpdatedEvent<>(this, batchResult));
+        }
+        return batchResult;
     }
 
     @Override
-    public List<BatchResult> batchDelete(List<ID> ids, int batchSize) {
-        return transactionTemplate.execute(status -> {
-            List<BatchResult> results = new ArrayList<>();
+    public List<BatchResultWithData<ID>> batchDelete(List<ID> ids, int batchSize) {
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new BatchDeletingEvent<>(this, ids, entityType));
+        }
+        var batchResult = transactionTemplate.execute(status -> {
+            List<BatchResultWithData<ID>> results = new ArrayList<>();
             int counter = 0;
             for (ID id : ids) {
                 try {
                     jpaRepository.deleteById(id);
                     BatchResultWithDataImpl result = BatchResultWithDataImpl.builder()
                             .message("deleted")
+                            .data(id)
                             .status(BatchOperationStatus.SUCCESS)
                             .build();
                     results.add(result);
@@ -153,45 +170,58 @@ public class JpaBatchService<T, ID> extends JpaService<T, ID> implements CRUDLBa
                     results.add(result);
                 }
                 if (++counter % batchSize == 0) {
-                    jpaRepository.flush();
+                    entityManager.flush();
                     entityManager.clear();
                 }
             }
             return results;
         });
-
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new BatchDeletedEvent<>(this, batchResult, entityType));
+        }
+        return batchResult;
     }
 
     @Override
     public List<T> batchCreateAtomic(List<T> models, int batchSize) {
-        return transactionTemplate.execute((status) -> {
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new BatchCreatingEvent<>(this, models));
+        }
+        var batchResults = transactionTemplate.execute((status) -> {
             List<T> results = new ArrayList<>();
             int counter = 0;
             for (T model : models) {
                 try {
-                    results.add(this.create(model));
+                    results.add(jpaRepository.save(model));
                 } catch (Exception e) {
                     log.error("create operation fails for entity: {} \ncause: {}", model.toString(), e.getMessage());
                     status.setRollbackOnly();
                     throw new BatchOperationException(e.getMessage());
                 }
                 if (++counter % batchSize == 0) {
-                    jpaRepository.flush();
+                    entityManager.flush();
                     entityManager.clear();
                 }
             }
             return results;
         });
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new BatchCreatedAtomicEvent<>(this, batchResults));
+        }
+        return batchResults;
     }
 
     @Override
     public List<T> batchUpdateAtomic(List<T> models, int batchSize) {
-        return transactionTemplate.execute(status -> {
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new BatchUpdatingEvent(this, models));
+        }
+        var batchResult = transactionTemplate.execute(status -> {
             List<T> results = new ArrayList<>();
             int counter = 0;
             for (T model : models) {
                 try {
-                    results.add(this.create(model));
+                    results.add(jpaRepository.save(model));
                 } catch (Exception e) {
                     log.error("update operation fails for entity: {} \ncause: {}",
                             model.toString(),
@@ -200,17 +230,23 @@ public class JpaBatchService<T, ID> extends JpaService<T, ID> implements CRUDLBa
                     throw new BatchOperationException(e.getMessage());
                 }
                 if (++counter % batchSize == 0) {
-                    jpaRepository.flush();
+                    entityManager.flush();
                     entityManager.clear();
                 }
             }
             return results;
         });
-
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new BatchUpdatedAtomicEvent<>(this, batchResult));
+        }
+        return batchResult;
     }
 
     @Override
     public void batchDeleteAtomic(List<ID> ids, int batchSize) {
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new BatchDeletingEvent<>(this, ids, entityType));
+        }
         transactionTemplate.executeWithoutResult(status -> {
             int counter = 0;
             for (ID id : ids) {
@@ -229,6 +265,9 @@ public class JpaBatchService<T, ID> extends JpaService<T, ID> implements CRUDLBa
                 }
             }
         });
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new BatchDeletedAtomicEvent<>(this, ids, entityType));
+        }
 
     }
 }
