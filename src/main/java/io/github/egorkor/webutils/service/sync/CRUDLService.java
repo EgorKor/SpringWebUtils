@@ -14,7 +14,22 @@ public interface CRUDLService<T, ID> {
 
     T create(T model);
 
-    T update(T model);
+    T fullUpdate(T model);
+
+    T patchUpdate(ID id, T model);
 
     void delete(ID id);
+
+    long count(Filter<T> filter);
+
+    long count();
+
+    boolean exists(ID id);
+
+    boolean exists(Filter<T> filter);
+
+    void softDelete(ID id);
+
+    void restore(ID id);
+
 }

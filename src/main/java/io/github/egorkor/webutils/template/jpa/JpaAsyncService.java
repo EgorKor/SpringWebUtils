@@ -1,13 +1,10 @@
 package io.github.egorkor.webutils.template.jpa;
 
-import io.github.egorkor.webutils.exception.ResourceNotFoundException;
 import io.github.egorkor.webutils.query.Filter;
 import io.github.egorkor.webutils.query.PageableResult;
 import io.github.egorkor.webutils.query.Pagination;
 import io.github.egorkor.webutils.query.Sorting;
 import io.github.egorkor.webutils.service.async.AsyncCRUDLService;
-import jakarta.transaction.Transactional;
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -70,7 +67,7 @@ public class JpaAsyncService<T, ID> implements AsyncCRUDLService<T, ID> {
     @Async
     @Override
     public CompletableFuture<T> updateAsync(T model) {
-        return CompletableFuture.supplyAsync(() -> jpaService.update(model));
+        return CompletableFuture.supplyAsync(() -> jpaService.fullUpdate(model));
     }
 
     @Async
