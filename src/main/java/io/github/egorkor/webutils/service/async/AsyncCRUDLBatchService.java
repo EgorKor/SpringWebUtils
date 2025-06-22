@@ -1,6 +1,5 @@
 package io.github.egorkor.webutils.service.async;
 
-import io.github.egorkor.webutils.service.batching.BatchResult;
 import io.github.egorkor.webutils.service.batching.BatchResultWithData;
 
 import java.util.List;

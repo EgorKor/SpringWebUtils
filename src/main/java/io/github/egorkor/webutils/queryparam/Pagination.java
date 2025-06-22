@@ -1,6 +1,8 @@
-package io.github.egorkor.webutils.query;
+package io.github.egorkor.webutils.queryparam;
 
 
+import io.github.egorkor.webutils.queryparam.utils.DatabaseType;
+import io.github.egorkor.webutils.queryparam.utils.DriverUtils;
 import lombok.Data;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;

@@ -2,7 +2,7 @@ package io.github.egorkor.tests;
 
 import io.github.egorkor.model.TestEntity;
 import io.github.egorkor.model.TestNestedEntity;
-import io.github.egorkor.webutils.query.Filter;
+import io.github.egorkor.webutils.queryparam.Filter;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.Persistence;
@@ -11,6 +11,7 @@ import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
 import org.junit.jupiter.api.*;
 
+import java.util.Arrays;
 import java.util.List;
 
 public class FilterTest {
@@ -56,7 +57,7 @@ public class FilterTest {
         Filter<TestEntity> filter = new Filter<>();
         filter.setFilter(
                 List.of(
-                        "id:=:10", "name:like:some name","isDeleted:is:true"
+                        "id:=:10", "name:like:some name", "isDeleted:is:true"
                 )
         );
         CriteriaBuilder cb = em.getCriteriaBuilder();
@@ -92,23 +93,27 @@ public class FilterTest {
         Filter<TestEntity> filter = new Filter<>();
         filter.setFilter(
                 List.of(
-                        "id:=:10", "name:like:some name"
+                        "id:=:10", "name:like:%some name!%"
                 )
         );
         System.out.println(filter.toSQLFilter());
-        Assertions.assertEquals("WHERE id = '10' AND name LIKE %some name%",
+        System.out.println(Arrays.toString(filter.getFilterValues()));
+        Assertions.assertEquals("WHERE id = ? AND name LIKE ? ESCAPE '!'",
                 filter.toSQLFilter().trim());
+        Assertions.assertArrayEquals(new Object[]{"10", "%!%some name!!!%%"}, filter.getFilterValues());
     }
 
     @Test
     void testFilterSQL2() {
         Filter<TestNestedEntity> filter = new Filter<>();
         filter.setFilter(
-                List.of("id:!=:10")
+                List.of("id:!=:10", "id:is:not_null")
         );
         System.out.println(filter.toSQLFilter());
-        Assertions.assertEquals("WHERE id <> '10'",
+        System.out.println(Arrays.toString(filter.getFilterValues()));
+        Assertions.assertEquals("WHERE id <> ? AND id IS NOT NULL",
                 filter.toSQLFilter().trim());
+        Assertions.assertArrayEquals(new Object[]{"10", "NOT NULL"}, filter.getFilterValues());
     }
 
     @Test
@@ -118,8 +123,10 @@ public class FilterTest {
                 List.of("id:IN:10;15;23")
         );
         System.out.println(filter.toSQLFilter());
-        Assertions.assertEquals("WHERE id IN ( '10' , '15' , '23' )"
+        System.out.println(Arrays.toString(filter.getFilterValues()));
+        Assertions.assertEquals("WHERE id IN (?,?,?)"
                 , filter.toSQLFilter().trim());
+        Assertions.assertArrayEquals(new Object[]{"'10'", "'15'", "'23'"}, filter.getFilterValues());
     }
 
 

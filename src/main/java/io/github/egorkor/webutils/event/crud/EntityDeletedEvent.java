@@ -4,7 +4,7 @@ import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
 
 @Getter
-public class EntityDeletedEvent<T,ID> extends ApplicationEvent {
+public class EntityDeletedEvent<T, ID> extends ApplicationEvent {
     private final ID id;
     private final Class<T> entityType;
 

@@ -1,7 +1,7 @@
 package io.github.egorkor.tests;
 
-import io.github.egorkor.webutils.query.PageableResult;
-import io.github.egorkor.webutils.query.Pagination;
+import io.github.egorkor.webutils.queryparam.PageableResult;
+import io.github.egorkor.webutils.queryparam.Pagination;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 

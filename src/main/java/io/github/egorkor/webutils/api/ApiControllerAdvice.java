@@ -1,6 +1,8 @@
 package io.github.egorkor.webutils.api;
 
+import io.github.egorkor.webutils.dto.EntityProcessingErrorDto;
 import io.github.egorkor.webutils.dto.GenericErrorDto;
+import io.github.egorkor.webutils.exception.EntityProcessingException;
 import io.github.egorkor.webutils.exception.ResourceNotFoundException;
 import io.github.egorkor.webutils.exception.ValidationException;
 import org.springframework.http.HttpStatus;
@@ -42,6 +44,18 @@ public class ApiControllerAdvice {
     public GenericErrorDto<Void> handleNotFoundException(ResourceNotFoundException e) {
         return GenericErrorDto.<Void>builder()
                 .code(404)
+                .message(e.getMessage())
+                .date(LocalDateTime.ofInstant(Instant.now(), ZoneId.of("UTC")).toString())
+                .build();
+    }
+
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    @ExceptionHandler
+    public GenericErrorDto<EntityProcessingErrorDto> handleEntityProcessingException(EntityProcessingException e) {
+        String detailedMessage = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
+        return GenericErrorDto.<EntityProcessingErrorDto>builder()
+                .code(422)
+                .error(new EntityProcessingErrorDto(e.getEntityType().getName(), e.getOperation(), detailedMessage))
                 .message(e.getMessage())
                 .date(LocalDateTime.ofInstant(Instant.now(), ZoneId.of("UTC")).toString())
                 .build();

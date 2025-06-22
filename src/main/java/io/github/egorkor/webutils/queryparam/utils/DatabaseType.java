@@ -1,4 +1,4 @@
-package io.github.egorkor.webutils.query;
+package io.github.egorkor.webutils.queryparam.utils;
 
 import lombok.Getter;
 

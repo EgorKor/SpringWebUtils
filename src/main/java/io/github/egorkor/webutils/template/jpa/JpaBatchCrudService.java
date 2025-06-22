@@ -4,10 +4,12 @@ import io.github.egorkor.webutils.event.batching.*;
 import io.github.egorkor.webutils.exception.BatchOperationException;
 import io.github.egorkor.webutils.service.batching.BatchOperationStatus;
 import io.github.egorkor.webutils.service.batching.BatchResultWithData;
-import io.github.egorkor.webutils.service.sync.CRUDLBatchService;
+import io.github.egorkor.webutils.service.sync.CrudBatchService;
 import io.github.egorkor.webutils.template.BatchResultWithDataImpl;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -17,20 +19,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
-public class JpaBatchService<T, ID> extends JpaService<T, ID> implements CRUDLBatchService<T, ID> {
-    protected final EntityManager entityManager;
-
+public abstract class JpaBatchCrudService<T, ID>
+        extends JpaCrudService<T, ID>
+        implements CrudBatchService<T, ID>, InitializingBean {
     private static final int DEFAULT_BATCH_SIZE = 100;
 
-    public JpaBatchService(JpaRepository<T, ID> jpaRepository,
-                           JpaSpecificationExecutor<T> jpaSpecificationExecutor,
-                           ApplicationEventPublisher applicationEventPublisher,
-                           TransactionTemplate template,
-                           EntityManager entityManager) {
-        super(jpaRepository, jpaSpecificationExecutor, applicationEventPublisher, template);
-        this.entityManager = entityManager;
+    private EntityManager entityManager;
 
+    public JpaBatchCrudService(JpaRepository<T, ID> jpaRepository,
+                               JpaSpecificationExecutor<T> jpaSpecificationExecutor,
+                               ApplicationEventPublisher eventPublisher,
+                               TransactionTemplate transactionTemplate) {
+        super(jpaRepository, jpaSpecificationExecutor, eventPublisher, transactionTemplate);
     }
+
 
     @Override
     public List<BatchResultWithData<T>> batchCreate(List<T> models) {
@@ -270,4 +272,5 @@ public class JpaBatchService<T, ID> extends JpaService<T, ID> implements CRUDLBa
         }
 
     }
+
 }

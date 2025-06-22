@@ -1,8 +1,11 @@
-package io.github.egorkor.webutils.query;
+package io.github.egorkor.webutils.queryparam;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.ToString;
+import org.springframework.data.domain.Page;
 
+import java.util.List;
 import java.util.function.Function;
 
 /**
@@ -22,13 +25,22 @@ import java.util.function.Function;
  */
 @Getter
 @AllArgsConstructor
+@ToString
 public class PageableResult<T> {
-    private T data;
+    private List<T> data;
     private long count;
     private long pageCount;
     private long pageSize;
 
-    public static <T> PageableResult<T> of(T data, long count, long pageSize) {
+    public static <T> PageableResult<T> of(Page<T> page) {
+        return of(page.stream().toList(), page.getTotalElements(), page.getTotalPages(), page.getSize());
+    }
+
+    public static <T> PageableResult<T> of(List<T> data, long totalElements, long pageCount, long pageSize) {
+        return new PageableResult<>(data, totalElements, pageCount, pageSize);
+    }
+
+    public static <T> PageableResult<T> of(List<T> data, long count, long pageSize) {
         return new PageableResult<>(data, count, countPages(count, pageSize), pageSize);
     }
 
@@ -36,7 +48,7 @@ public class PageableResult<T> {
         return (int) Math.ceil((double) count / pageSize);
     }
 
-    public <R> PageableResult<R> map(Function<? super T, ? extends R> mapper) {
+    public <R> PageableResult<R> map(Function<? super List<T>, ? extends List<R>> mapper) {
         return new PageableResult<>(mapper.apply(data), count, pageCount, pageSize);
     }
 }

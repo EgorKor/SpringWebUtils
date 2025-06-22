@@ -1,7 +1,6 @@
-package io.github.egorkor.webutils.query;
+package io.github.egorkor.webutils.queryparam.utils;
 
 import java.sql.DriverManager;
-import java.sql.SQLException;
 import java.util.Enumeration;
 
 

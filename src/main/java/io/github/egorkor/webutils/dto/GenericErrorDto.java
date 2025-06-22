@@ -8,6 +8,6 @@ import lombok.Data;
 public class GenericErrorDto<T> {
     private T error;
     private String message;
-    private int code;
+    private Integer code;
     private String date;
 }

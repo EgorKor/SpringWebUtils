@@ -1,4 +1,4 @@
-package io.github.egorkor.webutils.query;
+package io.github.egorkor.webutils.queryparam;
 
 import lombok.Data;
 import org.springframework.data.domain.Sort;

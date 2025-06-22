@@ -1,10 +1,11 @@
 package io.github.egorkor.webutils.template.jpa;
 
-import io.github.egorkor.webutils.query.Filter;
-import io.github.egorkor.webutils.query.PageableResult;
-import io.github.egorkor.webutils.query.Pagination;
-import io.github.egorkor.webutils.query.Sorting;
+import io.github.egorkor.webutils.queryparam.Filter;
+import io.github.egorkor.webutils.queryparam.PageableResult;
+import io.github.egorkor.webutils.queryparam.Pagination;
+import io.github.egorkor.webutils.queryparam.Sorting;
 import io.github.egorkor.webutils.service.async.AsyncCRUDLService;
+import jakarta.persistence.EntityManager;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -17,30 +18,14 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 
-public class JpaAsyncService<T, ID> implements AsyncCRUDLService<T, ID> {
-    protected final JpaRepository<T, ID> jpaRepository;
-    protected final JpaSpecificationExecutor<T> jpaSpecificationExecutor;
-    protected final TransactionTemplate transactionTemplate;
-    protected final ApplicationEventPublisher applicationEventPublisher;
-    protected final JpaService<T, ID> jpaService;
+public abstract class JpaAsyncService<T, ID> extends JpaCrudService<T,ID> implements AsyncCRUDLService<T, ID> {
+    protected EntityManager entityManager;
     protected Class<T> type;
 
-    public JpaAsyncService(JpaRepository<T, ID> jpaRepository,
-                           JpaSpecificationExecutor<T> jpaSpecificationExecutor,
-                           ApplicationEventPublisher applicationEventPublisher,
-                           TransactionTemplate transactionTemplate) {
-        this.jpaRepository = jpaRepository;
-        this.jpaSpecificationExecutor = jpaSpecificationExecutor;
-        this.transactionTemplate = transactionTemplate;
-        this.applicationEventPublisher = applicationEventPublisher;
-        this.jpaService = new JpaService<>(jpaRepository, jpaSpecificationExecutor, applicationEventPublisher, transactionTemplate);
-        {
-            Type superclass = getClass().getGenericSuperclass();
-            ParameterizedType parameterizedType = (ParameterizedType) superclass;
-            Type typeArgument = parameterizedType.getActualTypeArguments()[0];
-            this.type = (Class<T>) typeArgument;
-        }
+    public JpaAsyncService(JpaRepository<T, ID> jpaRepository, JpaSpecificationExecutor<T> jpaSpecificationExecutor, ApplicationEventPublisher eventPublisher, TransactionTemplate transactionTemplate) {
+        super(jpaRepository, jpaSpecificationExecutor, eventPublisher, transactionTemplate);
     }
+
 
     private String getEntityName() {
         return type == null ? "" : type.getSimpleName();
@@ -48,31 +33,31 @@ public class JpaAsyncService<T, ID> implements AsyncCRUDLService<T, ID> {
 
     @Async
     @Override
-    public CompletableFuture<PageableResult<List<T>>> getAllAsync(Filter<T> filter, Sorting sorting, Pagination pagination) {
-        return CompletableFuture.supplyAsync(() -> jpaService.getAll(filter, sorting, pagination));
+    public CompletableFuture<PageableResult<T>> getAllAsync(Filter<T> filter, Sorting sorting, Pagination pagination) {
+        return CompletableFuture.supplyAsync(() -> this.getAll(filter, sorting, pagination));
     }
 
     @Async
     @Override
     public CompletableFuture<T> getByIdAsync(ID id) {
-        return CompletableFuture.supplyAsync(() -> jpaService.getById(id));
+        return CompletableFuture.supplyAsync(() -> this.getById(id));
     }
 
     @Async
     @Override
     public CompletableFuture<T> createAsync(T model) {
-        return CompletableFuture.supplyAsync(() -> jpaService.create(model));
+        return CompletableFuture.supplyAsync(() -> this.create(model));
     }
 
     @Async
     @Override
     public CompletableFuture<T> updateAsync(T model) {
-        return CompletableFuture.supplyAsync(() -> jpaService.fullUpdate(model));
+        return CompletableFuture.supplyAsync(() -> this.fullUpdate(model));
     }
 
     @Async
     @Override
     public CompletableFuture<Void> deleteAsync(ID id) {
-        return CompletableFuture.runAsync(() -> jpaService.delete(id));
+        return CompletableFuture.runAsync(() -> this.deleteById(id));
     }
 }

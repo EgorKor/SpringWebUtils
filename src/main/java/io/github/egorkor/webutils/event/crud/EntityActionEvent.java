@@ -7,7 +7,7 @@ import org.springframework.context.ApplicationEvent;
 public class EntityActionEvent<T> extends ApplicationEvent {
     private final T entity;
 
-    public EntityActionEvent(Object source,T entity) {
+    public EntityActionEvent(Object source, T entity) {
         super(source);
         this.entity = entity;
     }

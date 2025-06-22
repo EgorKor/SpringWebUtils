@@ -1,6 +1,6 @@
 package io.github.egorkor.tests;
 
-import io.github.egorkor.webutils.query.Sorting;
+import io.github.egorkor.webutils.queryparam.Sorting;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Sort;

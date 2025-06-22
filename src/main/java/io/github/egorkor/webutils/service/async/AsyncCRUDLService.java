@@ -1,15 +1,14 @@
 package io.github.egorkor.webutils.service.async;
 
-import io.github.egorkor.webutils.query.Filter;
-import io.github.egorkor.webutils.query.PageableResult;
-import io.github.egorkor.webutils.query.Pagination;
-import io.github.egorkor.webutils.query.Sorting;
+import io.github.egorkor.webutils.queryparam.Filter;
+import io.github.egorkor.webutils.queryparam.PageableResult;
+import io.github.egorkor.webutils.queryparam.Pagination;
+import io.github.egorkor.webutils.queryparam.Sorting;
 
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public interface AsyncCRUDLService<T, ID> {
-    CompletableFuture<PageableResult<List<T>>> getAllAsync(Filter<T> filter, Sorting sorting, Pagination pagination);
+    CompletableFuture<PageableResult<T>> getAllAsync(Filter<T> filter, Sorting sorting, Pagination pagination);
 
     CompletableFuture<T> getByIdAsync(ID id);
 
