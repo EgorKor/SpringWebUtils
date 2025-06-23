@@ -2,6 +2,8 @@ package io.github.egorkor.webutils.template.jpa;
 
 import io.github.egorkor.webutils.annotations.SoftDeleteFlag;
 import io.github.egorkor.webutils.event.crud.*;
+import io.github.egorkor.webutils.exception.EntityOperation;
+import io.github.egorkor.webutils.exception.EntityProcessingException;
 import io.github.egorkor.webutils.exception.ResourceNotFoundException;
 import io.github.egorkor.webutils.exception.SoftDeleteUnsupportedException;
 import io.github.egorkor.webutils.queryparam.Filter;
@@ -15,6 +17,7 @@ import lombok.Setter;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -102,7 +105,6 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     public abstract EntityManager getPersistenceAnnotatedEntityManager();
 
 
-
     private void defineSoftDeleteSupport() {
         if (this.entityType == null) {
             return;
@@ -161,7 +163,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     }
 
     @Override
-    public T getByFilter(Filter<T> filter) throws ResourceNotFoundException{
+    public T getByFilter(Filter<T> filter) throws ResourceNotFoundException {
         Supplier<ResourceNotFoundException> exceptionSupplier = () ->
                 new ResourceNotFoundException("Сущность "
                         + getEntityName()
@@ -180,52 +182,111 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     }
 
     @Override
-    public T create(T model) {
-        if (eventPublisher != null) {
-            eventPublisher.publishEvent(new EntityCreatingEvent<>(this, model));
+    public T create(T model) throws EntityProcessingException {
+        try {
+            if (eventPublisher != null) {
+                eventPublisher.publishEvent(new EntityCreatingEvent<>(this, model));
+            }
+
+            T saved = transactionTemplate.execute(status -> {
+                try {
+                    return jpaRepository.save(model);
+                } catch (DataAccessException e) {
+                    throw new EntityProcessingException("Entity saving data access error",
+                            e, entityType, EntityOperation.CREATE);
+                }
+            });
+
+            if (eventPublisher != null) {
+                eventPublisher.publishEvent(new EntityCreatedEvent<>(this, saved));
+            }
+            return saved;
+        } catch (EntityProcessingException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new EntityProcessingException("Unexpected saving entity error",
+                    e, entityType, EntityOperation.CREATE);
         }
-        T saved = transactionTemplate.execute(status -> jpaRepository.save(model));
-        if (eventPublisher != null) {
-            eventPublisher.publishEvent(new EntityCreatedEvent<>(this, saved));
-        }
-        return saved;
+
     }
 
     @Override
-    public T fullUpdate(T model) {
-        if (eventPublisher != null) {
-            eventPublisher.publishEvent(new EntityUpdatingEvent<>(this, model));
+    public T fullUpdate(T model) throws EntityProcessingException{
+        try {
+            if (eventPublisher != null) {
+                eventPublisher.publishEvent(new EntityUpdatingEvent<>(this, model));
+            }
+            T updated = transactionTemplate.execute(status -> {
+                try {
+                    return jpaRepository.save(model);
+                } catch (DataAccessException e) {
+                    throw new EntityProcessingException("Entity full updating data access error",
+                            e, entityType, EntityOperation.CREATE);
+                }
+            });
+            if (eventPublisher != null) {
+                eventPublisher.publishEvent(new EntityUpdatedEvent<>(this, updated));
+            }
+            return updated;
+        } catch (EntityProcessingException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new EntityProcessingException("Unexpected full updating entity error",
+                    e, entityType, EntityOperation.CREATE);
         }
-        T updated = transactionTemplate.execute(status -> jpaRepository.save(model));
-        if (eventPublisher != null) {
-            eventPublisher.publishEvent(new EntityUpdatedEvent<>(this, updated));
-        }
-        return updated;
     }
 
     @Override
-    public T patchUpdate(ID id, T model) {
-        T dbModel = getById(id);
-        if (eventPublisher != null) {
-            eventPublisher.publishEvent(new EntityUpdatingEvent<>(this, dbModel));
+    public T patchUpdate(ID id, T model) throws EntityProcessingException {
+        try {
+            T dbModel = getById(id);
+            if (eventPublisher != null) {
+                eventPublisher.publishEvent(new EntityUpdatingEvent<>(this, dbModel));
+            }
+            JpaEntityPropertyPatcher.patch(model, dbModel);
+            T updated = transactionTemplate.execute(status -> {
+                try {
+                    return jpaRepository.save(model);
+                } catch (DataAccessException e) {
+                    throw new EntityProcessingException("Entity patch updating data access error",
+                            e, entityType, EntityOperation.CREATE);
+                }
+            });
+            if (eventPublisher != null) {
+                eventPublisher.publishEvent(new EntityUpdatedEvent<>(this, updated));
+            }
+            return updated;
+        } catch (EntityProcessingException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new EntityProcessingException("Unexpected patch updating entity error",
+                    e, entityType, EntityOperation.CREATE);
         }
-        JpaEntityPropertyPatcher.patch(model, dbModel);
-        T updated = transactionTemplate.execute(status -> jpaRepository.save(dbModel));
-        if (eventPublisher != null) {
-            eventPublisher.publishEvent(new EntityUpdatedEvent<>(this, updated));
-        }
-        return updated;
     }
 
     @Override
-    public void deleteById(ID id) {
-        if (eventPublisher != null) {
-            eventPublisher.publishEvent(new EntityDeletingEvent<>(this, id));
+    public void deleteById(ID id) throws ResourceNotFoundException, EntityProcessingException {
+        try {
+            if (eventPublisher != null) {
+                eventPublisher.publishEvent(new EntityDeletingEvent<>(this, id));
+            }
+            transactionTemplate.executeWithoutResult(status -> {
+                try {
+                    jpaRepository.deleteById(id);
+                } catch (DataAccessException e) {
+                    throw new EntityProcessingException("Entity delete by id data access error: " + id, e, entityType, EntityOperation.DELETE);
+                }
+            });
+            if (eventPublisher != null) {
+                eventPublisher.publishEvent(new EntityDeletedEvent<>(this, id, entityType));
+            }
+        } catch (EntityProcessingException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new EntityProcessingException("Unexpected delete by id entity error: " + id,
+                    e, entityType, EntityOperation.DELETE);
         }
-        transactionTemplate.executeWithoutResult(status -> jpaRepository.deleteById(id));
-        if (eventPublisher != null) {
-            eventPublisher.publishEvent(new EntityDeletedEvent<>(this, id, entityType));
-        }
+
     }
 
     @Override
@@ -234,27 +295,27 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     }
 
     @Override
-    public void deleteAll(Filter<T> filter) {
+    public void deleteByFilter(Filter<T> filter) {
         jpaSpecificationExecutor.delete(filter);
     }
 
     @Override
-    public long count(Filter<T> filter) {
+    public long countByFilter(Filter<T> filter) {
         return jpaSpecificationExecutor.count(filter);
     }
 
     @Override
-    public long count() {
+    public long countAll() {
         return jpaRepository.count();
     }
 
     @Override
-    public boolean exists(ID id) {
+    public boolean existsById(ID id) {
         return jpaRepository.existsById(id);
     }
 
     @Override
-    public boolean exists(Filter<T> filter) {
+    public boolean existsByFilter(Filter<T> filter) {
         return jpaSpecificationExecutor.exists(filter);
     }
 
@@ -275,11 +336,11 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
 
     @Override
     public void softDeleteAll() throws SoftDeleteUnsupportedException {
-        softDelete(Filter.emptyFilter());
+        softDeleteByFilter(Filter.emptyFilter());
     }
 
     @Override
-    public void softDelete(Filter<T> filter) throws SoftDeleteUnsupportedException {
+    public void softDeleteByFilter(Filter<T> filter) throws SoftDeleteUnsupportedException {
         checkSoftDeleteAvailability();
         Object fieldValueObject = softDeleteFlagMapping.get(softDeleteField.getType()).get();
         String entityName = entityManager.getMetamodel().entity(entityType).getName();
@@ -327,11 +388,11 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
 
     @Override
     public void restoreAll() throws SoftDeleteUnsupportedException {
-        restoreAll(Filter.emptyFilter());
+        restoreByFilter(Filter.emptyFilter());
     }
 
     @Override
-    public void restoreAll(Filter<T> filter) throws SoftDeleteUnsupportedException {
+    public void restoreByFilter(Filter<T> filter) throws SoftDeleteUnsupportedException {
         checkSoftDeleteAvailability();
         Object fieldValueObject = restoreFlagMapping.get(softDeleteField.getType()).get();
         String entityName = entityManager.getMetamodel().entity(entityType).getName();

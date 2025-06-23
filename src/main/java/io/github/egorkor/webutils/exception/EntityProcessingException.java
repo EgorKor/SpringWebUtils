@@ -4,8 +4,8 @@ import lombok.Getter;
 
 @Getter
 public class EntityProcessingException extends RuntimeException {
-    private Class<?> entityType;
-    private EntityOperation operation;
+    private final Class<?> entityType;
+    private final EntityOperation operation;
 
     public EntityProcessingException(String message, Throwable cause, Class<?> entityType, EntityOperation operation) {
         super(message, cause);
