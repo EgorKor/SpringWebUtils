@@ -177,7 +177,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                         .orElseThrow(exceptionSupplier) :
                 jpaSpecificationExecutor.findOne(
                                 Filter.softDeleteFilter(softDeleteField, isDeleted)
-                                        .andConcat(filter))
+                                        .concat(filter))
                         .orElseThrow(exceptionSupplier);
     }
 

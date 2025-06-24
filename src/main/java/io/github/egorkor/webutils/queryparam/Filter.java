@@ -1,13 +1,16 @@
 package io.github.egorkor.webutils.queryparam;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.github.egorkor.webutils.annotations.FieldAllies;
 import jakarta.persistence.criteria.*;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.lang.reflect.Field;
 import java.util.*;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Параметр запроса для фильтрации запрашиваемых ресурсов.
@@ -66,21 +69,29 @@ import java.util.*;
  * @since 2025
  */
 @NoArgsConstructor
-@AllArgsConstructor
 @Data
 public class Filter<T> implements Specification<T> {
     private static final Set<String> NO_MAPPING_OPERATORS
             = Set.of("<", "<=", "=", ">=", ">");
     private static final Set<String> BASIC_OPERATORS
             = Set.of("<", "<=", "=", ">=", ">", "<>");
+
+    @JsonIgnore
+    private List<String> fieldWhiteList = new ArrayList<>();
     private List<String> filter = new ArrayList<>();
 
+    public Filter(List<String> filter) {
+        this.filter = filter;
+    }
+
     public static <T> Filter<T> softDeleteFilter(Field field, boolean isDeleted) {
-        Class<?> type = field.getType();
-        String fieldName = field.getName();
+        return softDeleteFilter(field.getName(), field.getType(), isDeleted);
+    }
+
+    public static <T> Filter<T> softDeleteFilter(String fieldName, Class<?> fieldType, boolean isDeleted) {
         Filter<T> filter = new Filter<>();
         List<String> filterList = new ArrayList<>();
-        if (type.equals(Boolean.class) || type.equals(boolean.class)) {
+        if (fieldType.equals(Boolean.class) || fieldType.equals(boolean.class)) {
             filterList.add("%s:is:%s".formatted(fieldName, isDeleted));
         } else {
             filterList.add("%s:is:%s".formatted(fieldName, isDeleted ? "not_null" : "null"));
@@ -97,8 +108,62 @@ public class Filter<T> implements Specification<T> {
         return (Filter<SameType>) this;
     }
 
-    public <R> Filter<R> andConcat(Filter<R> filter) {
+    private void mapFilterByAllies() {
+        if (this.getClass() == Filter.class) {
+            return;
+        }
+        Field[] fields = this.getClass().getDeclaredFields();
+        for (Field field : fields) {
+            FieldAllies fieldAllies = field.getAnnotation(FieldAllies.class);
+            if (fieldAllies == null) {
+                continue;
+            }
+            String alliesName = fieldAllies.value();
+            String fieldName = field.getName();
+            String regexSafeFieldName = Pattern.quote(fieldName);
+            for (int i = 0; i < filter.size(); i++) {
+                String filterFieldName = validateAndSplitFilter(filter.get(i))[0];
+                if (fieldName.equals(filterFieldName)) {
+                    filter.set(i, filter.get(i)
+                            .replaceFirst(regexSafeFieldName, alliesName));
+                    break;
+                }
+            }
+        }
+    }
+
+    private void checkAllowedFilterFields() {
+        if (this.getClass() == Filter.class) {
+            return;
+        }
+        Set<String> filterFieldsNames = filter.stream().map(
+                s -> validateAndSplitFilter(s)[0]
+        ).collect(Collectors.toSet());
+
+        Set<String> allowedFields = Arrays.stream(this.getClass().getDeclaredFields())
+                .map(f -> {
+                    FieldAllies allies;
+                    if ((allies = f.getAnnotation(FieldAllies.class)) != null) {
+                        return allies.value();
+                    } else {
+                        return f.getName();
+                    }
+                })
+                .collect(Collectors.toSet());
+
+        filterFieldsNames.removeAll(allowedFields);
+        fieldWhiteList.forEach(filterFieldsNames::remove);
+        if (!filterFieldsNames.isEmpty()) {
+            throw new IllegalArgumentException("Illegal parameters in filter: " + filterFieldsNames);
+        }
+    }
+
+    public <R> Filter<R> concat(Filter<R> filter) {
         this.filter.addAll(filter.getFilter());
+        this.fieldWhiteList.addAll(filter.getFilter()
+                .stream().map(
+                        s -> validateAndSplitFilter(s)[0]
+                ).toList());
         return _this();
     }
 
@@ -106,8 +171,9 @@ public class Filter<T> implements Specification<T> {
         return toSQLFilter("");
     }
 
-
     public String toSQLFilter(String prefix) {
+        checkAllowedFilterFields();
+        mapFilterByAllies();
         if (filter.isEmpty()) {
             return "";
         }
@@ -125,7 +191,6 @@ public class Filter<T> implements Specification<T> {
         sb.append(parseCondition(filter.getLast(), prefix));
         return sb.toString().trim();
     }
-
 
     private String parseCondition(String filter, String prefix) {
         String[] parts = validateAndSplitFilter(filter);
@@ -265,6 +330,8 @@ public class Filter<T> implements Specification<T> {
     public Predicate toPredicate(Root<T> root,
                                  CriteriaQuery<?> query,
                                  CriteriaBuilder cb) {
+        checkAllowedFilterFields();
+        mapFilterByAllies();
         List<Predicate> predicates = new ArrayList<>();
         filter.forEach(f ->
                 predicates.add(parsePredicate(f, root, query, cb))

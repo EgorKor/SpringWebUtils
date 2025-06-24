@@ -1,6 +1,7 @@
 package io.github.egorkor.tests;
 
 import io.github.egorkor.model.TestEntity;
+import io.github.egorkor.params.TestEntityFilter;
 import io.github.egorkor.webutils.queryparam.Filter;
 import io.github.egorkor.webutils.queryparam.Pagination;
 import io.github.egorkor.webutils.queryparam.Sorting;
@@ -52,11 +53,12 @@ public class SqlMappingTest {
         pagination.setPage(2);
         pagination.setSize(15);
 
-        Filter filter = new Filter();
+        TestEntityFilter filter = new TestEntityFilter();
         List<String> filters = new ArrayList<>();
         filters.add("id:=:1");
-        filters.add("is_deleted:is:true");
+        filters.add("_name:like:some name");
         filter.setFilter(filters);
+        filter.concat(Filter.softDeleteFilter("is_deleted", Boolean.class, false));
 
         Sorting sorting = new Sorting();
         sorting.setSort(List.of("id:asc"));
@@ -70,7 +72,7 @@ public class SqlMappingTest {
         System.out.println(Arrays.toString(filter.getFilterValues()));
         Assertions.assertEquals(
                 "SELECT * FROM test_entity "
-                        + "WHERE id = ? AND is_deleted = true "
+                        + "WHERE id = ? AND _name LIKE ? ESCAPE '!' AND is_deleted = false "
                         + "ORDER BY id ASC "
                         + "LIMIT 15 OFFSET 30", sql
 

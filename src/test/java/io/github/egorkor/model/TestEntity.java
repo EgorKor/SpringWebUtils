@@ -1,6 +1,7 @@
 package io.github.egorkor.model;
 
 import io.github.egorkor.webutils.annotations.SoftDeleteFlag;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
@@ -17,6 +18,7 @@ import java.util.List;
 public class TestEntity {
     @Id
     private Long id;
+    @Column(name = "_name ")
     private String name;
     @OneToMany
     private List<TestNestedEntity> nested;
