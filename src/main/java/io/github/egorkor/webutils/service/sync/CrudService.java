@@ -99,7 +99,7 @@ public interface CrudService<T, ID> {
      *
      * @param id идентификатор сущности
      */
-    void deleteById(ID id) throws ResourceNotFoundException, EntityProcessingException;;
+    void deleteById(ID id) throws ResourceNotFoundException, EntityProcessingException;
 
     /**
      * Физическое удаление всех сущностей

@@ -2,7 +2,6 @@ package io.github.egorkor.webutils.template.jpa;
 
 import io.github.egorkor.webutils.service.async.AsyncCRUDLBatchService;
 import io.github.egorkor.webutils.service.batching.BatchResultWithData;
-import jakarta.persistence.EntityManager;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;

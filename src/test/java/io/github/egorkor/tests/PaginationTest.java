@@ -25,7 +25,7 @@ public class PaginationTest {
     }
 
     @Test
-    public void testCalculatePageCount(){
-        Assertions.assertEquals(PageableResult.countPages(105,10),11);
+    public void testCalculatePageCount() {
+        Assertions.assertEquals(PageableResult.countPages(105, 10), 11);
     }
 }

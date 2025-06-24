@@ -32,5 +32,4 @@ public class TestEntityCrudServiceImpl extends JpaCrudService<TestEntity, Long> 
     }
 
 
-
 }

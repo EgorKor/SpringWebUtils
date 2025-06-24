@@ -28,6 +28,13 @@ public class FilterTest {
         }
     }
 
+    @AfterAll
+    static void close() {
+        if (emf != null && emf.isOpen()) {
+            emf.close();
+        }
+    }
+
     @BeforeEach
     void init() {
         em = emf.createEntityManager();
@@ -43,14 +50,6 @@ public class FilterTest {
             em.close();
         }
     }
-
-    @AfterAll
-    static void close() {
-        if (emf != null && emf.isOpen()) {
-            emf.close();
-        }
-    }
-
 
     @Test
     void testFilterJPA1() {

@@ -7,7 +7,6 @@ import io.github.egorkor.webutils.service.batching.BatchResultWithData;
 import io.github.egorkor.webutils.service.sync.CrudBatchService;
 import io.github.egorkor.webutils.template.BatchResultWithDataImpl;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityManagerFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationEventPublisher;

@@ -35,20 +35,16 @@ import java.util.function.Supplier;
 
 public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, InitializingBean {
 
-    protected final JpaRepository<T, ID> jpaRepository;
-    protected final JpaSpecificationExecutor<T> jpaSpecificationExecutor;
-    protected final ApplicationEventPublisher eventPublisher;
-    protected final TransactionTemplate transactionTemplate;
-    protected final Class<T> entityType;
-    @Setter
-    protected EntityManager entityManager;
-
     private static final Set<Class<?>> SUPPORTED_SOFT_DELETE_TYPES = Set.of(
             Boolean.class, boolean.class,
             Timestamp.class, LocalDateTime.class, LocalDate.class, LocalTime.class,
             Instant.class, OffsetDateTime.class, OffsetTime.class, Date.class
     );
-
+    protected final JpaRepository<T, ID> jpaRepository;
+    protected final JpaSpecificationExecutor<T> jpaSpecificationExecutor;
+    protected final ApplicationEventPublisher eventPublisher;
+    protected final TransactionTemplate transactionTemplate;
+    protected final Class<T> entityType;
     private final Map<Class<?>, Supplier<Object>> softDeleteFlagMapping
             = new HashMap<>(Map.of(
             boolean.class, () -> true,
@@ -74,6 +70,8 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
             OffsetTime.class, () -> null,
             Date.class, () -> null
     );
+    @Setter
+    protected EntityManager entityManager;
     protected boolean isSoftDeleteSupported = false;
     protected Field softDeleteField;
 
@@ -211,7 +209,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     }
 
     @Override
-    public T fullUpdate(T model) throws EntityProcessingException{
+    public T fullUpdate(T model) throws EntityProcessingException {
         try {
             if (eventPublisher != null) {
                 eventPublisher.publishEvent(new EntityUpdatingEvent<>(this, model));

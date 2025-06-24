@@ -52,8 +52,8 @@ import java.lang.annotation.Target;
  * </pre>
  *
  * @author EgorKor
- * @since 2025
  * @version 1.0
+ * @since 2025
  */
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)

@@ -12,13 +12,10 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 
-public abstract class JpaAsyncService<T, ID> extends JpaCrudService<T,ID> implements AsyncCRUDLService<T, ID> {
+public abstract class JpaAsyncService<T, ID> extends JpaCrudService<T, ID> implements AsyncCRUDLService<T, ID> {
     protected EntityManager entityManager;
     protected Class<T> type;
 
