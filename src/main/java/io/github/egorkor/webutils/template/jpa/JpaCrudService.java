@@ -35,8 +35,82 @@ import java.util.function.Supplier;
 
 
 /**
+ * Данный класс реализует интерфейс {@link CrudService}
+ * используя стандарт JPA и Hibernate ORM в виде JPA провайдера.
+ * Данная реализация предоставляет встроенное
+ * определение поддержки мягкого удаления сущности посредством
+ * использования аннотации @SoftDeleteFlag в классе сущности T,
+ * оставленной над полем следующих типов данных:
+ * <ul>
+ *     <li>{@link Boolean}</li>
+ *     <li>{@link Timestamp}</li>
+ *     <li>{@link Instant}</li>
+ *     <li>{@link LocalDateTime}</li>
+ *     <li>{@link OffsetDateTime}</li>
+ *     <li>{@link Date}</li>
+ *
+ * </ul>
+ * <p>
+ * При выполнении операций происходит генерация событий
+ * на которые можно подписаться стандартным для Spring способом, используя
+ * аннотацию {@link org.springframework.context.event.EventListener}
+ * <br>
+ * Список генерируемых событий:
+ * <table border="1">
+ *     <tr>
+ *         <th>Метод</th>
+ *         <th>События</th>
+ *     </tr>
+ *     <tr>
+ *         <td>{@link #create(Object)}</td>
+ *         <td>{@link EntityCreatingEvent} {@link EntityCreatedEvent}</td>
+ *     </tr>
+ *     <tr>
+ *         <td>{@link #patchUpdate(Object, Object)}</td>
+ *         <td>{@link EntityUpdatingEvent} {@link EntityUpdatedEvent}</td>
+ *     </tr>
+ *     <tr>
+ *         <td>{@link #fullUpdate(Object)}</td>
+ *         <td>{@link EntityUpdatingEvent} {@link EntityUpdatedEvent}</td>
+ *     </tr>
+ *     <tr>
+ *         <td>{@link #deleteById(Object)}</td>
+ *         <td>{@link EntityDeletingEvent} {@link EntityDeletedEvent}</td>
+ *     </tr>
+ *     <tr>
+ *         <td>{@link #softDeleteById(Object)}</td>
+ *         <td>{@link EntitySoftDeletingEvent} {@link EntitySoftDeletedEvent}</td>
+ *     </tr>
+ * </table>
+ *
  * @author EgorKor
  * @version 1.0
+ * @implSpec Обязательно реализовать метод
+ * {@link #getPersistenceAnnotatedEntityManager()}
+ * предварительно помеченный аннотацией @PersistenceContext в классе наследнике.
+ * Пример корректного наследования класса:
+ * <pre>
+ *     {@code
+ * @Service
+ * public class UserServiceImpl extends JpaCrudService<User, Long> implements UserService {
+ *     @PersistenceContext
+ *     private EntityManager entityManager;
+ *
+ *     @Autowired
+ *     public UserServiceImpl(JpaRepository<User, Long> jpaRepository, JpaSpecificationExecutor<User> jpaSpecificationExecutor, ApplicationEventPublisher eventPublisher, TransactionTemplate transactionTemplate) {
+ *         super(jpaRepository, jpaSpecificationExecutor, eventPublisher, transactionTemplate);
+ *     }
+ *
+ *     @Override
+ *     public EntityManager getPersistenceAnnotatedEntityManager() {
+ *         return entityManager;
+ *     }
+ * }}
+ * </pre>
+ * @see jakarta.persistence.PersistenceContext
+ * @see io.github.egorkor.webutils.annotations.SoftDeleteFlag
+ * @see io.github.egorkor.webutils.event.crud
+ * @see org.springframework.context.event.EventListener
  * @since 2025
  */
 public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, InitializingBean {
@@ -46,12 +120,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
             Timestamp.class, LocalDateTime.class, LocalDate.class, LocalTime.class,
             Instant.class, OffsetDateTime.class, OffsetTime.class, Date.class
     );
-    protected final JpaRepository<T, ID> jpaRepository;
-    protected final JpaSpecificationExecutor<T> jpaSpecificationExecutor;
-    protected final ApplicationEventPublisher eventPublisher;
-    protected final TransactionTemplate transactionTemplate;
-    protected final Class<T> entityType;
-    private final Map<Class<?>, Supplier<Object>> softDeleteFlagMapping
+    private static final Map<Class<?>, Supplier<Object>> softDeleteFlagMapping
             = new HashMap<>(Map.of(
             boolean.class, () -> true,
             Boolean.class, () -> Boolean.TRUE,
@@ -64,7 +133,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
             OffsetTime.class, OffsetTime::now,
             Date.class, () -> new Date(System.currentTimeMillis())
     ));
-    private final Map<Class<?>, Supplier<Object>> restoreFlagMapping = Map.of(
+    private static final Map<Class<?>, Supplier<Object>> restoreFlagMapping = Map.of(
             boolean.class, () -> false,
             Boolean.class, () -> Boolean.FALSE,
             Timestamp.class, () -> null,
@@ -76,6 +145,12 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
             OffsetTime.class, () -> null,
             Date.class, () -> null
     );
+
+    protected final JpaRepository<T, ID> jpaRepository;
+    protected final JpaSpecificationExecutor<T> jpaSpecificationExecutor;
+    protected final ApplicationEventPublisher eventPublisher;
+    protected final TransactionTemplate transactionTemplate;
+    protected final Class<T> entityType;
     @Setter
     protected EntityManager entityManager;
     protected boolean isSoftDeleteSupported = false;

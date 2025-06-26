@@ -10,7 +10,7 @@ import java.util.concurrent.CompletableFuture;
  * @version 1.0
  * @since 2025
  */
-public interface AsyncCRUDLBatchService<T, ID> extends AsyncCRUDLService<T, ID> {
+public interface AsyncCrudBatchService<T, ID> extends AsyncCrudService<T, ID> {
     /**
      * Асинхронное пакетное сохранение, выполняется не атомарно, при провале
      * одной операции, выполнение продолжается
