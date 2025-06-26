@@ -40,6 +40,7 @@ import java.util.List;
  * </pre>
  *
  * @author EgorKor
+ * @version 1.0
  * @since 2025
  */
 public class DtoMapper {

@@ -17,6 +17,12 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.util.ArrayList;
 import java.util.List;
 
+
+/**
+ * @author EgorKor
+ * @version 1.0
+ * @since 2025
+ */
 @Slf4j
 public abstract class JpaBatchCrudService<T, ID>
         extends JpaCrudService<T, ID>

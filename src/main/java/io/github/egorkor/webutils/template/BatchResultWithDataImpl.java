@@ -7,6 +7,12 @@ import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
+
+/**
+ * @author EgorKor
+ * @version 1.0
+ * @since 2025
+ */
 @ToString
 @Builder
 @AllArgsConstructor

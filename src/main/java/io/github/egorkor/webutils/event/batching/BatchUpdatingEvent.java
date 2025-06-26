@@ -5,6 +5,11 @@ import org.springframework.context.ApplicationEvent;
 
 import java.util.List;
 
+/**
+ * @author EgorKor
+ * @version 1.0
+ * @since 2025
+ */
 @Getter
 public class BatchUpdatingEvent<T> extends ApplicationEvent {
     private final List<T> batch;

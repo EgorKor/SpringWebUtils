@@ -11,7 +11,11 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-
+/**
+ * @author EgorKor
+ * @version 1.0
+ * @since 2025
+ */
 public abstract class JpaAsyncBatchService<T, ID> extends JpaBatchCrudService<T, ID>
         implements AsyncCRUDLBatchService<T, ID> {
 

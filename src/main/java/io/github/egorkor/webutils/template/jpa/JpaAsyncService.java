@@ -15,6 +15,11 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.util.concurrent.CompletableFuture;
 
 
+/**
+ * @author EgorKor
+ * @version 1.0
+ * @since 2025
+ */
 public abstract class JpaAsyncService<T, ID> extends JpaCrudService<T, ID> implements AsyncCRUDLService<T, ID> {
     protected EntityManager entityManager;
     protected Class<T> type;

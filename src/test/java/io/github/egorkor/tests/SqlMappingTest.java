@@ -78,7 +78,6 @@ public class SqlMappingTest {
 
         );
         jdbcTemplate.query(sql, (rs) -> {
-
         }, filter.getFilterValues());
     }
 

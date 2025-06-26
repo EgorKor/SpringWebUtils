@@ -3,7 +3,11 @@ package io.github.egorkor.webutils.queryparam.utils;
 import java.sql.DriverManager;
 import java.util.Enumeration;
 
-
+/**
+ * @author EgorKor
+ * @version 1.0
+ * @since 2025
+ */
 public class DriverUtils {
 
     /**

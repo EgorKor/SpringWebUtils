@@ -2,6 +2,11 @@ package io.github.egorkor.webutils.queryparam.utils;
 
 import lombok.Getter;
 
+/**
+ * @author EgorKor
+ * @version 1.0
+ * @since 2025
+ */
 @Getter
 public enum DatabaseType {
     POSTGRESQL("org.postgresql.Driver"),

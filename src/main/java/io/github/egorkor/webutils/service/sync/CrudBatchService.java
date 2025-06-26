@@ -4,6 +4,12 @@ import io.github.egorkor.webutils.service.batching.BatchResultWithData;
 
 import java.util.List;
 
+
+/**
+ * @author EgorKor
+ * @version 1.0
+ * @since 2025
+ */
 public interface CrudBatchService<T, ID> extends CrudService<T, ID> {
     List<BatchResultWithData<T>> batchCreate(List<T> models);
 

@@ -14,6 +14,12 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+
+/**
+ * @author EgorKor
+ * @version 1.0
+ * @since 2025
+ */
 public class JpaEntityPropertyPatcher {
     private static final Map<Class<?>, List<Field>> FIELD_CACHE = new ConcurrentHashMap<>();
 

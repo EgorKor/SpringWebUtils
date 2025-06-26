@@ -7,6 +7,11 @@ import org.springframework.beans.factory.config.BeanPostProcessor;
 
 import java.util.Arrays;
 
+/**
+ * @author EgorKor
+ * @version 1.0
+ * @since 2025
+ */
 public class JpaServiceTemplateInheritorValidationBeanPostProcessor implements BeanPostProcessor {
     @Override
     public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {

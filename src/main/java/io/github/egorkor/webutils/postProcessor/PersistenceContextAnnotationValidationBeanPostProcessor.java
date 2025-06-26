@@ -10,6 +10,11 @@ import org.springframework.stereotype.Service;
 
 import java.lang.reflect.Field;
 
+/**
+ * @author EgorKor
+ * @version 1.0
+ * @since 2025
+ */
 public class PersistenceContextAnnotationValidationBeanPostProcessor
         implements BeanPostProcessor {
 

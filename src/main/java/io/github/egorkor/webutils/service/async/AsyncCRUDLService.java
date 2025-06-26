@@ -7,6 +7,12 @@ import io.github.egorkor.webutils.queryparam.Sorting;
 
 import java.util.concurrent.CompletableFuture;
 
+
+/**
+ * @author EgorKor
+ * @version 1.0
+ * @since 2025
+ */
 public interface AsyncCRUDLService<T, ID> {
     CompletableFuture<PageableResult<T>> getAllAsync(Filter<T> filter, Sorting sorting, Pagination pagination);
 

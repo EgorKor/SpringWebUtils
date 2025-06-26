@@ -28,6 +28,10 @@ import java.util.List;
 public class Sorting {
     private List<String> sort = new ArrayList<>();
 
+    public static Sorting unsorted() {
+        return new Sorting();
+    }
+
     public String toSQLSort() {
         return toSQLSort("");
     }

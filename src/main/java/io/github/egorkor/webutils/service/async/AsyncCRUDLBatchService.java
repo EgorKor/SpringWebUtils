@@ -5,6 +5,11 @@ import io.github.egorkor.webutils.service.batching.BatchResultWithData;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * @author EgorKor
+ * @version 1.0
+ * @since 2025
+ */
 public interface AsyncCRUDLBatchService<T, ID> extends AsyncCRUDLService<T, ID> {
     /**
      * Асинхронное пакетное сохранение, выполняется не атомарно, при провале

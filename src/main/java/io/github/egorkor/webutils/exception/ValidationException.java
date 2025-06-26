@@ -8,6 +8,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+
+/**
+ * @author EgorKor
+ * @version 1.0
+ * @since 2025
+ */
 @Getter
 public class ValidationException extends RuntimeException {
     private final Map<String, List<String>> errors;

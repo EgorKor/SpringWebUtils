@@ -33,6 +33,12 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Supplier;
 
+
+/**
+ * @author EgorKor
+ * @version 1.0
+ * @since 2025
+ */
 public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, InitializingBean {
 
     private static final Set<Class<?>> SUPPORTED_SOFT_DELETE_TYPES = Set.of(
@@ -288,13 +294,21 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     }
 
     @Override
-    public void deleteAll() {
-        jpaRepository.deleteAll();
+    public void deleteAll() throws EntityProcessingException {
+        try {
+            jpaRepository.deleteAll();
+        } catch (Exception e) {
+            throw new EntityProcessingException("Unexpected delete all entities error", e, entityType, EntityOperation.DELETE);
+        }
     }
 
     @Override
-    public void deleteByFilter(Filter<T> filter) {
-        jpaSpecificationExecutor.delete(filter);
+    public void deleteByFilter(Filter<T> filter) throws EntityProcessingException {
+        try {
+            jpaSpecificationExecutor.delete(filter);
+        } catch (Exception e) {
+            throw new EntityProcessingException("Unexpected delete by filter entities error: " + filter, e, entityType, EntityOperation.DELETE);
+        }
     }
 
     @Override
@@ -325,30 +339,38 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
 
     @SneakyThrows
     @Override
-    public void softDeleteById(ID id) throws ResourceNotFoundException, SoftDeleteUnsupportedException {
+    public void softDeleteById(ID id) throws ResourceNotFoundException, SoftDeleteUnsupportedException, EntityProcessingException {
         checkSoftDeleteAvailability();
         T entity = getById(id);
         softDeleteField.set(entity, softDeleteFlagMapping.get(softDeleteField.getType()).get());
-        transactionTemplate.execute(status -> jpaRepository.save(entity));
+        try {
+            transactionTemplate.execute(status -> jpaRepository.save(entity));
+        } catch (Exception e) {
+            throw new EntityProcessingException("Unexpected soft delete entity by id error: " + id, e, entityType, EntityOperation.UPDATE);
+        }
     }
 
     @Override
-    public void softDeleteAll() throws SoftDeleteUnsupportedException {
+    public void softDeleteAll() throws SoftDeleteUnsupportedException, EntityProcessingException {
         softDeleteByFilter(Filter.emptyFilter());
     }
 
     @Override
-    public void softDeleteByFilter(Filter<T> filter) throws SoftDeleteUnsupportedException {
+    public void softDeleteByFilter(Filter<T> filter) throws SoftDeleteUnsupportedException, EntityProcessingException {
         checkSoftDeleteAvailability();
-        Object fieldValueObject = softDeleteFlagMapping.get(softDeleteField.getType()).get();
-        String entityName = entityManager.getMetamodel().entity(entityType).getName();
-        String hqlRestore = "UPDATE %s e SET e.%s = :deleteValue %s".formatted(
-                entityName,
-                softDeleteField.getName(),
-                filter.toSQLFilter());
-        Query query = entityManager.createQuery(hqlRestore)
-                .setParameter("deleteValue", mapToHqlQueryParameter(fieldValueObject));
-        transactionTemplate.executeWithoutResult(status -> query.executeUpdate());
+        try {
+            Object fieldValueObject = softDeleteFlagMapping.get(softDeleteField.getType()).get();
+            String entityName = entityManager.getMetamodel().entity(entityType).getName();
+            String hqlRestore = "UPDATE %s e SET e.%s = :deleteValue %s".formatted(
+                    entityName,
+                    softDeleteField.getName(),
+                    filter.toSQLFilter());
+            Query query = entityManager.createQuery(hqlRestore)
+                    .setParameter("deleteValue", mapToHqlQueryParameter(fieldValueObject));
+            transactionTemplate.executeWithoutResult(status -> query.executeUpdate());
+        } catch (Exception e) {
+            throw new EntityProcessingException("Unexpected soft delete entities by filter error: " + filter, e, entityType, EntityOperation.UPDATE);
+        }
     }
 
     protected String mapToHqlQueryParameter(Object param) {
@@ -377,30 +399,38 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
 
     @SneakyThrows
     @Override
-    public void restoreById(ID id) throws ResourceNotFoundException, SoftDeleteUnsupportedException {
+    public void restoreById(ID id) throws ResourceNotFoundException, SoftDeleteUnsupportedException, EntityProcessingException {
         checkSoftDeleteAvailability();
         T entity = getById(id);
         softDeleteField.set(entity, restoreFlagMapping.get(softDeleteField.getType()).get());
-        jpaRepository.save(entity);
+        try {
+            jpaRepository.save(entity);
+        } catch (Exception e) {
+            throw new EntityProcessingException("Unexpected restore entity by id error: " + id, e, entityType, EntityOperation.UPDATE);
+        }
     }
 
     @Override
-    public void restoreAll() throws SoftDeleteUnsupportedException {
+    public void restoreAll() throws SoftDeleteUnsupportedException, EntityProcessingException {
         restoreByFilter(Filter.emptyFilter());
     }
 
     @Override
-    public void restoreByFilter(Filter<T> filter) throws SoftDeleteUnsupportedException {
+    public void restoreByFilter(Filter<T> filter) throws SoftDeleteUnsupportedException, EntityProcessingException {
         checkSoftDeleteAvailability();
-        Object fieldValueObject = restoreFlagMapping.get(softDeleteField.getType()).get();
-        String entityName = entityManager.getMetamodel().entity(entityType).getName();
-        String hqlRestore = "UPDATE %s e SET e.%s = :restoreValue %s".formatted(
-                entityName,
-                softDeleteField.getName(),
-                filter.toSQLFilter());
-        Query query = entityManager.createQuery(hqlRestore)
-                .setParameter("restoreValue", mapToHqlQueryParameter(fieldValueObject));
-        transactionTemplate.executeWithoutResult(status -> query.executeUpdate());
+        try {
+            Object fieldValueObject = restoreFlagMapping.get(softDeleteField.getType()).get();
+            String entityName = entityManager.getMetamodel().entity(entityType).getName();
+            String hqlRestore = "UPDATE %s e SET e.%s = :restoreValue %s".formatted(
+                    entityName,
+                    softDeleteField.getName(),
+                    filter.toSQLFilter());
+            Query query = entityManager.createQuery(hqlRestore)
+                    .setParameter("restoreValue", mapToHqlQueryParameter(fieldValueObject));
+            transactionTemplate.executeWithoutResult(status -> query.executeUpdate());
+        } catch (Exception e) {
+            throw new EntityProcessingException("Unexpected restore entity by filter error: " + filter, e, entityType, EntityOperation.UPDATE);
+        }
     }
 
 

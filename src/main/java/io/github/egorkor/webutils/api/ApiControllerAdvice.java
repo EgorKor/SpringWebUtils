@@ -16,6 +16,11 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * @author EgorKor
+ * @version 1.0
+ * @since 2025
+ */
 @RestControllerAdvice
 public class ApiControllerAdvice {
 

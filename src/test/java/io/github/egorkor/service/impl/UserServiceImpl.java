@@ -1,6 +1,7 @@
-package io.github.egorkor.service;
+package io.github.egorkor.service.impl;
 
-import io.github.egorkor.model.TestEntity;
+import io.github.egorkor.model.User;
+import io.github.egorkor.service.UserService;
 import io.github.egorkor.webutils.template.jpa.JpaCrudService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -12,17 +13,15 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+
 @Profile("test")
 @Service
-public class TestEntityCrudServiceImpl extends JpaCrudService<TestEntity, Long> implements TestEntityService {
+public class UserServiceImpl extends JpaCrudService<User, Long> implements UserService {
     @PersistenceContext
     private EntityManager entityManager;
 
     @Autowired
-    public TestEntityCrudServiceImpl(JpaRepository<TestEntity, Long> jpaRepository,
-                                     JpaSpecificationExecutor<TestEntity> jpaSpecificationExecutor,
-                                     ApplicationEventPublisher eventPublisher,
-                                     TransactionTemplate transactionTemplate) {
+    public UserServiceImpl(JpaRepository<User, Long> jpaRepository, JpaSpecificationExecutor<User> jpaSpecificationExecutor, ApplicationEventPublisher eventPublisher, TransactionTemplate transactionTemplate) {
         super(jpaRepository, jpaSpecificationExecutor, eventPublisher, transactionTemplate);
     }
 
@@ -30,6 +29,4 @@ public class TestEntityCrudServiceImpl extends JpaCrudService<TestEntity, Long> 
     public EntityManager getPersistenceAnnotatedEntityManager() {
         return entityManager;
     }
-
-
 }

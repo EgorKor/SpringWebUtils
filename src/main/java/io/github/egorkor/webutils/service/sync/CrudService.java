@@ -36,6 +36,7 @@ import io.github.egorkor.webutils.queryparam.Sorting;
  * </p>
  *
  * @author EgorKor
+ * @version 1.0
  * @since 2025
  */
 public interface CrudService<T, ID> {
@@ -104,14 +105,14 @@ public interface CrudService<T, ID> {
     /**
      * Физическое удаление всех сущностей
      */
-    void deleteAll();
+    void deleteAll() throws EntityProcessingException;
 
     /**
      * Физическое удаление всех сущностей с учётом фильтрации
      *
      * @param filter параметр запроса фильтрации
      */
-    void deleteByFilter(Filter<T> filter);
+    void deleteByFilter(Filter<T> filter) throws EntityProcessingException;
 
     /**
      * Кол-во сущностей с учётом фильтрации
@@ -151,14 +152,14 @@ public interface CrudService<T, ID> {
      * @throws ResourceNotFoundException      если сущности с указанным id не существует в БД
      * @throws SoftDeleteUnsupportedException если сущность не поддерживает мягкое удаление
      */
-    void softDeleteById(ID id) throws ResourceNotFoundException, SoftDeleteUnsupportedException;
+    void softDeleteById(ID id) throws ResourceNotFoundException, SoftDeleteUnsupportedException, EntityProcessingException;
 
     /**
      * Мягкое удаление всех сущностей
      *
      * @throws SoftDeleteUnsupportedException если сущность не поддерживает мягкое удаление
      */
-    void softDeleteAll() throws SoftDeleteUnsupportedException;
+    void softDeleteAll() throws SoftDeleteUnsupportedException, EntityProcessingException;
 
     /**
      * Мягкое удаление всех по условию
@@ -166,7 +167,7 @@ public interface CrudService<T, ID> {
      * @param filter параметр запроса
      * @throws SoftDeleteUnsupportedException если сущность не поддерживает мягкое удаление
      */
-    void softDeleteByFilter(Filter<T> filter) throws SoftDeleteUnsupportedException;
+    void softDeleteByFilter(Filter<T> filter) throws SoftDeleteUnsupportedException, EntityProcessingException;
 
     /**
      * Восстановление после мягкого удаления по ID
@@ -175,19 +176,19 @@ public interface CrudService<T, ID> {
      * @throws ResourceNotFoundException      если сущности с указанным id не существует в БД
      * @throws SoftDeleteUnsupportedException если сущность не поддерживает мягкое удаление
      */
-    void restoreById(ID id) throws ResourceNotFoundException, SoftDeleteUnsupportedException;
+    void restoreById(ID id) throws ResourceNotFoundException, SoftDeleteUnsupportedException, EntityProcessingException;
 
     /**
      * Восстановление всех записей
      *
      * @throws SoftDeleteUnsupportedException если сущность не поддерживает мягкое удаление
      */
-    void restoreAll() throws SoftDeleteUnsupportedException;
+    void restoreAll() throws SoftDeleteUnsupportedException, EntityProcessingException;
 
     /**
      * Восстановление всех записей с учётом условий фильтрации
      *
      * @throws SoftDeleteUnsupportedException если сущность не поддерживает мягкое удаление
      */
-    void restoreByFilter(Filter<T> filter) throws SoftDeleteUnsupportedException;
+    void restoreByFilter(Filter<T> filter) throws SoftDeleteUnsupportedException, EntityProcessingException;
 }

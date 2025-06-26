@@ -6,6 +6,11 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor;
 
+/**
+ * @author EgorKor
+ * @version 1.0
+ * @since 2025
+ */
 @AutoConfiguration
 public class AutoConfigurationSource {
 

@@ -1,6 +1,7 @@
-package io.github.egorkor.service;
+package io.github.egorkor.service.impl;
 
 import io.github.egorkor.model.TestNestedEntity;
+import io.github.egorkor.service.TestNestedEntityService;
 import io.github.egorkor.webutils.template.jpa.JpaCrudService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;

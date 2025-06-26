@@ -30,11 +30,18 @@ import org.springframework.data.domain.Sort;
 public class Pagination {
     public static final int ALL_CONTENT_SIZE = -1;
     public static final int DEFAULT_PAGE = 0;
+    public static final int DEFAULT_PAGE_SIZE = 10;
     private static DatabaseType dbType = DriverUtils.getActiveDatabaseType();
 
-    private int size = 10;
+    private int size = DEFAULT_PAGE_SIZE;
     private int page = DEFAULT_PAGE;
 
+
+    public static Pagination unpaged() {
+        Pagination pagination = new Pagination();
+        pagination.setSize(ALL_CONTENT_SIZE);
+        return pagination;
+    }
 
     public Pageable toJpaPageable() {
         if (size == ALL_CONTENT_SIZE) {

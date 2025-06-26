@@ -3,8 +3,10 @@ package io.github.egorkor.webutils.queryparam;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.github.egorkor.webutils.annotations.FieldAllies;
 import jakarta.persistence.criteria.*;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.lang.reflect.Field;
@@ -26,11 +28,6 @@ import java.util.stream.Collectors;
  * </p>
  *
  * <p>
- * При интеграции с JPA после передаче в JpaSpecificationExecutor фильтра, будет
- * вызван следующий метод
- * <ul>
- *     <li>{@link #toPredicate(Root, CriteriaQuery, CriteriaBuilder)}</li>
- * </ul>
  * <br>
  * Пример использования с JpaSpecificationExecutor, пагинация и сортировка
  * <pre>
@@ -43,7 +40,7 @@ import java.util.stream.Collectors;
  * </p>
  *
  * <p>
- *     При интеграции с SQL следует использовать следующие методы:
+ * При интеграции с SQL следует использовать следующие методы:
  *     <ul>
  *         <li>{@link #toSQLFilter()}</li>
  *         <li>{@link #toSQLFilter(String prefix)}</li>
@@ -68,8 +65,10 @@ import java.util.stream.Collectors;
  * @version 1.0
  * @since 2025
  */
+@Setter
+@Getter
 @NoArgsConstructor
-@Data
+@ToString
 public class Filter<T> implements Specification<T> {
     private static final Set<String> NO_MAPPING_OPERATORS
             = Set.of("<", "<=", "=", ">=", ">");
@@ -380,6 +379,5 @@ public class Filter<T> implements Specification<T> {
         }
         return path;
     }
-
 
 }
