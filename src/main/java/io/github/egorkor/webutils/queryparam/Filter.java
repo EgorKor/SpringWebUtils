@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
  * Пример использования в контроллере:
  * <pre>{@code
  * @GetMapping
- * public List<User> controllerMethod(@RequestParam Filter<User> filter){
+ * public List<User> controllerMethod(@ModelAttribute Filter<User> filter){
  *     return userDao.getAll(filter);
  * }
  * }</pre>

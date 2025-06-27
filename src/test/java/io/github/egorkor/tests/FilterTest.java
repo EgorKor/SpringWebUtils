@@ -112,7 +112,7 @@ public class FilterTest {
         System.out.println(Arrays.toString(filter.getFilterValues()));
         Assertions.assertEquals("WHERE id <> ? AND id IS NOT NULL",
                 filter.toSQLFilter().trim());
-        Assertions.assertArrayEquals(new Object[]{"10", "NOT NULL"}, filter.getFilterValues());
+        Assertions.assertArrayEquals(new Object[]{"10"}, filter.getFilterValues());
     }
 
     @Test
