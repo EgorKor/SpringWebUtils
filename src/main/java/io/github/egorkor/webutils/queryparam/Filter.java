@@ -1,7 +1,7 @@
 package io.github.egorkor.webutils.queryparam;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import io.github.egorkor.webutils.annotations.FieldAllies;
+import io.github.egorkor.webutils.annotations.FilterFieldAllies;
 import jakarta.persistence.criteria.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -61,6 +61,33 @@ import java.util.stream.Collectors;
  *     </pre>
  * </p>
  *
+ * Для ограничения возможных инъекций параметров запросов, необходимо
+ * выполнить наследования от данного класса, и определить там поля, которые
+ * попадут в whiteList и будут допустимы к использованию как параметры запроса.
+ * При этом если нужно задать специфичное имя, можно использовать аннотацию для
+ * псевдонимов {@link FilterFieldAllies}. Пример класса ограничивающего
+ * возможный набор полей:
+ *
+ * <pre>
+ * {@code
+ * //Разрешено только поле orderNameLike
+ * //При этом использован псевдоним, который в итоге
+ * //Переопределяет что допустимым является только поле orders.name
+ * public class UserFilter extends Filter<User> {
+ *     @FilterFieldAllies("orders.name")
+ *     private String orderNameLike;
+ * }
+ *
+ * //Пример использования ограниченного набора полей при фильтрации
+ * public class UserController{
+ *     @GetMapping
+ *     public List<User> getUsers(@ModelAttribute UserFilter filter){
+ *         //...
+ *     }
+ * }
+ * }
+ * </pre>
+ *
  * @author EgorKor
  * @version 1.0
  * @since 2025
@@ -77,7 +104,7 @@ public class Filter<T> implements Specification<T> {
 
     @JsonIgnore
     private List<String> fieldWhiteList = new ArrayList<>();
-    private List<String> filter = new ArrayList<>();
+    protected List<String> filter = new ArrayList<>();
 
     public Filter(List<String> filter) {
         this.filter = filter;
@@ -113,11 +140,11 @@ public class Filter<T> implements Specification<T> {
         }
         Field[] fields = this.getClass().getDeclaredFields();
         for (Field field : fields) {
-            FieldAllies fieldAllies = field.getAnnotation(FieldAllies.class);
-            if (fieldAllies == null) {
+            FilterFieldAllies filterFieldAllies = field.getAnnotation(FilterFieldAllies.class);
+            if (filterFieldAllies == null) {
                 continue;
             }
-            String alliesName = fieldAllies.value();
+            String alliesName = filterFieldAllies.value();
             String fieldName = field.getName();
             String regexSafeFieldName = Pattern.quote(fieldName);
             for (int i = 0; i < filter.size(); i++) {
@@ -141,8 +168,8 @@ public class Filter<T> implements Specification<T> {
 
         Set<String> allowedFields = Arrays.stream(this.getClass().getDeclaredFields())
                 .map(f -> {
-                    FieldAllies allies;
-                    if ((allies = f.getAnnotation(FieldAllies.class)) != null) {
+                    FilterFieldAllies allies;
+                    if ((allies = f.getAnnotation(FilterFieldAllies.class)) != null) {
                         return allies.value();
                     } else {
                         return f.getName();
