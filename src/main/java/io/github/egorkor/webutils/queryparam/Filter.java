@@ -4,10 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.github.egorkor.webutils.annotations.FilterFieldAllies;
 import io.github.egorkor.webutils.queryparam.utils.FieldTypeUtils;
 import jakarta.persistence.criteria.*;
-import jakarta.persistence.metamodel.Attribute;
-import jakarta.persistence.metamodel.EntityType;
-import jakarta.persistence.metamodel.Metamodel;
-import jakarta.persistence.metamodel.PluralAttribute;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -117,7 +113,9 @@ public class Filter<T> implements Specification<T> {
 
 
     private void determineEntityType() {
-        // Проверяем generic superclass
+        if(getClass() == Filter.class){
+            return;
+        }
         try{
             Type superclass = getClass().getGenericSuperclass();
             ParameterizedType parameterizedType = (ParameterizedType) superclass;
@@ -435,11 +433,11 @@ public class Filter<T> implements Specification<T> {
         try {
             return switch (operation) {
                 case "is" -> parseIsPredicate(cb, path, stringValue);
-                case "=" -> parseEqualPredicate(cb, path, fieldType, reflectionField,stringValue);
+                case "=" -> parseEqualPredicate(cb, path, reflectionField,stringValue);
                 case ">", "<", ">=", "<=" -> parseComparisonPredicate(cb, path, operation, fieldType, stringValue);
                 case "!=" -> parseNotEqualPredicate(cb, path, fieldType, stringValue);
                 case "like" -> parseLikePredicate(cb, path, stringValue);
-                case "in" -> parseInPredicate(cb, path, fieldType, reflectionField, stringValue);
+                case "in" -> parseInPredicate(cb, path, reflectionField, stringValue);
                 default -> throw new IllegalArgumentException("Invalid filter operation: " + operation);
             };
         } catch (Exception e) {
@@ -449,10 +447,10 @@ public class Filter<T> implements Specification<T> {
         }
     }
 
-    private Predicate parseInPredicate(CriteriaBuilder cb, Path<?> path, Class<?> fieldType, Field reflectionField, String stringValue) {
+    private Predicate parseInPredicate(CriteriaBuilder cb, Path<?> path, Field reflectionField, String stringValue) {
         String[] stringValues = stringValue.split(";");
 
-        if (Collection.class.isAssignableFrom(fieldType)) {
+        if (Collection.class.isAssignableFrom(reflectionField.getType())) {
             Class<?> elementType = getCollectionElementType(reflectionField);
 
             List<Predicate> predicates = new ArrayList<>();
@@ -465,12 +463,11 @@ public class Filter<T> implements Specification<T> {
 
         // Для обычных полей
         Object[] values = Arrays.stream(stringValues)
-                .map(v -> convertValue(v, fieldType))
+                .map(v -> convertValue(v, reflectionField.getType()))
                 .toArray();
         return path.in(values);
     }
 
-    @SuppressWarnings("unchecked")
     private Class<?> getCollectionElementType(Field field) {
         Type type = field.getGenericType();
         if (type instanceof ParameterizedType) {
@@ -479,7 +476,6 @@ public class Filter<T> implements Specification<T> {
                 return (Class<?>) typeArgs[0];
             }
         }
-        // Если не удалось определить, предполагаем String
         return String.class;
     }
 
@@ -513,13 +509,12 @@ public class Filter<T> implements Specification<T> {
         };
     }
 
-    private Predicate parseEqualPredicate(CriteriaBuilder cb, Path<?> path, Class<?> fieldType, Field reflectionField, String stringValue) {
-        if (Collection.class.isAssignableFrom(fieldType)) {
-            Path<Collection> collectionPath = getTypedPath(path, Collection.class);
+    private Predicate parseEqualPredicate(CriteriaBuilder cb, Path<?> path, Field reflectionField, String stringValue) {
+        if (Collection.class.isAssignableFrom(reflectionField.getType())) {
             Object convertedValue = convertValue(stringValue, getCollectionElementType(reflectionField));
-            return cb.isMember(convertedValue, collectionPath);
+            return cb.isMember(convertedValue, (Path<Collection>)path);
         }
-        Object value = convertValue(stringValue, fieldType);
+        Object value = convertValue(stringValue, reflectionField.getType());
         return cb.equal(path, value);
     }
 
@@ -612,7 +607,7 @@ public class Filter<T> implements Specification<T> {
             return this;
         }
 
-        public FilterBuilder is(String field, IsOperationValues value) {
+        public FilterBuilder is(String field, Is value) {
             filters.add(new FilterUnit(field, FilterOperation.IS, value.getValue()));
             return this;
         }
@@ -632,7 +627,7 @@ public class Filter<T> implements Specification<T> {
 
     @Getter
     @AllArgsConstructor
-    public enum IsOperationValues {
+    public enum Is {
         TRUE("true"),
         FALSE("false"),
         NULL("null"),

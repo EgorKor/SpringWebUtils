@@ -19,6 +19,8 @@ public class TestEntity {
     private String name;
     @OneToMany
     private List<TestNestedEntity> nested;
+    private Integer nullableProperty;
+    private boolean flag;
     @ElementCollection
     private List<Integer> nums;
     @ElementCollection

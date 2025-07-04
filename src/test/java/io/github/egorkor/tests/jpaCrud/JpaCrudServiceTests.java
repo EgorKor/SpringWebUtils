@@ -49,12 +49,16 @@ public class JpaCrudServiceTests {
                                 .isDeleted(false)
                                 .tags(List.of("tag1", "tag2"))
                                 .nums(List.of(1,2,3))
+                                .nullableProperty(10)
+                                .flag(true)
                                 .enumTags(List.of(Tag.TAG1, Tag.TAG2))
                                 .build(),
                         TestEntity.builder()
                                 .id(2L)
                                 .name("Egor")
                                 .isDeleted(false)
+                                .flag(false)
+                                .nullableProperty(null)
                                 .nums(List.of(1,2))
                                 .tags(List.of("tag2"))
                                 .enumTags(List.of(Tag.TAG1))
@@ -63,6 +67,47 @@ public class JpaCrudServiceTests {
         );
         repo.flush();
     }
+
+    @Test
+    public void shouldCorrectMapIsTrue(){
+        Assertions.assertEquals(1, testEntityService
+                .countByFilter(
+                        Filter.builder()
+                                .is("flag", Filter.Is.TRUE)
+                                .build()
+                ));
+    }
+
+    @Test
+    public void shouldCorrectMapIsFalse(){
+        Assertions.assertEquals(1, testEntityService
+                .countByFilter(
+                        Filter.builder()
+                                .is("flag", Filter.Is.FALSE)
+                                .build()
+                ));
+    }
+
+    @Test
+    public void shouldCorrectMapIsNull(){
+        Assertions.assertEquals(1, testEntityService
+                .countByFilter(
+                        Filter.builder()
+                                .is("nullableProperty", Filter.Is.NULL)
+                                .build()
+                ));
+    }
+
+    @Test
+    public void shouldCorrectMapIsNotNull(){
+        Assertions.assertEquals(1, testEntityService
+                .countByFilter(
+                        Filter.builder()
+                                .is("nullableProperty", Filter.Is.NOT_NULL)
+                                .build()
+                ));
+    }
+
 
     @Test
     public void shouldCorrectMapInOperationWithList(){
