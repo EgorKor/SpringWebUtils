@@ -2,10 +2,7 @@ package io.github.egorkor.model;
 
 import com.github.javafaker.Faker;
 import io.github.egorkor.webutils.annotations.SoftDeleteFlag;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -31,6 +28,8 @@ public class User {
     private String email;
     private String phone;
     private String address;
+    @ElementCollection
+    private List<String> roles;
     @CreationTimestamp
     private LocalDateTime createdAt;
     @UpdateTimestamp

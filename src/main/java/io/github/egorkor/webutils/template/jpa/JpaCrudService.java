@@ -235,7 +235,9 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
         }
         boolean isDeleted = false;
         Filter<T> softDeleteFilter = Filter.softDeleteFilter(softDeleteField, isDeleted);
-        return filter.concat(softDeleteFilter);
+        Filter<T> concantinatedFilter = filter.concat(softDeleteFilter);
+        concantinatedFilter.setEntityType(entityType);
+        return concantinatedFilter;
     }
 
     protected String getEntityTypeName() {
@@ -244,7 +246,9 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
 
     @Override
     public PageableResult<T> getAll(Filter<T> filter, Sorting sorting, Pagination pagination) {
-        return PageableResult.of(jpaSpecificationExecutor.findAll(filter, pagination.toJpaPageable(sorting)));
+        filter.setEntityType(entityType);
+        return PageableResult.of(jpaSpecificationExecutor.findAll(getSoftDeleteSupportedFilter(filter),
+                pagination.toJpaPageable(sorting)));
     }
 
     @Override
@@ -257,6 +261,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                         + " не найдена.");
         boolean isDeleted = false;
         Filter<T> idFilter = Filter.builder().equals(idField.getName(), id.toString()).build();
+        idFilter.setEntityType(entityType);
         return !isSoftDeleteSupported ?
                 jpaRepository.findById(id)
                         .orElseThrow(exceptionSupplier) :
@@ -272,7 +277,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                         + " по условию "
                         + filter.toSQLFilter().replace("WHERE", "").trim()
                         + " не найдена.");
-
+        filter.setEntityType(entityType);
         boolean isDeleted = false;
         return isSoftDeleteSupported ?
                 jpaSpecificationExecutor.findOne(filter)
@@ -285,7 +290,9 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
 
     @Override
     public T getByIdWithLock(ID id, LockModeType lockType) throws ResourceNotFoundException {
-        return getByFilterWithLock(Filter.builder().equals(idField.getName(), id.toString()).build(), lockType);
+        Filter<T> idFilter = Filter.builder().equals(idField.getName(), id.toString()).build();
+        idFilter.setEntityType(entityType);
+        return getByFilterWithLock(idFilter, lockType);
     }
 
     @Override
@@ -293,7 +300,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<T> cq = cb.createQuery(entityType);
         Root<T> root = cq.from(entityType);
-
+        filter.setEntityType(entityType);
         cq.select(root);
         cq.where(getSoftDeleteSupportedFilter(filter).toPredicate(root, cq, cb));
         TypedQuery<T> typedQuery = entityManager.createQuery(cq);
@@ -431,6 +438,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     @Override
     public void deleteByFilter(Filter<T> filter) throws EntityProcessingException {
         try {
+            filter.setEntityType(entityType);
             jpaSpecificationExecutor.delete(filter);
         } catch (Exception e) {
             throw new EntityProcessingException("Unexpected delete by filter entities error: " + filter, e, entityType, EntityOperation.DELETE);
@@ -439,22 +447,26 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
 
     @Override
     public long countByFilter(Filter<T> filter) {
-        return jpaSpecificationExecutor.count(filter);
+        filter.setEntityType(entityType);
+        return jpaSpecificationExecutor.count(getSoftDeleteSupportedFilter(filter));
     }
 
     @Override
     public long countAll() {
-        return jpaRepository.count();
+        return !isSoftDeleteSupported ? jpaRepository.count() :
+                countByFilter(getSoftDeleteSupportedFilter(Filter.emptyFilter()));
     }
 
     @Override
     public boolean existsById(ID id) {
-        return jpaRepository.existsById(id);
+        return !isSoftDeleteSupported ? jpaRepository.existsById(id) :
+                existsByFilter(Filter.builder().equals(idField.getName(),id.toString()).build());
     }
 
     @Override
     public boolean existsByFilter(Filter<T> filter) {
-        return jpaSpecificationExecutor.exists(filter);
+        filter.setEntityType(entityType);
+        return jpaSpecificationExecutor.exists(getSoftDeleteSupportedFilter(filter));
     }
 
     private void checkSoftDeleteAvailability() {
@@ -478,7 +490,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
 
     @Override
     public void softDeleteAll() throws SoftDeleteUnsupportedException, EntityProcessingException {
-        softDeleteByFilter(Filter.emptyFilter());
+        softDeleteByFilter(Filter.emptyFilter(entityType));
     }
 
     @Override
@@ -492,7 +504,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                     softDeleteField.getName(),
                     filter.toSQLFilter());
             Query query = entityManager.createQuery(hqlRestore)
-                    .setParameter("deleteValue", mapToHqlQueryParameter(fieldValueObject));
+                    .setParameter("deleteValue", fieldValueObject);
             transactionTemplate.executeWithoutResult(status -> query.executeUpdate());
         } catch (Exception e) {
             throw new EntityProcessingException("Unexpected soft delete entities by filter error: " + filter, e, entityType, EntityOperation.UPDATE);
@@ -538,7 +550,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
 
     @Override
     public void restoreAll() throws SoftDeleteUnsupportedException, EntityProcessingException {
-        restoreByFilter(Filter.emptyFilter());
+        restoreByFilter(Filter.emptyFilter(entityType));
     }
 
     @Override
@@ -552,7 +564,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                     softDeleteField.getName(),
                     filter.toSQLFilter());
             Query query = entityManager.createQuery(hqlRestore)
-                    .setParameter("restoreValue", mapToHqlQueryParameter(fieldValueObject));
+                    .setParameter("restoreValue", fieldValueObject);
             transactionTemplate.executeWithoutResult(status -> query.executeUpdate());
         } catch (Exception e) {
             throw new EntityProcessingException("Unexpected restore entity by filter error: " + filter, e, entityType, EntityOperation.UPDATE);

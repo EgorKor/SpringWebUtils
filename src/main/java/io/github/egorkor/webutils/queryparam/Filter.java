@@ -2,11 +2,22 @@ package io.github.egorkor.webutils.queryparam;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.github.egorkor.webutils.annotations.FilterFieldAllies;
+import io.github.egorkor.webutils.queryparam.utils.FieldTypeUtils;
 import jakarta.persistence.criteria.*;
-import lombok.*;
+import jakarta.persistence.metamodel.Attribute;
+import jakarta.persistence.metamodel.EntityType;
+import jakarta.persistence.metamodel.Metamodel;
+import jakarta.persistence.metamodel.PluralAttribute;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -57,7 +68,7 @@ import java.util.stream.Collectors;
  *         }
  *     </pre>
  * </p>
- *
+ * <p>
  * Для ограничения возможных инъекций параметров запросов, необходимо
  * выполнить наследования от данного класса, и определить там поля, которые
  * попадут в whiteList и будут допустимы к использованию как параметры запроса.
@@ -89,9 +100,9 @@ import java.util.stream.Collectors;
  * @version 1.0
  * @since 2025
  */
+@Slf4j
 @Setter
 @Getter
-@NoArgsConstructor
 @ToString
 public class Filter<T> implements Specification<T> {
     private static final Set<String> NO_MAPPING_OPERATORS
@@ -102,13 +113,49 @@ public class Filter<T> implements Specification<T> {
     @JsonIgnore
     private List<String> fieldWhiteList = new ArrayList<>();
     protected List<String> filter = new ArrayList<>();
+    protected Class<T> entityType;
+
+
+    private void determineEntityType() {
+        // Проверяем generic superclass
+        try{
+            Type superclass = getClass().getGenericSuperclass();
+            ParameterizedType parameterizedType = (ParameterizedType) superclass;
+            Type typeArgument = parameterizedType.getActualTypeArguments()[0];
+            this.entityType = (Class<T>) typeArgument;
+        }catch (Exception e){
+            log.warn("Cannot determine entity type", e);
+        }
+    }
+
+    public Filter() {
+        this.filter = new ArrayList<>();
+    }
 
     public Filter(List<String> filter) {
         this.filter = filter;
+        determineEntityType();
     }
+
+    public Filter(Class<T> entityType) {
+        this.entityType = entityType;
+        this.filter = new ArrayList<>();
+    }
+
+    public Filter(List<String> filter, Class<T> entityType) {
+        this.filter = filter;
+        this.entityType = entityType;
+    }
+
 
     public static <T> Filter<T> softDeleteFilter(Field field, boolean isDeleted) {
         return softDeleteFilter(field.getName(), field.getType(), isDeleted);
+    }
+
+    public static <T> Filter<T> softDeleteFilter(Field field, boolean isDeleted, Class<T> entityType) {
+        Filter<T> softDeleteFilter = softDeleteFilter(field.getName(), field.getType(), isDeleted);
+        softDeleteFilter.setEntityType(entityType);
+        return softDeleteFilter;
     }
 
     public static <T> Filter<T> softDeleteFilter(String fieldName, Class<?> fieldType, boolean isDeleted) {
@@ -125,6 +172,10 @@ public class Filter<T> implements Specification<T> {
 
     public static <T> Filter<T> emptyFilter() {
         return new Filter<>();
+    }
+
+    public static <T> Filter<T> emptyFilter(Class<T> entityType) {
+        return new Filter<>(entityType);
     }
 
     private <SameType> Filter<SameType> _this() {
@@ -353,6 +404,7 @@ public class Filter<T> implements Specification<T> {
         };
     }
 
+
     @Override
     public Predicate toPredicate(Root<T> root,
                                  CriteriaQuery<?> query,
@@ -366,37 +418,142 @@ public class Filter<T> implements Specification<T> {
         return cb.and(predicates.toArray(new Predicate[0]));
     }
 
-    private Predicate parsePredicate(String filter,
-                                     Root<T> root,
-                                     CriteriaQuery<?> query,
-                                     CriteriaBuilder cb) {
+    private Predicate parsePredicate(String filter, Root<T> root, CriteriaQuery<?> query, CriteriaBuilder cb) {
         String[] parts = filter.split(":");
+        if (parts.length != 3) {
+            throw new IllegalArgumentException("Invalid filter format. Expected: field:operation:value");
+        }
 
         String field = parts[0];
         String operation = parts[1].toLowerCase();
-        String value = parts[2];
+        String stringValue = parts[2];
 
+        Path<?> path = field.contains(".") ? getNestedPath(root, field) : root.get(field);
+        Field reflectionField = FieldTypeUtils.getField(entityType, field);
+        Class<?> fieldType = reflectionField.getType();
 
-        Path<T> path = field.contains(".") ? getNestedPath(root, field) : root.get(field);
-        return switch (operation) {
-            case "is" -> switch (value) {
-                case "true" -> cb.isTrue((Path<Boolean>) path);
-                case "false" -> cb.isFalse((Path<Boolean>) path);
-                case "null" -> cb.isNull(path);
-                case "not_null" -> cb.isNotNull(path);
-                default ->
-                        throw new IllegalArgumentException("Invalid filter value: " + operation + "; for operation: " + value);
+        try {
+            return switch (operation) {
+                case "is" -> parseIsPredicate(cb, path, stringValue);
+                case "=" -> parseEqualPredicate(cb, path, fieldType, reflectionField,stringValue);
+                case ">", "<", ">=", "<=" -> parseComparisonPredicate(cb, path, operation, fieldType, stringValue);
+                case "!=" -> parseNotEqualPredicate(cb, path, fieldType, stringValue);
+                case "like" -> parseLikePredicate(cb, path, stringValue);
+                case "in" -> parseInPredicate(cb, path, fieldType, reflectionField, stringValue);
+                default -> throw new IllegalArgumentException("Invalid filter operation: " + operation);
             };
-            case "=" -> cb.equal(path, value);
-            case ">" -> cb.greaterThan(path.as(Comparable.class), (Comparable) value);
-            case "<" -> cb.lessThan(path.as(Comparable.class), (Comparable) value);
-            case ">=" -> cb.greaterThanOrEqualTo(path.as(Comparable.class), (Comparable) value);
-            case "<=" -> cb.lessThanOrEqualTo(path.as(Comparable.class), (Comparable) value);
-            case "!=" -> cb.notEqual(path.as(Comparable.class), value);
-            case "like" -> cb.like(path.as(String.class), "%" + value + "%");
-            case "in" -> path.in((Object[]) value.split(";"));
-            default -> throw new IllegalArgumentException("Invalid filter operation: " + operation);
+        } catch (Exception e) {
+            throw new IllegalArgumentException(
+                    String.format("Error processing filter '%s' for field '%s' (type %s): %s",
+                            filter, field, fieldType.getSimpleName(), e.getMessage()), e);
+        }
+    }
+
+    private Predicate parseInPredicate(CriteriaBuilder cb, Path<?> path, Class<?> fieldType, Field reflectionField, String stringValue) {
+        String[] stringValues = stringValue.split(";");
+
+        if (Collection.class.isAssignableFrom(fieldType)) {
+            Class<?> elementType = getCollectionElementType(reflectionField);
+
+            List<Predicate> predicates = new ArrayList<>();
+            for (String strVal : stringValues) {
+                Object val = convertValue(strVal, elementType);
+                predicates.add(cb.isMember(val, (Path<Collection>) path));
+            }
+            return cb.or(predicates.toArray(new Predicate[0]));
+        }
+
+        // Для обычных полей
+        Object[] values = Arrays.stream(stringValues)
+                .map(v -> convertValue(v, fieldType))
+                .toArray();
+        return path.in(values);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Class<?> getCollectionElementType(Field field) {
+        Type type = field.getGenericType();
+        if (type instanceof ParameterizedType) {
+            Type[] typeArgs = ((ParameterizedType) type).getActualTypeArguments();
+            if (typeArgs.length > 0 && typeArgs[0] instanceof Class) {
+                return (Class<?>) typeArgs[0];
+            }
+        }
+        // Если не удалось определить, предполагаем String
+        return String.class;
+    }
+
+    private Object convertValue(String stringValue, Class<?> targetType) {
+        if (stringValue == null) return null;
+
+        try {
+            if (targetType == String.class) return stringValue;
+            if (targetType == Integer.class || targetType == int.class) return Integer.parseInt(stringValue);
+            if (targetType == Long.class || targetType == long.class) return Long.parseLong(stringValue);
+            if (targetType == Double.class || targetType == double.class) return Double.parseDouble(stringValue);
+            if (targetType == Float.class || targetType == float.class) return Float.parseFloat(stringValue);
+            if (targetType == Boolean.class || targetType == boolean.class) return Boolean.parseBoolean(stringValue);
+            if (targetType.isEnum()) return Enum.valueOf((Class<Enum>) targetType, stringValue);
+
+            throw new IllegalArgumentException("Unsupported target type: " + targetType.getName());
+        } catch (Exception e) {
+            throw new IllegalArgumentException(
+                    String.format("Cannot convert '%s' to %s: %s",
+                            stringValue, targetType.getSimpleName(), e.getMessage()), e);
+        }
+    }
+
+    private Predicate parseIsPredicate(CriteriaBuilder cb, Path<?> path, String value) {
+        return switch (value) {
+            case "true" -> cb.isTrue(getTypedPath(path, Boolean.class));
+            case "false" -> cb.isFalse(getTypedPath(path, Boolean.class));
+            case "null" -> cb.isNull(path);
+            case "not_null" -> cb.isNotNull(path);
+            default -> throw new IllegalArgumentException("Invalid is-operation value: " + value);
         };
+    }
+
+    private Predicate parseEqualPredicate(CriteriaBuilder cb, Path<?> path, Class<?> fieldType, Field reflectionField, String stringValue) {
+        if (Collection.class.isAssignableFrom(fieldType)) {
+            Path<Collection> collectionPath = getTypedPath(path, Collection.class);
+            Object convertedValue = convertValue(stringValue, getCollectionElementType(reflectionField));
+            return cb.isMember(convertedValue, collectionPath);
+        }
+        Object value = convertValue(stringValue, fieldType);
+        return cb.equal(path, value);
+    }
+
+    private Predicate parseComparisonPredicate(CriteriaBuilder cb, Path<?> path, String operation,
+                                               Class<?> fieldType, String stringValue) {
+        if (!Comparable.class.isAssignableFrom(fieldType)) {
+            throw new IllegalArgumentException("Field " + path + " is not comparable");
+        }
+
+        Comparable<?> value = (Comparable<?>) convertValue(stringValue, fieldType);
+        Path<Comparable> comparablePath = getTypedPath(path, Comparable.class);
+
+        return switch (operation) {
+            case ">" -> cb.greaterThan(comparablePath, (Comparable) value);
+            case "<" -> cb.lessThan(comparablePath, (Comparable) value);
+            case ">=" -> cb.greaterThanOrEqualTo(comparablePath, (Comparable) value);
+            case "<=" -> cb.lessThanOrEqualTo(comparablePath, (Comparable) value);
+            default -> throw new IllegalArgumentException("Invalid comparison operation: " + operation);
+        };
+    }
+
+    private Predicate parseNotEqualPredicate(CriteriaBuilder cb, Path<?> path, Class<?> fieldType, String stringValue) {
+        Object value = convertValue(stringValue, fieldType);
+        return cb.notEqual(path, value);
+    }
+
+    private Predicate parseLikePredicate(CriteriaBuilder cb, Path<?> path, String stringValue) {
+        Path<String> stringPath = getTypedPath(path, String.class);
+        return cb.like(stringPath, "%" + stringValue + "%");
+    }
+
+    @SuppressWarnings("unchecked")
+    private <X> Path<X> getTypedPath(Path<?> path, Class<X> type) {
+        return (Path<X>) path;
     }
 
     public static <T> Path<T> getNestedPath(Root<T> root, String field) {
@@ -408,73 +565,74 @@ public class Filter<T> implements Specification<T> {
         return path;
     }
 
-    public static FilterBuilder builder(){
+    public static FilterBuilder builder() {
         return new FilterBuilder();
     }
 
-    public static class FilterBuilder{
+    public static class FilterBuilder {
         private final List<FilterUnit> filters = new ArrayList<>();
 
-        public FilterBuilder equals(String field, String value){
+        public FilterBuilder equals(String field, String value) {
             filters.add(new FilterUnit(field, FilterOperation.EQUALS, value));
             return this;
         }
 
-        public FilterBuilder notEquals(String field, String value){
+        public FilterBuilder notEquals(String field, String value) {
             filters.add(new FilterUnit(field, FilterOperation.NOT_EQUALS, value));
             return this;
         }
 
-        public FilterBuilder less(String field, String value){
+        public FilterBuilder less(String field, String value) {
             filters.add(new FilterUnit(field, FilterOperation.LS, value));
             return this;
         }
 
-        public FilterBuilder lessOrEquals(String field, String value){
+        public FilterBuilder lessOrEquals(String field, String value) {
             filters.add(new FilterUnit(field, FilterOperation.LSE, value));
             return this;
         }
 
-        public FilterBuilder greater(String field, String value){
+        public FilterBuilder greater(String field, String value) {
             filters.add(new FilterUnit(field, FilterOperation.GT, value));
             return this;
         }
 
-        public FilterBuilder greaterOrEquals(String field, String value){
+        public FilterBuilder greaterOrEquals(String field, String value) {
             filters.add(new FilterUnit(field, FilterOperation.GTE, value));
             return this;
         }
 
-        public FilterBuilder like(String field, String value){
+        public FilterBuilder like(String field, String value) {
             filters.add(new FilterUnit(field, FilterOperation.LIKE, value));
             return this;
         }
 
-        public FilterBuilder in(String field, String... values){
+        public FilterBuilder in(String field, String... values) {
             filters.add(new FilterUnit(field, FilterOperation.IN, String.join(";", values)));
             return this;
         }
 
-        public FilterBuilder is(String field, IsOperationValues value){
+        public FilterBuilder is(String field, IsOperationValues value) {
             filters.add(new FilterUnit(field, FilterOperation.IS, value.getValue()));
             return this;
         }
 
-        public <T> Filter<T> build(){
+        public <T> Filter<T> build() {
             return new Filter<>(
-                new ArrayList<>(filters.stream().map(
-                        (o) -> "%s:%s:%s".formatted(o.field(), o.filterOperation().getOperation(), o.value())
-                ).toList())
+                    new ArrayList<>(filters.stream().map(
+                            (o) -> "%s:%s:%s".formatted(o.field(), o.filterOperation().getOperation(), o.value())
+                    ).toList())
             );
         }
 
     }
 
-    public record FilterUnit(String field, FilterOperation filterOperation, String value) {}
+    public record FilterUnit(String field, FilterOperation filterOperation, String value) {
+    }
 
     @Getter
     @AllArgsConstructor
-    public enum IsOperationValues{
+    public enum IsOperationValues {
         TRUE("true"),
         FALSE("false"),
         NULL("null"),
@@ -485,7 +643,7 @@ public class Filter<T> implements Specification<T> {
 
     @Getter
     @AllArgsConstructor
-    public enum FilterOperation{
+    public enum FilterOperation {
         EQUALS("="),
         NOT_EQUALS("!="),
         GT(">"),

@@ -1,5 +1,6 @@
 package io.github.egorkor.tests.jpaCrud;
 
+import io.github.egorkor.model.Tag;
 import io.github.egorkor.model.TestEntity;
 import io.github.egorkor.service.TestEntityService;
 import io.github.egorkor.service.TestNestedEntityService;
@@ -11,7 +12,6 @@ import io.github.egorkor.webutils.queryparam.PageableResult;
 import io.github.egorkor.webutils.queryparam.Pagination;
 import io.github.egorkor.webutils.queryparam.Sorting;
 import jakarta.persistence.EntityManager;
-import lombok.ToString;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,11 +47,17 @@ public class JpaCrudServiceTests {
                                 .id(1L)
                                 .name("some name")
                                 .isDeleted(false)
+                                .tags(List.of("tag1", "tag2"))
+                                .nums(List.of(1,2,3))
+                                .enumTags(List.of(Tag.TAG1, Tag.TAG2))
                                 .build(),
                         TestEntity.builder()
                                 .id(2L)
                                 .name("Egor")
                                 .isDeleted(false)
+                                .nums(List.of(1,2))
+                                .tags(List.of("tag2"))
+                                .enumTags(List.of(Tag.TAG1))
                                 .build()
                 )
         );
@@ -59,19 +65,47 @@ public class JpaCrudServiceTests {
     }
 
     @Test
-    public void testGetById(){
-        Assertions.assertNotNull(repo.findById(1L));
+    public void shouldCorrectMapInOperationWithList(){
+        Assertions.assertEquals(
+                1, testEntityService.countByFilter(
+                        Filter.builder()
+                                .in("tags","tag1")
+                                .build()
+                )
+        );
     }
 
     @Test
-    public void testNotFound1() {
+    public void shouldCorrectMapInOperationWithEnumList(){
+        Assertions.assertEquals(
+                2, testEntityService.countByFilter(
+                        Filter.builder()
+                                .in("enumTags","TAG1")
+                                .build()
+                )
+        );
+    }
+
+    @Test
+    public void shouldCorrectMapInOperationWithIntegerList(){
+        Assertions.assertEquals(
+                2, testEntityService.countByFilter(
+                        Filter.builder()
+                                .in("nums","1","2")
+                                .build()
+                )
+        );
+    }
+
+    @Test
+    public void shouldThrowNotFound() {
         Assertions.assertThrows(ResourceNotFoundException.class, () -> {
             testEntityService.getById(10L);
         });
     }
 
     @Test
-    public void testNotFound2() {
+    public void shouldThrowNotFoundAndGetCorrectMessage() {
         try {
             testEntityService.getById(10L);
         } catch (ResourceNotFoundException e) {
@@ -80,7 +114,7 @@ public class JpaCrudServiceTests {
     }
 
     @Test
-    public void testNotFound3(){
+    public void shouldNotFoundAfterSoftDeleteById(){
         testEntityService.softDeleteById(2L);
         Assertions.assertThrows(ResourceNotFoundException.class, () -> {
             testEntityService.getById(2L);
@@ -88,12 +122,27 @@ public class JpaCrudServiceTests {
     }
 
     @Test
-    public void testSuccessFoundById() {
+    public void shouldNotFoundAfterSoftDeleteWithFilter(){
+        Filter filter = Filter.builder().equals("name","some name").build();
+        testEntityService.deleteByFilter(filter);
+        Assertions.assertThrows(ResourceNotFoundException.class, () -> {
+           testEntityService.getById(1L);
+        });
+    }
+
+    @Test
+    public void shouldFoundZeroRecordsAfterSoftDeleteAll(){
+        testEntityService.softDeleteAll();
+        Assertions.assertEquals(0, testEntityService.countAll());
+    }
+
+    @Test
+    public void shouldGetById() {
         Assertions.assertNotNull(testEntityService.getById(1L));
     }
 
     @Test
-    public void testGetAll() {
+    public void shouldGetAllWithFiltration() {
         List<String> strFilters = new ArrayList<>();
         strFilters.add("name:like:some name");
         Filter<TestEntity> filter = new Filter<>(
