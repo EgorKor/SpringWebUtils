@@ -3,10 +3,7 @@ package io.github.egorkor.webutils.queryparam;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.github.egorkor.webutils.annotations.FilterFieldAllies;
 import jakarta.persistence.criteria.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.lang.reflect.Field;
@@ -182,6 +179,10 @@ public class Filter<T> implements Specification<T> {
         if (!filterFieldsNames.isEmpty()) {
             throw new IllegalArgumentException("Illegal parameters in filter: " + filterFieldsNames);
         }
+    }
+
+    public boolean isUnfiltered() {
+        return filter.isEmpty();
     }
 
     public <R> Filter<R> concat(Filter<R> filter) {
@@ -398,13 +399,105 @@ public class Filter<T> implements Specification<T> {
         };
     }
 
-    private Path<T> getNestedPath(Root<T> root, String field) {
+    public static <T> Path<T> getNestedPath(Root<T> root, String field) {
         String[] fields = field.split("\\.");
         Path<T> path = root.get(fields[0]);
         for (int i = 1; i < fields.length; i++) {
             path = path.get(fields[i]);
         }
         return path;
+    }
+
+    public static FilterBuilder builder(){
+        return new FilterBuilder();
+    }
+
+    public static class FilterBuilder{
+        private final List<FilterUnit> filters = new ArrayList<>();
+
+        public FilterBuilder equals(String field, String value){
+            filters.add(new FilterUnit(field, FilterOperation.EQUALS, value));
+            return this;
+        }
+
+        public FilterBuilder notEquals(String field, String value){
+            filters.add(new FilterUnit(field, FilterOperation.NOT_EQUALS, value));
+            return this;
+        }
+
+        public FilterBuilder less(String field, String value){
+            filters.add(new FilterUnit(field, FilterOperation.LS, value));
+            return this;
+        }
+
+        public FilterBuilder lessOrEquals(String field, String value){
+            filters.add(new FilterUnit(field, FilterOperation.LSE, value));
+            return this;
+        }
+
+        public FilterBuilder greater(String field, String value){
+            filters.add(new FilterUnit(field, FilterOperation.GT, value));
+            return this;
+        }
+
+        public FilterBuilder greaterOrEquals(String field, String value){
+            filters.add(new FilterUnit(field, FilterOperation.GTE, value));
+            return this;
+        }
+
+        public FilterBuilder like(String field, String value){
+            filters.add(new FilterUnit(field, FilterOperation.LIKE, value));
+            return this;
+        }
+
+        public FilterBuilder in(String field, String... values){
+            filters.add(new FilterUnit(field, FilterOperation.IN, String.join(";", values)));
+            return this;
+        }
+
+        public FilterBuilder is(String field, IsOperationValues value){
+            filters.add(new FilterUnit(field, FilterOperation.IS, value.getValue()));
+            return this;
+        }
+
+        public <T> Filter<T> build(){
+            return new Filter<>(
+                new ArrayList<>(filters.stream().map(
+                        (o) -> "%s:%s:%s".formatted(o.field(), o.filterOperation().getOperation(), o.value())
+                ).toList())
+            );
+        }
+
+    }
+
+    public record FilterUnit(String field, FilterOperation filterOperation, String value) {}
+
+    @Getter
+    @AllArgsConstructor
+    public enum IsOperationValues{
+        TRUE("true"),
+        FALSE("false"),
+        NULL("null"),
+        NOT_NULL("not_null");
+
+        private final String value;
+    }
+
+    @Getter
+    @AllArgsConstructor
+    public enum FilterOperation{
+        EQUALS("="),
+        NOT_EQUALS("!="),
+        GT(">"),
+        GTE(">="),
+        LS("<"),
+        LSE("<="),
+        LIKE("like"),
+        IS("is"),
+        IN("in");
+
+
+        private final String operation;
     }
 
 }

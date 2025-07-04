@@ -11,8 +11,10 @@ import io.github.egorkor.webutils.queryparam.PageableResult;
 import io.github.egorkor.webutils.queryparam.Pagination;
 import io.github.egorkor.webutils.queryparam.Sorting;
 import io.github.egorkor.webutils.service.sync.CrudService;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.Query;
+import jakarta.persistence.*;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Root;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.InitializingBean;
@@ -155,6 +157,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     protected EntityManager entityManager;
     protected boolean isSoftDeleteSupported = false;
     protected Field softDeleteField;
+    protected Field idField;
 
     public JpaCrudService(JpaRepository<T, ID> jpaRepository,
                           JpaSpecificationExecutor<T> jpaSpecificationExecutor,
@@ -173,6 +176,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
             this.entityType = (Class<T>) typeArgument;
         }
         defineSoftDeleteSupport();
+        defineIdField();
     }
 
     @SneakyThrows
@@ -182,7 +186,6 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     }
 
     public abstract EntityManager getPersistenceAnnotatedEntityManager();
-
 
     private void defineSoftDeleteSupport() {
         if (this.entityType == null) {
@@ -213,10 +216,29 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
         if (!softDeleteFields.isEmpty()) {
             this.isSoftDeleteSupported = true;
             this.softDeleteField = softDeleteFields.getFirst();
+            this.softDeleteField.setAccessible(true);
         }
     }
 
-    private String getEntityName() {
+    private void defineIdField() {
+        this.idField = Arrays.stream(entityType.getDeclaredFields())
+                .filter((f) -> f.isAnnotationPresent(Id.class)
+                        || f.isAnnotationPresent(org.springframework.data.annotation.Id.class))
+                .findAny().orElseThrow(
+                        () -> new IllegalStateException("Entity " + entityType.getName() + " has no @Id field")
+                );
+    }
+
+    private Filter<T> getSoftDeleteSupportedFilter(Filter<T> filter) {
+        if (!isSoftDeleteSupported) {
+            return filter;
+        }
+        boolean isDeleted = false;
+        Filter<T> softDeleteFilter = Filter.softDeleteFilter(softDeleteField, isDeleted);
+        return filter.concat(softDeleteFilter);
+    }
+
+    protected String getEntityTypeName() {
         return entityType == null ? "" : entityType.getSimpleName();
     }
 
@@ -229,15 +251,16 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     public T getById(ID id) throws ResourceNotFoundException {
         Supplier<ResourceNotFoundException> exceptionSupplier = () ->
                 new ResourceNotFoundException("Сущность "
-                        + getEntityName()
+                        + getEntityTypeName()
                         + " c id = "
                         + id
                         + " не найдена.");
         boolean isDeleted = false;
-        return isSoftDeleteSupported ?
+        Filter<T> idFilter = Filter.builder().equals(idField.getName(), id.toString()).build();
+        return !isSoftDeleteSupported ?
                 jpaRepository.findById(id)
                         .orElseThrow(exceptionSupplier) :
-                jpaSpecificationExecutor.findOne(Filter.softDeleteFilter(softDeleteField, isDeleted))
+                jpaSpecificationExecutor.findOne(getSoftDeleteSupportedFilter(idFilter))
                         .orElseThrow(exceptionSupplier);
     }
 
@@ -245,7 +268,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     public T getByFilter(Filter<T> filter) throws ResourceNotFoundException {
         Supplier<ResourceNotFoundException> exceptionSupplier = () ->
                 new ResourceNotFoundException("Сущность "
-                        + getEntityName()
+                        + getEntityTypeName()
                         + " по условию "
                         + filter.toSQLFilter().replace("WHERE", "").trim()
                         + " не найдена.");
@@ -258,6 +281,34 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                                 Filter.softDeleteFilter(softDeleteField, isDeleted)
                                         .concat(filter))
                         .orElseThrow(exceptionSupplier);
+    }
+
+    @Override
+    public T getByIdWithLock(ID id, LockModeType lockType) throws ResourceNotFoundException {
+        return getByFilterWithLock(Filter.builder().equals(idField.getName(), id.toString()).build(), lockType);
+    }
+
+    @Override
+    public T getByFilterWithLock(Filter<T> filter, LockModeType lockType) throws ResourceNotFoundException {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<T> cq = cb.createQuery(entityType);
+        Root<T> root = cq.from(entityType);
+
+        cq.select(root);
+        cq.where(getSoftDeleteSupportedFilter(filter).toPredicate(root, cq, cb));
+        TypedQuery<T> typedQuery = entityManager.createQuery(cq);
+        typedQuery.setLockMode(lockType);
+        return transactionTemplate.execute(status -> {
+            try {
+                return typedQuery.getSingleResult();
+            } catch (NoResultException e) {
+                throw new ResourceNotFoundException("Сущность "
+                        + getEntityTypeName()
+                        + " по условию "
+                        + filter.toSQLFilter().replace("WHERE", "").trim()
+                        + " не найдена.");
+            }
+        });
     }
 
     @Override

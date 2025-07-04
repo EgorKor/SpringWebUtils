@@ -3,7 +3,9 @@ package io.github.egorkor.webutils.queryparam;
 
 import io.github.egorkor.webutils.queryparam.utils.DatabaseType;
 import io.github.egorkor.webutils.queryparam.utils.DriverUtils;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -27,6 +29,8 @@ import org.springframework.data.domain.Sort;
  * @since 2025
  */
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class Pagination {
     public static final int ALL_CONTENT_SIZE = -1;
     public static final int DEFAULT_PAGE = 0;
@@ -36,6 +40,9 @@ public class Pagination {
     private int size = DEFAULT_PAGE_SIZE;
     private int page = DEFAULT_PAGE;
 
+    public boolean isUnpaged(){
+        return size == ALL_CONTENT_SIZE;
+    }
 
     public static Pagination unpaged() {
         Pagination pagination = new Pagination();

@@ -11,6 +11,7 @@ import io.github.egorkor.webutils.queryparam.PageableResult;
 import io.github.egorkor.webutils.queryparam.Pagination;
 import io.github.egorkor.webutils.queryparam.Sorting;
 import jakarta.persistence.EntityManager;
+import lombok.ToString;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,6 +58,10 @@ public class JpaCrudServiceTests {
         repo.flush();
     }
 
+    @Test
+    public void testGetById(){
+        Assertions.assertNotNull(repo.findById(1L));
+    }
 
     @Test
     public void testNotFound1() {
@@ -72,6 +77,14 @@ public class JpaCrudServiceTests {
         } catch (ResourceNotFoundException e) {
             Assertions.assertEquals("Сущность TestEntity c id = 10 не найдена.", e.getMessage());
         }
+    }
+
+    @Test
+    public void testNotFound3(){
+        testEntityService.softDeleteById(2L);
+        Assertions.assertThrows(ResourceNotFoundException.class, () -> {
+            testEntityService.getById(2L);
+        });
     }
 
     @Test
@@ -96,6 +109,7 @@ public class JpaCrudServiceTests {
         );
         System.out.println(results);
         Assertions.assertEquals(1, results.getData().size());
-
     }
+
+
 }

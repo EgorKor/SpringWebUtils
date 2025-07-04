@@ -7,6 +7,7 @@ import io.github.egorkor.webutils.queryparam.Filter;
 import io.github.egorkor.webutils.queryparam.PageableResult;
 import io.github.egorkor.webutils.queryparam.Pagination;
 import io.github.egorkor.webutils.queryparam.Sorting;
+import jakarta.persistence.LockModeType;
 
 /**
  * Интерфейс базового CRUD параметризованного сервиса
@@ -15,7 +16,9 @@ import io.github.egorkor.webutils.queryparam.Sorting;
  *     <ul>
  *         <li>{@link #getAll(Filter, Sorting, Pagination)}</li>
  *         <li>{@link #getById(ID)}</li>
+ *         <li>{@link #getByIdWithLock(ID, LockModeType)}</li>
  *         <li>{@link #getByFilter(Filter)}</li>
+ *         <li>{@link #getByFilterWithLock(Filter, LockModeType)}</li>
  *         <li>{@link #create(T)}</li>
  *         <li>{@link #fullUpdate(T)}</li>
  *         <li>{@link #patchUpdate(ID, T)}</li>
@@ -61,6 +64,17 @@ public interface CrudService<T, ID> {
     T getById(ID id) throws ResourceNotFoundException;
 
     /**
+     * Запрос на получение сущности по идентификатору с возможностью блокировки
+     * записи на уровне базы данных
+     *
+     * @param id       идентификатор сущности
+     * @param lockType параметр блокировки в БД
+     * @return объект T - сущность найденная по id
+     * @throws ResourceNotFoundException в случае отсутствия в БД сущности с таким id
+     */
+    T getByIdWithLock(ID id, LockModeType lockType) throws ResourceNotFoundException;
+
+    /**
      * Запрос на получение одной сущности с применением условий из фильтра
      *
      * @param filter параметр запроса фильтрации
@@ -69,6 +83,18 @@ public interface CrudService<T, ID> {
      *                                   условиям из фильтра
      */
     T getByFilter(Filter<T> filter) throws ResourceNotFoundException;
+
+    /**
+     * Запрос на получение одной сущности с применением условий из фильтра
+     * с возможностью блокировки записи на уровне базы данных
+     *
+     * @param filter   параметр запроса фильтрации
+     * @param lockType параметр блокировки в БД
+     * @return объект Т - удовлетворяющий условиям из фильтра
+     * @throws ResourceNotFoundException в случае отсутствия в БД сущности удовлетворяющий
+     *                                   условиям из фильтра
+     */
+    T getByFilterWithLock(Filter<T> filter, LockModeType lockType) throws ResourceNotFoundException;
 
     /**
      * Создание (POST) сущности в БД

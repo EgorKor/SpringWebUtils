@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Sort;
 
 import java.util.List;
+import java.util.Objects;
 
 public class SortingTest {
 
@@ -41,8 +42,8 @@ public class SortingTest {
         sorting.setSort(List.of("id:asc", "name:desc"));
         Sort sort = sorting.toJpaSort();
 
-        Assertions.assertTrue(sort.getOrderFor("id").getDirection().isAscending());
-        Assertions.assertTrue(sort.getOrderFor("name").getDirection().isDescending());
+        Assertions.assertTrue(Objects.requireNonNull(sort.getOrderFor("id")).getDirection().isAscending());
+        Assertions.assertTrue(Objects.requireNonNull(sort.getOrderFor("name")).getDirection().isDescending());
     }
 
 
