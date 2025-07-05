@@ -25,6 +25,12 @@ public class PaginationTest {
     }
 
     @Test
+    public void testEmptySQLPagination(){
+        Pagination pagination = Pagination.unpaged();
+        Assertions.assertEquals("",pagination.toSqlPageable());
+    }
+
+    @Test
     public void testCalculatePageCount() {
         Assertions.assertEquals(PageableResult.countPages(105, 10), 11);
     }

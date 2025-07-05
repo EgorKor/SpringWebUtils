@@ -56,7 +56,7 @@ public class SqlMappingTest {
         TestEntityFilter filter = new TestEntityFilter();
         List<String> filters = new ArrayList<>();
         filters.add("id:=:1");
-        filters.add("_name:like:some name");
+        filters.add("name:like:some name");
         filter.setFilter(filters);
         filter.concat(Filter.softDeleteFilter("is_deleted", Boolean.class, false));
 

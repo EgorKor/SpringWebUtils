@@ -201,7 +201,7 @@ public abstract class JpaBatchCrudService<T, ID>
                 try {
                     results.add(jpaRepository.save(model));
                 } catch (Exception e) {
-                    log.error("create operation fails for entity: {} \ncause: {}", model.toString(), e.getMessage());
+                    log.error("create operation fails for entity: {} \ncause: {}", model.toString(), e.getMessage(), e);
                     status.setRollbackOnly();
                     throw new BatchOperationException(e.getMessage());
                 }
@@ -232,7 +232,8 @@ public abstract class JpaBatchCrudService<T, ID>
                 } catch (Exception e) {
                     log.error("update operation fails for entity: {} \ncause: {}",
                             model.toString(),
-                            e.getMessage());
+                            e.getMessage(),
+                            e);
                     status.setRollbackOnly();
                     throw new BatchOperationException(e.getMessage());
                 }
@@ -262,7 +263,8 @@ public abstract class JpaBatchCrudService<T, ID>
                 } catch (Exception e) {
                     log.error("delete operation fails for entity with id: {} \ncause: {}",
                             id,
-                            e.getMessage());
+                            e.getMessage(),
+                            e);
                     status.setRollbackOnly();
                     throw new BatchOperationException(e.getMessage());
                 }

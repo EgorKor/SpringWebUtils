@@ -12,7 +12,7 @@ public class SortingTest {
 
     @Test
     public void testSQLSortEmpty() {
-        Sorting sorting = new Sorting();
+        Sorting sorting = Sorting.unsorted();
         Assertions.assertEquals("", sorting.toSQLSort());
     }
 

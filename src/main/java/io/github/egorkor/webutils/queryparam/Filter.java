@@ -1,7 +1,7 @@
 package io.github.egorkor.webutils.queryparam;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import io.github.egorkor.webutils.annotations.FilterFieldAllies;
+import io.github.egorkor.webutils.annotations.FieldParamMapping;
 import io.github.egorkor.webutils.queryparam.utils.FieldTypeUtils;
 import jakarta.persistence.criteria.*;
 import lombok.AllArgsConstructor;
@@ -69,7 +69,7 @@ import java.util.stream.Collectors;
  * выполнить наследования от данного класса, и определить там поля, которые
  * попадут в whiteList и будут допустимы к использованию как параметры запроса.
  * При этом если нужно задать специфичное имя, можно использовать аннотацию для
- * псевдонимов {@link FilterFieldAllies}. Пример класса ограничивающего
+ * псевдонимов {@link FieldParamMapping}. Пример класса ограничивающего
  * возможный набор полей:
  *
  * <pre>
@@ -186,12 +186,13 @@ public class Filter<T> implements Specification<T> {
         }
         Field[] fields = this.getClass().getDeclaredFields();
         for (Field field : fields) {
-            FilterFieldAllies filterFieldAllies = field.getAnnotation(FilterFieldAllies.class);
-            if (filterFieldAllies == null) {
+            FieldParamMapping fieldParamMapping = field.getAnnotation(FieldParamMapping.class);
+            if (fieldParamMapping == null
+                    || fieldParamMapping.sqlMapping().equals(FieldParamMapping.NO_MAPPING)) {
                 continue;
             }
-            String alliesName = filterFieldAllies.value();
-            String fieldName = field.getName();
+            String alliesName = fieldParamMapping.sqlMapping();
+            String fieldName = Objects.equals(fieldParamMapping.requestParamMapping(), FieldParamMapping.NO_MAPPING) ? field.getName() : fieldParamMapping.requestParamMapping();
             String regexSafeFieldName = Pattern.quote(fieldName);
             for (int i = 0; i < filter.size(); i++) {
                 String filterFieldName = validateAndSplitFilter(filter.get(i))[0];
@@ -214,9 +215,10 @@ public class Filter<T> implements Specification<T> {
 
         Set<String> allowedFields = Arrays.stream(this.getClass().getDeclaredFields())
                 .map(f -> {
-                    FilterFieldAllies allies;
-                    if ((allies = f.getAnnotation(FilterFieldAllies.class)) != null) {
-                        return allies.value();
+                    FieldParamMapping allies;
+                    if ((allies = f.getAnnotation(FieldParamMapping.class)) != null
+                    && !Objects.equals(allies.requestParamMapping(), FieldParamMapping.NO_MAPPING)) {
+                        return allies.requestParamMapping();
                     } else {
                         return f.getName();
                     }
