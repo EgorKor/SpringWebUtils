@@ -2,12 +2,10 @@ package io.github.egorkor.webutils.queryparam;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.github.egorkor.webutils.annotations.FieldParamMapping;
+import io.github.egorkor.webutils.annotations.ParamCountLimit;
 import io.github.egorkor.webutils.queryparam.utils.FieldTypeUtils;
 import jakarta.persistence.criteria.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -74,12 +72,14 @@ import java.util.stream.Collectors;
  *
  * <pre>
  * {@code
- * //Разрешено только поле orderNameLike
- * //При этом использован псевдоним, который в итоге
- * //Переопределяет что допустимым является только поле orders.name
- * public class UserFilter extends Filter<User> {
- *     @FilterFieldAllies("orders.name")
- *     private String orderNameLike;
+ * public class UserFilter{
+ *     private String username;
+ *     //Клиент присылает order_name, затем маппится в orders.name
+ *     @FieldParamMapping(requestParamMapping="order_name", sqlMapping="orders.name")
+ *     private String orderName;
+ *     //Клиент присылает orders_count, затем маппится в orders.length()
+ *     @FieldParamMapping(requestParamMapping="orders_count", sqlMapping="orders.length()")
+ *     private Integer ordersCount;
  * }
  *
  * //Пример использования ограниченного набора полей при фильтрации
@@ -96,6 +96,7 @@ import java.util.stream.Collectors;
  * @version 1.0
  * @since 2025
  */
+//TODO: Добавить поддержку операции .length() у поля
 @Slf4j
 @Setter
 @Getter
@@ -108,26 +109,13 @@ public class Filter<T> implements Specification<T> {
 
     @JsonIgnore
     private List<String> fieldWhiteList = new ArrayList<>();
-    protected List<String> filter = new ArrayList<>();
+    protected List<String> filter;
     protected Class<T> entityType;
 
 
-    private void determineEntityType() {
-        if(getClass() == Filter.class){
-            return;
-        }
-        try{
-            Type superclass = getClass().getGenericSuperclass();
-            ParameterizedType parameterizedType = (ParameterizedType) superclass;
-            Type typeArgument = parameterizedType.getActualTypeArguments()[0];
-            this.entityType = (Class<T>) typeArgument;
-        }catch (Exception e){
-            log.warn("Cannot determine entity type", e);
-        }
-    }
-
     public Filter() {
         this.filter = new ArrayList<>();
+        determineEntityType();
     }
 
     public Filter(List<String> filter) {
@@ -146,91 +134,6 @@ public class Filter<T> implements Specification<T> {
     }
 
 
-    public static <T> Filter<T> softDeleteFilter(Field field, boolean isDeleted) {
-        return softDeleteFilter(field.getName(), field.getType(), isDeleted);
-    }
-
-    public static <T> Filter<T> softDeleteFilter(Field field, boolean isDeleted, Class<T> entityType) {
-        Filter<T> softDeleteFilter = softDeleteFilter(field.getName(), field.getType(), isDeleted);
-        softDeleteFilter.setEntityType(entityType);
-        return softDeleteFilter;
-    }
-
-    public static <T> Filter<T> softDeleteFilter(String fieldName, Class<?> fieldType, boolean isDeleted) {
-        Filter<T> filter = new Filter<>();
-        List<String> filterList = new ArrayList<>();
-        if (fieldType.equals(Boolean.class) || fieldType.equals(boolean.class)) {
-            filterList.add("%s:is:%s".formatted(fieldName, isDeleted));
-        } else {
-            filterList.add("%s:is:%s".formatted(fieldName, isDeleted ? "not_null" : "null"));
-        }
-        filter.setFilter(filterList);
-        return filter;
-    }
-
-    public static <T> Filter<T> emptyFilter() {
-        return new Filter<>();
-    }
-
-    public static <T> Filter<T> emptyFilter(Class<T> entityType) {
-        return new Filter<>(entityType);
-    }
-
-    private <SameType> Filter<SameType> _this() {
-        return (Filter<SameType>) this;
-    }
-
-    private void mapFilterByAllies() {
-        if (this.getClass() == Filter.class) {
-            return;
-        }
-        Field[] fields = this.getClass().getDeclaredFields();
-        for (Field field : fields) {
-            FieldParamMapping fieldParamMapping = field.getAnnotation(FieldParamMapping.class);
-            if (fieldParamMapping == null
-                    || fieldParamMapping.sqlMapping().equals(FieldParamMapping.NO_MAPPING)) {
-                continue;
-            }
-            String alliesName = fieldParamMapping.sqlMapping();
-            String fieldName = Objects.equals(fieldParamMapping.requestParamMapping(), FieldParamMapping.NO_MAPPING) ? field.getName() : fieldParamMapping.requestParamMapping();
-            String regexSafeFieldName = Pattern.quote(fieldName);
-            for (int i = 0; i < filter.size(); i++) {
-                String filterFieldName = validateAndSplitFilter(filter.get(i))[0];
-                if (fieldName.equals(filterFieldName)) {
-                    filter.set(i, filter.get(i)
-                            .replaceFirst(regexSafeFieldName, alliesName));
-                    break;
-                }
-            }
-        }
-    }
-
-    private void checkAllowedFilterFields() {
-        if (this.getClass() == Filter.class) {
-            return;
-        }
-        Set<String> filterFieldsNames = filter.stream().map(
-                s -> validateAndSplitFilter(s)[0]
-        ).collect(Collectors.toSet());
-
-        Set<String> allowedFields = Arrays.stream(this.getClass().getDeclaredFields())
-                .map(f -> {
-                    FieldParamMapping allies;
-                    if ((allies = f.getAnnotation(FieldParamMapping.class)) != null
-                    && !Objects.equals(allies.requestParamMapping(), FieldParamMapping.NO_MAPPING)) {
-                        return allies.requestParamMapping();
-                    } else {
-                        return f.getName();
-                    }
-                })
-                .collect(Collectors.toSet());
-
-        filterFieldsNames.removeAll(allowedFields);
-        fieldWhiteList.forEach(filterFieldsNames::remove);
-        if (!filterFieldsNames.isEmpty()) {
-            throw new IllegalArgumentException("Illegal parameters in filter: " + filterFieldsNames);
-        }
-    }
 
     public boolean isUnfiltered() {
         return filter.isEmpty();
@@ -244,6 +147,8 @@ public class Filter<T> implements Specification<T> {
                 ).toList());
         return _this();
     }
+
+    //region SQL Native Mapping
 
     public String toSQLFilter() {
         return toSQLFilter("");
@@ -403,8 +308,9 @@ public class Filter<T> implements Specification<T> {
             default -> throw new IllegalArgumentException("Invalid filter operation: " + filter);
         };
     }
+    //endregion
 
-
+    //region Criteria API Mapping
     @Override
     public Predicate toPredicate(Root<T> root,
                                  CriteriaQuery<?> query,
@@ -436,7 +342,7 @@ public class Filter<T> implements Specification<T> {
         try {
             return switch (operation) {
                 case "is" -> parseIsPredicate(cb, path, stringValue);
-                case "=" -> parseEqualPredicate(cb, path, reflectionField,stringValue);
+                case "=" -> parseEqualPredicate(cb, path, reflectionField, stringValue);
                 case ">", "<", ">=", "<=" -> parseComparisonPredicate(cb, path, operation, fieldType, stringValue);
                 case "!=" -> parseNotEqualPredicate(cb, path, fieldType, stringValue);
                 case "like" -> parseLikePredicate(cb, path, stringValue);
@@ -515,7 +421,7 @@ public class Filter<T> implements Specification<T> {
     private Predicate parseEqualPredicate(CriteriaBuilder cb, Path<?> path, Field reflectionField, String stringValue) {
         if (Collection.class.isAssignableFrom(reflectionField.getType())) {
             Object convertedValue = convertValue(stringValue, getCollectionElementType(reflectionField));
-            return cb.isMember(convertedValue, (Path<Collection>)path);
+            return cb.isMember(convertedValue, (Path<Collection>) path);
         }
         Object value = convertValue(stringValue, reflectionField.getType());
         return cb.equal(path, value);
@@ -549,7 +455,6 @@ public class Filter<T> implements Specification<T> {
         return cb.like(stringPath, "%" + stringValue + "%");
     }
 
-    @SuppressWarnings("unchecked")
     private <X> Path<X> getTypedPath(Path<?> path, Class<X> type) {
         return (Path<X>) path;
     }
@@ -563,12 +468,133 @@ public class Filter<T> implements Specification<T> {
         return path;
     }
 
+    //endregion
+
+    //region Universal Private Methods
+
+    private void determineEntityType() {
+        if (getClass() == Filter.class) {
+            return;
+        }
+        try {
+            Type superclass = getClass().getGenericSuperclass();
+            ParameterizedType parameterizedType = (ParameterizedType) superclass;
+            Type typeArgument = parameterizedType.getActualTypeArguments()[0];
+            this.entityType = (Class<T>) typeArgument;
+        } catch (Exception e) {
+            log.warn("Cannot determine entity type", e);
+        }
+    }
+
+    private <SameType> Filter<SameType> _this() {
+        return (Filter<SameType>) this;
+    }
+
+    private void mapFilterByAllies() {
+        if (this.getClass() == Filter.class) {
+            return;
+        }
+        Field[] fields = this.getClass().getDeclaredFields();
+        for (Field field : fields) {
+            FieldParamMapping fieldParamMapping = field.getAnnotation(FieldParamMapping.class);
+            if (fieldParamMapping == null
+                    || fieldParamMapping.sqlMapping().equals(FieldParamMapping.NO_MAPPING)) {
+                continue;
+            }
+            String alliesName = fieldParamMapping.sqlMapping();
+            String fieldName = Objects.equals(fieldParamMapping.requestParamMapping(), FieldParamMapping.NO_MAPPING) ? field.getName() : fieldParamMapping.requestParamMapping();
+            String regexSafeFieldName = Pattern.quote(fieldName);
+            for (int i = 0; i < filter.size(); i++) {
+                String filterFieldName = validateAndSplitFilter(filter.get(i))[0];
+                if (fieldName.equals(filterFieldName)) {
+                    filter.set(i, filter.get(i)
+                            .replaceFirst(regexSafeFieldName, alliesName));
+                    break;
+                }
+            }
+        }
+    }
+
+    private void checkAllowedFilterFields() {
+        if (this.getClass() == Filter.class) {
+            return;
+        }
+        ParamCountLimit limit;
+        if ((limit = this.getClass().getAnnotation(ParamCountLimit.class)) != null
+                && limit.value() != ParamCountLimit.UNLIMITED
+                && filter.size() > limit.value()) {
+            throw new IllegalArgumentException("Недопустимое кол-во параметров фильтрации: "
+                    + filter.size()
+                    + " , допустимое кол-во: "
+                    + limit.value());
+        }
+
+        Set<String> filterFieldsNames = filter.stream().map(
+                s -> validateAndSplitFilter(s)[0]
+        ).collect(Collectors.toSet());
+
+        Set<String> allowedFields = Arrays.stream(this.getClass().getDeclaredFields())
+                .map(f -> {
+                    FieldParamMapping allies;
+                    if ((allies = f.getAnnotation(FieldParamMapping.class)) != null
+                            && !Objects.equals(allies.requestParamMapping(), FieldParamMapping.NO_MAPPING)) {
+                        return allies.requestParamMapping();
+                    } else {
+                        return f.getName();
+                    }
+                })
+                .collect(Collectors.toSet());
+
+        filterFieldsNames.removeAll(allowedFields);
+        fieldWhiteList.forEach(filterFieldsNames::remove);
+        if (!filterFieldsNames.isEmpty()) {
+            throw new IllegalArgumentException("Illegal parameters in filter: " + filterFieldsNames);
+        }
+    }
+
+    //endregion
+
+    //region Utility Methods
+
     public static FilterBuilder builder() {
         return new FilterBuilder();
     }
 
+    public static <T> Filter<T> softDeleteFilter(Field field, boolean isDeleted) {
+        return softDeleteFilter(field.getName(), field.getType(), isDeleted);
+    }
+
+    public static <T> Filter<T> softDeleteFilter(Field field, boolean isDeleted, Class<T> entityType) {
+        Filter<T> softDeleteFilter = softDeleteFilter(field.getName(), field.getType(), isDeleted);
+        softDeleteFilter.setEntityType(entityType);
+        return softDeleteFilter;
+    }
+
+    public static <T> Filter<T> softDeleteFilter(String fieldName, Class<?> fieldType, boolean isDeleted) {
+        Filter<T> filter = new Filter<>();
+        List<String> filterList = new ArrayList<>();
+        if (fieldType.equals(Boolean.class) || fieldType.equals(boolean.class)) {
+            filterList.add("%s:is:%s".formatted(fieldName, isDeleted));
+        } else {
+            filterList.add("%s:is:%s".formatted(fieldName, isDeleted ? "not_null" : "null"));
+        }
+        filter.setFilter(filterList);
+        return filter;
+    }
+
+    public static <T> Filter<T> emptyFilter() {
+        return new Filter<>();
+    }
+
+    public static <T> Filter<T> emptyFilter(Class<T> entityType) {
+        return new Filter<>(entityType);
+    }
+
+    //endregion
+
+    //region NestedTypes
     public static class FilterBuilder {
-        private final List<FilterUnit> filters = new ArrayList<>();
+        protected final List<FilterUnit> filters = new ArrayList<>();
 
         public FilterBuilder equals(String field, String value) {
             filters.add(new FilterUnit(field, FilterOperation.EQUALS, value));
@@ -623,19 +649,28 @@ public class Filter<T> implements Specification<T> {
             );
         }
 
+        @SneakyThrows
+        public <R extends Filter> R buildDerived(Class<R> resultType) {
+            R derivedFilter = resultType.getDeclaredConstructor().newInstance();
+            derivedFilter.setFilter(
+                    new ArrayList<>(filters.stream().map(
+                            (o) -> "%s:%s:%s".formatted(o.field(), o.filterOperation().getOperation(), o.value())
+                    ).toList()
+            ));
+            return derivedFilter;
+        }
+
     }
 
     public record FilterUnit(String field, FilterOperation filterOperation, String value) {
     }
 
 
-    public static class FieldBuilder{
 
-    }
 
     @Getter
     @AllArgsConstructor
-    public enum Function{
+    public enum Function {
         LENGTH("length()"),
         SUM("sum()"),
         MAX("max()"),
@@ -672,5 +707,6 @@ public class Filter<T> implements Specification<T> {
 
         private final String operation;
     }
+    //endregion
 
 }

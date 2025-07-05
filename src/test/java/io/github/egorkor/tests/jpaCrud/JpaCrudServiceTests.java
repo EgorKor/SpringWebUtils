@@ -2,6 +2,8 @@ package io.github.egorkor.tests.jpaCrud;
 
 import io.github.egorkor.model.Tag;
 import io.github.egorkor.model.TestEntity;
+import io.github.egorkor.model.User;
+import io.github.egorkor.params.UserFilter;
 import io.github.egorkor.service.TestEntityService;
 import io.github.egorkor.service.TestNestedEntityService;
 import io.github.egorkor.service.impl.TestEntityCrudServiceImpl;
@@ -66,6 +68,15 @@ public class JpaCrudServiceTests {
                 )
         );
         repo.flush();
+    }
+
+    @Test
+    public void shouldThrowExceedLimitParametersCountException() {
+        UserFilter filter = Filter.builder()
+                .equals("id","1")
+                .equals("orders_name","name")
+                .buildDerived(UserFilter.class);
+        Assertions.assertThrows(IllegalArgumentException.class, filter::toSQLFilter);
     }
 
     @Test
