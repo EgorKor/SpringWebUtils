@@ -428,6 +428,7 @@ public class Filter<T> implements Specification<T> {
         String operation = parts[1].toLowerCase();
         String stringValue = parts[2];
 
+
         Path<?> path = field.contains(".") ? getNestedPath(root, field) : root.get(field);
         Field reflectionField = FieldTypeUtils.getField(entityType, field);
         Class<?> fieldType = reflectionField.getType();
@@ -625,6 +626,23 @@ public class Filter<T> implements Specification<T> {
     }
 
     public record FilterUnit(String field, FilterOperation filterOperation, String value) {
+    }
+
+
+    public static class FieldBuilder{
+
+    }
+
+    @Getter
+    @AllArgsConstructor
+    public enum Function{
+        LENGTH("length()"),
+        SUM("sum()"),
+        MAX("max()"),
+        AVG("avg()"),
+        MIN("min()");
+
+        private final String function;
     }
 
     @Getter
