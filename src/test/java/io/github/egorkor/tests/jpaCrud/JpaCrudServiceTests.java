@@ -183,7 +183,7 @@ public class JpaCrudServiceTests {
         try {
             testEntityService.getById(10L);
         } catch (ResourceNotFoundException e) {
-            Assertions.assertEquals("Сущность TestEntity c id = 10 не найдена.", e.getMessage());
+            Assertions.assertEquals("Entity TestEntity with id = 10 not found.", e.getMessage());
         }
     }
 

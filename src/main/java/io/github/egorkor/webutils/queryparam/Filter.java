@@ -13,6 +13,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.*;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
  * Параметр запроса для фильтрации запрашиваемых ресурсов.
@@ -110,7 +112,7 @@ public class Filter<T> implements Specification<T> {
     private List<String> fieldWhiteList = new ArrayList<>();
     protected List<String> filter;
     protected Class<?> entityType;
-
+    protected List<Consumer<Root<T>>> queryConfigurers = new ArrayList<>();
 
     public Filter() {
         this.filter = new ArrayList<>();
@@ -148,10 +150,10 @@ public class Filter<T> implements Specification<T> {
                 ).toList());
         return _this();
     }
-
     //region SQL Native Mapping
 
     public String toSQLFilter() {
+
         return toSQLFilter("");
     }
 
@@ -166,17 +168,21 @@ public class Filter<T> implements Specification<T> {
             if (sb.isEmpty()) {
                 sb.append("WHERE ");
             }
-            sb.append(parseCondition(filter.get(i), prefix));
+            sb.append(parseCondition(filter.get(i), prefix, RequestType.SQL));
             sb.append(" AND ");
         }
         if (sb.isEmpty() && !filter.isEmpty()) {
             sb.append("WHERE ");
         }
-        sb.append(parseCondition(filter.getLast(), prefix));
+        sb.append(parseCondition(filter.getLast(), prefix, RequestType.SQL));
         return sb.toString().trim();
     }
 
-    private String parseCondition(String filter, String prefix) {
+    public enum RequestType{
+        SQL, HQL
+    }
+
+    private String parseCondition(String filter, String prefix, RequestType type) {
         String[] parts = validateAndSplitFilter(filter);
         String field = validateFieldName(parts[0]);
         String operation = mapOperation(parts[1].toLowerCase());
@@ -316,16 +322,55 @@ public class Filter<T> implements Specification<T> {
     public Predicate toPredicate(Root<T> root,
                                  CriteriaQuery<?> query,
                                  CriteriaBuilder cb) {
-        checkAllowedFilterFields();
-        mapFilterByAllies();
-        List<Predicate> predicates = new ArrayList<>();
-        filter.forEach(f ->
-                predicates.add(parsePredicate(f, root, query, cb))
-        );
-        return cb.and(predicates.toArray(new Predicate[0]));
+        return toPredicate(root, cb);
     }
 
-    private Predicate parsePredicate(String filter, Root<T> root, CriteriaQuery<?> query, CriteriaBuilder cb) {
+    public Predicate toPredicate(Root<T> root,
+                                 CriteriaBuilder cb){
+        checkAllowedFilterFields();
+        mapFilterByAllies();
+        if(queryConfigurers.isEmpty()) {
+            configureQuery(root);
+        }else{
+            queryConfigurers.forEach(c -> c.accept(root));
+        }
+        Map<String, List<Predicate>> predicates = new HashMap<>();
+        filter.forEach(f -> {
+            String field = validateAndSplitFilter(f)[0];
+            if (predicates.containsKey(field)) {
+                predicates.get(field).add(parsePredicate(f, root, cb));
+            } else {
+                predicates.put(field, new ArrayList<>(List.of(parsePredicate(f, root, cb))));
+            }
+        });
+        return collectPredicates(cb, predicates);
+    }
+
+    /**
+     * Предназначен для переопределения,
+     * например чтобы
+     */
+    protected void configureQuery(Root<T> root) {}
+
+    public <R> Filter<R> configureQuery(Consumer<Root<T>> queryConfigurer) {
+        queryConfigurers.add(queryConfigurer);
+        return _this();
+    }
+
+    public <R> Filter<R> withFetchJoin(String fetchingProperty){
+        queryConfigurers.add((root) -> {
+            root.fetch(fetchingProperty, JoinType.LEFT);
+        });
+        return _this();
+    }
+
+    protected Predicate collectPredicates(CriteriaBuilder cb, Map<String, List<Predicate>> predicates) {
+        return cb.and(predicates.values().stream()
+                .flatMap(Collection::stream)
+                .toList().toArray(new Predicate[0]));
+    }
+
+    private Predicate parsePredicate(String filter, Root<T> root, CriteriaBuilder cb) {
         String[] parts = filter.split(":");
         if (parts.length != 3) {
             throw new IllegalArgumentException("Invalid filter format. Expected: field:operation:value");
@@ -558,6 +603,8 @@ public class Filter<T> implements Specification<T> {
     }
 
     //endregion
+
+
 
     //region Utility Methods
 

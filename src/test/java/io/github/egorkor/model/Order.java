@@ -3,6 +3,7 @@ package io.github.egorkor.model;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import lombok.*;
 
 @Getter
@@ -11,6 +12,7 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 @Entity
+@Table(name = "'orders'")
 public class Order {
     @Id
     private Long id;

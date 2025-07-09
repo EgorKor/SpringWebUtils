@@ -64,6 +64,15 @@ public interface CrudService<T, ID> {
     T getById(ID id) throws ResourceNotFoundException;
 
     /**
+     * Запрос на получение сущности по идентификатору
+     *
+     * @param id идентификатор сущности
+     * @return объект T - сущность найденная по id
+     * @throws ResourceNotFoundException в случае отсутствия в БД сущности с таким id
+     */
+    T getByIdWithFilter(ID id, Filter<T> filter) throws ResourceNotFoundException;
+
+    /**
      * Запрос на получение сущности по идентификатору с возможностью блокировки
      * записи на уровне базы данных
      *
