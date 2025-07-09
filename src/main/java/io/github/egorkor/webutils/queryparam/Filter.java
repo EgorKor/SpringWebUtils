@@ -2,8 +2,8 @@ package io.github.egorkor.webutils.queryparam;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.github.egorkor.webutils.annotations.FieldParamMapping;
-import io.github.egorkor.webutils.annotations.ParamCountLimit;
 import io.github.egorkor.webutils.queryparam.utils.FieldTypeUtils;
+import io.github.egorkor.webutils.queryparam.utils.ParamValidationUtils;
 import jakarta.persistence.criteria.*;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
@@ -13,8 +13,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.*;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 /**
  * Параметр запроса для фильтрации запрашиваемых ресурсов.
@@ -106,11 +104,12 @@ public class Filter<T> implements Specification<T> {
             = Set.of("<", "<=", "=", ">=", ">");
     private static final Set<String> BASIC_OPERATORS
             = Set.of("<", "<=", "=", ">=", ">", "<>");
+    private static final String FUNCTION_REGEX = "(length\\(\\))|(size\\(\\))";
 
     @JsonIgnore
     private List<String> fieldWhiteList = new ArrayList<>();
     protected List<String> filter;
-    protected Class<T> entityType;
+    protected Class<?> entityType;
 
 
     public Filter() {
@@ -133,7 +132,9 @@ public class Filter<T> implements Specification<T> {
         this.entityType = entityType;
     }
 
-
+    public boolean isFiltered() {
+        return !filter.isEmpty();
+    }
 
     public boolean isUnfiltered() {
         return filter.isEmpty();
@@ -334,6 +335,15 @@ public class Filter<T> implements Specification<T> {
         String operation = parts[1].toLowerCase();
         String stringValue = parts[2];
 
+        Function function = null;
+        if (field.contains(".")) {
+            String[] subFields = field.split("\\.");
+            String lastSubField = subFields[subFields.length - 1];
+            if (lastSubField.toLowerCase().matches(FUNCTION_REGEX)) {
+                function = Function.parseByOperation(lastSubField);
+                field = String.join(".", Arrays.copyOfRange(subFields, 0, subFields.length - 1));
+            }
+        }
 
         Path<?> path = field.contains(".") ? getNestedPath(root, field) : root.get(field);
         Field reflectionField = FieldTypeUtils.getField(entityType, field);
@@ -342,9 +352,10 @@ public class Filter<T> implements Specification<T> {
         try {
             return switch (operation) {
                 case "is" -> parseIsPredicate(cb, path, stringValue);
-                case "=" -> parseEqualPredicate(cb, path, reflectionField, stringValue);
-                case ">", "<", ">=", "<=" -> parseComparisonPredicate(cb, path, operation, fieldType, stringValue);
-                case "!=" -> parseNotEqualPredicate(cb, path, fieldType, stringValue);
+                case "=" -> parseEqualPredicate(cb, path, reflectionField, stringValue, function);
+                case ">", "<", ">=", "<=" ->
+                        parseComparisonPredicate(cb, path, operation, reflectionField, stringValue, function);
+                case "!=" -> parseNotEqualPredicate(cb, path, fieldType, stringValue, function);
                 case "like" -> parseLikePredicate(cb, path, stringValue);
                 case "in" -> parseInPredicate(cb, path, reflectionField, stringValue);
                 default -> throw new IllegalArgumentException("Invalid filter operation: " + operation);
@@ -418,24 +429,60 @@ public class Filter<T> implements Specification<T> {
         };
     }
 
-    private Predicate parseEqualPredicate(CriteriaBuilder cb, Path<?> path, Field reflectionField, String stringValue) {
+    private Predicate parseEqualPredicate(CriteriaBuilder cb, Path<?> path, Field reflectionField, String stringValue, Function function) {
         if (Collection.class.isAssignableFrom(reflectionField.getType())) {
             Object convertedValue = convertValue(stringValue, getCollectionElementType(reflectionField));
+            if (function != null) {
+                return switch (function) {
+                    case LENGTH, SIZE -> cb.equal(getFunctionPath(cb, path, function), convertedValue);
+                    default -> throw new IllegalArgumentException("Invalid function for equals operation: " + function);
+                };
+            }
             return cb.isMember(convertedValue, (Path<Collection>) path);
         }
         Object value = convertValue(stringValue, reflectionField.getType());
-        return cb.equal(path, value);
+        return cb.equal(getFunctionPath(cb, path, function), value);
+    }
+
+    private Expression<?> getFunctionPath(CriteriaBuilder cb, Path<?> current, Function function) {
+        if (function == null) {
+            return current;
+        }
+        return switch (function) {
+            case LENGTH -> cb.length(getTypedPath(current, String.class));
+            case SIZE -> cb.size(getTypedPath(current, Collection.class));
+            default -> throw new IllegalArgumentException("");
+        };
+
     }
 
     private Predicate parseComparisonPredicate(CriteriaBuilder cb, Path<?> path, String operation,
-                                               Class<?> fieldType, String stringValue) {
-        if (!Comparable.class.isAssignableFrom(fieldType)) {
+                                               Field reflectionField, String stringValue, Function function) {
+        if (!Comparable.class.isAssignableFrom(reflectionField.getType())
+                && function == null) {
             throw new IllegalArgumentException("Field " + path + " is not comparable");
         }
 
-        Comparable<?> value = (Comparable<?>) convertValue(stringValue, fieldType);
-        Path<Comparable> comparablePath = getTypedPath(path, Comparable.class);
+        Expression<Comparable> comparablePath = (Expression<Comparable>) getFunctionPath(cb, path, function);
 
+        if (Collection.class.isAssignableFrom(reflectionField.getType())) {
+            Object convertedValue = convertValue(stringValue, getCollectionElementType(reflectionField));
+            if (function != null) {
+                return switch (function) {
+                    case LENGTH, SIZE -> switch (operation) {
+                        case ">" -> cb.greaterThan(comparablePath, (Comparable) convertedValue);
+                        case "<" -> cb.lessThan(comparablePath, (Comparable) convertedValue);
+                        case ">=" -> cb.greaterThanOrEqualTo(comparablePath, (Comparable) convertedValue);
+                        case "<=" -> cb.lessThanOrEqualTo(comparablePath, (Comparable) convertedValue);
+                        default -> throw new IllegalArgumentException("Invalid comparison operation: " + operation);
+                    };
+                    default -> throw new IllegalArgumentException("Invalid function for equals operation: " + function);
+                };
+            }
+            return cb.isMember(convertedValue, (Path<Collection>) path);
+        }
+
+        Comparable<?> value = (Comparable<?>) convertValue(stringValue, reflectionField.getType());
         return switch (operation) {
             case ">" -> cb.greaterThan(comparablePath, (Comparable) value);
             case "<" -> cb.lessThan(comparablePath, (Comparable) value);
@@ -445,9 +492,13 @@ public class Filter<T> implements Specification<T> {
         };
     }
 
-    private Predicate parseNotEqualPredicate(CriteriaBuilder cb, Path<?> path, Class<?> fieldType, String stringValue) {
+    private Predicate parseNotEqualPredicate(CriteriaBuilder cb,
+                                             Path<?> path,
+                                             Class<?> fieldType,
+                                             String stringValue,
+                                             Function function) {
         Object value = convertValue(stringValue, fieldType);
-        return cb.notEqual(path, value);
+        return cb.notEqual(getFunctionPath(cb, path, function), value);
     }
 
     private Predicate parseLikePredicate(CriteriaBuilder cb, Path<?> path, String stringValue) {
@@ -480,7 +531,7 @@ public class Filter<T> implements Specification<T> {
             Type superclass = getClass().getGenericSuperclass();
             ParameterizedType parameterizedType = (ParameterizedType) superclass;
             Type typeArgument = parameterizedType.getActualTypeArguments()[0];
-            this.entityType = (Class<T>) typeArgument;
+            this.entityType = typeArgument.getClass();
         } catch (Exception e) {
             log.warn("Cannot determine entity type", e);
         }
@@ -494,62 +545,16 @@ public class Filter<T> implements Specification<T> {
         if (this.getClass() == Filter.class) {
             return;
         }
-        Field[] fields = this.getClass().getDeclaredFields();
-        for (Field field : fields) {
-            FieldParamMapping fieldParamMapping = field.getAnnotation(FieldParamMapping.class);
-            if (fieldParamMapping == null
-                    || fieldParamMapping.sqlMapping().equals(FieldParamMapping.NO_MAPPING)) {
-                continue;
-            }
-            String alliesName = fieldParamMapping.sqlMapping();
-            String fieldName = Objects.equals(fieldParamMapping.requestParamMapping(), FieldParamMapping.NO_MAPPING) ? field.getName() : fieldParamMapping.requestParamMapping();
-            String regexSafeFieldName = Pattern.quote(fieldName);
-            for (int i = 0; i < filter.size(); i++) {
-                String filterFieldName = validateAndSplitFilter(filter.get(i))[0];
-                if (fieldName.equals(filterFieldName)) {
-                    filter.set(i, filter.get(i)
-                            .replaceFirst(regexSafeFieldName, alliesName));
-                    break;
-                }
-            }
-        }
+        ParamValidationUtils.mapParamsByFilter(filter, this.getClass(),
+                this::validateAndSplitFilter);
     }
 
     private void checkAllowedFilterFields() {
         if (this.getClass() == Filter.class) {
             return;
         }
-        ParamCountLimit limit;
-        if ((limit = this.getClass().getAnnotation(ParamCountLimit.class)) != null
-                && limit.value() != ParamCountLimit.UNLIMITED
-                && filter.size() > limit.value()) {
-            throw new IllegalArgumentException("Недопустимое кол-во параметров фильтрации: "
-                    + filter.size()
-                    + " , допустимое кол-во: "
-                    + limit.value());
-        }
-
-        Set<String> filterFieldsNames = filter.stream().map(
-                s -> validateAndSplitFilter(s)[0]
-        ).collect(Collectors.toSet());
-
-        Set<String> allowedFields = Arrays.stream(this.getClass().getDeclaredFields())
-                .map(f -> {
-                    FieldParamMapping allies;
-                    if ((allies = f.getAnnotation(FieldParamMapping.class)) != null
-                            && !Objects.equals(allies.requestParamMapping(), FieldParamMapping.NO_MAPPING)) {
-                        return allies.requestParamMapping();
-                    } else {
-                        return f.getName();
-                    }
-                })
-                .collect(Collectors.toSet());
-
-        filterFieldsNames.removeAll(allowedFields);
-        fieldWhiteList.forEach(filterFieldsNames::remove);
-        if (!filterFieldsNames.isEmpty()) {
-            throw new IllegalArgumentException("Illegal parameters in filter: " + filterFieldsNames);
-        }
+        ParamValidationUtils.validateAllowedParams(filter, this.getClass(),
+                ParamValidationUtils.ParamType.FILTER, this::validateAndSplitFilter, fieldWhiteList);
     }
 
     //endregion
@@ -656,7 +661,7 @@ public class Filter<T> implements Specification<T> {
                     new ArrayList<>(filters.stream().map(
                             (o) -> "%s:%s:%s".formatted(o.field(), o.filterOperation().getOperation(), o.value())
                     ).toList()
-            ));
+                    ));
             return derivedFilter;
         }
 
@@ -666,18 +671,26 @@ public class Filter<T> implements Specification<T> {
     }
 
 
-
-
     @Getter
     @AllArgsConstructor
     public enum Function {
         LENGTH("length()"),
+        SIZE("size()"),
         SUM("sum()"),
         MAX("max()"),
         AVG("avg()"),
         MIN("min()");
 
         private final String function;
+
+        public static Function parseByOperation(String operation) {
+            for (Function func : values()) {
+                if (operation.equals(func.function)) {
+                    return func;
+                }
+            }
+            throw new IllegalArgumentException("Illegal operation: " + operation);
+        }
     }
 
     @Getter

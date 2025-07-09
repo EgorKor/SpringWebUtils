@@ -2,8 +2,8 @@ package io.github.egorkor.tests.jpaCrud;
 
 import io.github.egorkor.model.Tag;
 import io.github.egorkor.model.TestEntity;
-import io.github.egorkor.model.User;
 import io.github.egorkor.params.UserFilter;
+import io.github.egorkor.params.UserSort;
 import io.github.egorkor.service.TestEntityService;
 import io.github.egorkor.service.TestNestedEntityService;
 import io.github.egorkor.service.impl.TestEntityCrudServiceImpl;
@@ -71,13 +71,31 @@ public class JpaCrudServiceTests {
     }
 
     @Test
-    public void shouldThrowExceedLimitParametersCountException() {
+    public void shouldThrowExceedLimitParametersCountExceptionForFilter() {
         UserFilter filter = Filter.builder()
                 .equals("id","1")
                 .equals("orders_name","name")
                 .buildDerived(UserFilter.class);
         Assertions.assertThrows(IllegalArgumentException.class, filter::toSQLFilter);
     }
+
+    @Test
+    public void shouldThrowExceedLimitParametersCountExceptionForSorting() {
+        UserSort userSort = Sorting.builder()
+                .asc("id")
+                .desc("name")
+                .buildDerived(UserSort.class);
+        Assertions.assertThrows(IllegalArgumentException.class, userSort::toSQLSort);
+    }
+
+    @Test
+    public void shouldThrowIllegalArgumentExceptionForNonAllowedSortingParam(){
+        UserSort userSort = Sorting.builder()
+                .asc("ids")
+                .buildDerived(UserSort.class);
+        Assertions.assertThrows(IllegalArgumentException.class, userSort::toSQLSort);
+    }
+
 
     @Test
     public void shouldCorrectMapIsTrue(){
@@ -190,6 +208,48 @@ public class JpaCrudServiceTests {
     public void shouldFoundZeroRecordsAfterSoftDeleteAll(){
         testEntityService.softDeleteAll();
         Assertions.assertEquals(0, testEntityService.countAll());
+    }
+
+    @Test
+    public void shouldParseSizeFunctionForEquals(){
+        Assertions.assertEquals(
+                 testEntityService.countByFilter(
+                         Filter.builder()
+                                 .equals("nums.size()","2")
+                                 .build()
+                 ),1
+        );
+    }
+
+    @Test
+    public void shouldParseSizeFunctionForCompare(){
+        Assertions.assertEquals(
+                testEntityService.countByFilter(
+                        Filter.builder()
+                                .greaterOrEquals("nums.size()","2")
+                                .build()
+                ),2
+        );
+    }
+
+    @Test
+    public void shouldParseLengthFunctionForEquals(){
+        Assertions.assertEquals(
+                testEntityService.countByFilter(
+                        Filter.builder()
+                                .equals("name.length()","4")
+                                .build()),1
+        );
+    }
+
+    @Test
+    public void shouldParseLengthFunctionForCompare(){
+        Assertions.assertEquals(
+                testEntityService.countByFilter(
+                        Filter.builder()
+                                .greaterOrEquals("name.length()","5")
+                                .build()),1
+        );
     }
 
     @Test
