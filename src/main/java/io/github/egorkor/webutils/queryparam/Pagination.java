@@ -50,6 +50,13 @@ public class Pagination {
         return pagination;
     }
 
+    public static Pagination of(int page, int size) {
+        Pagination pagination = new Pagination();
+        pagination.setSize(size);
+        pagination.setPage(page);
+        return pagination;
+    }
+
     public Pageable toJpaPageable() {
         if (size == ALL_CONTENT_SIZE) {
             return Pageable.unpaged();

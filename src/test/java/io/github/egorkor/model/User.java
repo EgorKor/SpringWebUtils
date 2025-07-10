@@ -55,4 +55,9 @@ public class User {
                 .boxed()
                 .map(id -> generateUser((long) id)).toList();
     }
+
+    public void addOrder(Order order) {
+        orders.add(order);
+        order.setUser(this);
+    }
 }

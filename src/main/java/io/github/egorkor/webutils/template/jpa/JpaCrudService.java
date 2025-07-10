@@ -19,13 +19,13 @@ import jakarta.persistence.criteria.Root;
 import lombok.NonNull;
 import lombok.Setter;
 import lombok.SneakyThrows;
+import org.hibernate.jpa.HibernateHints;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
@@ -35,6 +35,7 @@ import java.sql.Timestamp;
 import java.time.*;
 import java.util.*;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 
 /**
@@ -178,6 +179,48 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
         }
         defineSoftDeleteSupport();
         defineIdField();
+    }
+
+    @Override
+    public PageableResult<T> getAll(Filter<T> filter, Pagination pagination) {
+        filter.setEntityType(entityType);
+        return getAll(filter, Sorting.unsorted(), pagination);
+    }
+
+    @Override
+    public List<T> getAll(Filter<T> filter, Sorting sorting) {
+        filter.setEntityType(entityType);
+        return getAll(filter, sorting, Pagination.unpaged()).getData();
+    }
+
+    @Override
+    public List<T> getAll(Filter<T> filter) {
+        filter.setEntityType(entityType);
+        return getAll(filter, Sorting.unsorted(), Pagination.unpaged()).getData();
+    }
+
+    @Override
+    public Stream<T> getStream(Filter<T> filter) {
+        filter.setEntityType(entityType);
+        return getStream(filter, Sorting.unsorted());
+    }
+
+    @Override
+    public Stream<T> getStream(Filter<T> filter, Sorting sorting) {
+        filter.setEntityType(entityType);
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<T> criteriaQuery = cb.createQuery(entityType);
+        Root<T> root = criteriaQuery.from(entityType);
+        criteriaQuery.select(root);
+        criteriaQuery
+                .where(getSoftDeleteSupportedFilter(filter)
+                        .toPredicate(root, cb));
+        criteriaQuery.orderBy(sorting.toCriteriaOrderList(root, cb));
+        TypedQuery<T> typedQuery = entityManager.createQuery(criteriaQuery);
+        return typedQuery
+                .setHint(HibernateHints.HINT_BATCH_FETCH_SIZE, "100")
+                .setHint(HibernateHints.HINT_READ_ONLY, true)
+                .getResultStream();
     }
 
     @SneakyThrows
@@ -478,13 +521,13 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     @Override
     public long countAll() {
         return !isSoftDeleteSupported ? jpaRepository.count() :
-                countByFilter(getSoftDeleteSupportedFilter(Filter.emptyFilter()));
+                countByFilter(getSoftDeleteSupportedFilter(Filter.empty()));
     }
 
     @Override
     public boolean existsById(@NonNull ID id) {
         return !isSoftDeleteSupported ? jpaRepository.existsById(id) :
-                existsByFilter(Filter.builder().equals(idField.getName(),id.toString()).build());
+                existsByFilter(Filter.builder().equals(idField.getName(), id.toString()).build());
     }
 
     @Override
@@ -514,7 +557,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
 
     @Override
     public void softDeleteAll() throws SoftDeleteUnsupportedException, EntityProcessingException {
-        softDeleteByFilter(Filter.emptyFilter(entityType));
+        softDeleteByFilter(Filter.empty(entityType));
     }
 
     @Override
@@ -528,7 +571,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                     SOFT_DELETE_FLAG_MAPPING.get(softDeleteField.getType()).get());
             if (filter.isFiltered()) {
                 filter.setEntityType(entityType);
-                update.where(filter.toPredicate(root,cb));
+                update.where(filter.toPredicate(root, cb));
             }
             transactionTemplate.executeWithoutResult(status -> {
                 entityManager.createQuery(update).executeUpdate();
@@ -559,7 +602,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
 
     @Override
     public void restoreAll() throws SoftDeleteUnsupportedException, EntityProcessingException {
-        restoreByFilter(Filter.emptyFilter(entityType));
+        restoreByFilter(Filter.empty(entityType));
     }
 
     @Override

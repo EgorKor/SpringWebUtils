@@ -9,6 +9,9 @@ import io.github.egorkor.webutils.queryparam.Pagination;
 import io.github.egorkor.webutils.queryparam.Sorting;
 import jakarta.persistence.LockModeType;
 
+import java.util.List;
+import java.util.stream.Stream;
+
 /**
  * Интерфейс базового CRUD параметризованного сервиса
  * <p>
@@ -53,6 +56,31 @@ public interface CrudService<T, ID> {
      * и параметры страниц
      */
     PageableResult<T> getAll(Filter<T> filter, Sorting sorting, Pagination pagination);
+
+    /**
+     *
+     */
+    PageableResult<T> getAll(Filter<T> filter, Pagination pagination);
+
+    /**
+     *
+     */
+    List<T> getAll(Filter<T> filter, Sorting sorting);
+
+    /**
+     *
+     */
+    List<T> getAll(Filter<T> filter);
+
+    /**
+     *
+     */
+    Stream<T> getStream(Filter<T> filter);
+
+    /**
+     *
+     */
+    Stream<T> getStream(Filter<T> filter, Sorting sorting);
 
     /**
      * Запрос на получение сущности по идентификатору

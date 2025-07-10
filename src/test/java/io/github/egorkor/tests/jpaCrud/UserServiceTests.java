@@ -17,6 +17,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.transaction.BeforeTransaction;
 
+import java.util.List;
+
 
 @Import(UserServiceImpl.class)
 @ActiveProfiles("test")
@@ -39,7 +41,7 @@ public class UserServiceTests {
     @Test
     public void testFindAll() {
         stats.setStatisticsEnabled(true);
-        var res = userService.getAll(Filter.emptyFilter(), Sorting.unsorted(), Pagination.unpaged());
+        var res = userService.getAll(Filter.empty(), Sorting.unsorted(), Pagination.unpaged());
         stats.setStatisticsEnabled(false);
         Assertions.assertEquals(1, stats.getPrepareStatementCount());
     }
@@ -48,7 +50,7 @@ public class UserServiceTests {
     public void testFindByIdWithJoin() {
         stats.setStatisticsEnabled(true);
         var res = userService.getByIdWithFilter(1L, Filter
-                .emptyFilter()
+                .empty()
                 .withFetchJoin("orders"));
         stats.setStatisticsEnabled(false);
         Assertions.assertEquals(1, stats.getPrepareStatementCount());
@@ -61,7 +63,7 @@ public class UserServiceTests {
         userService.softDeleteByFilter(Filter.builder()
                 .greater("id", "30")
                 .build());
-        var res = userService.getAll(Filter.emptyFilter(), Sorting.unsorted(), Pagination.unpaged());
+        var res = userService.getAll(Filter.empty(), Sorting.unsorted(), Pagination.unpaged());
         Assertions.assertEquals(2, stats.getPrepareStatementCount());
         Assertions.assertEquals(30, res.getData().size());
         stats.setStatisticsEnabled(false);
@@ -71,17 +73,25 @@ public class UserServiceTests {
     public void recoverByFilter() {
         stats.setStatisticsEnabled(true);
         userService.softDeleteByFilter(Filter.builder()
-                .lessOrEquals("id","10")
+                .lessOrEquals("id", "10")
                 .build());
-        var res = userService.getAll(Filter.emptyFilter(), Sorting.unsorted(), Pagination.unpaged());
+        var res = userService.getAll(Filter.empty(), Sorting.unsorted(), Pagination.unpaged());
         Assertions.assertEquals(res.getData().size(), 40);
         userService.restoreByFilter(Filter.builder()
-                .lessOrEquals("id","5")
+                .lessOrEquals("id", "5")
                 .build());
-        res = userService.getAll(Filter.emptyFilter(), Sorting.unsorted(), Pagination.unpaged());
+        res = userService.getAll(Filter.empty(), Sorting.unsorted(), Pagination.unpaged());
         Assertions.assertEquals(res.getData().size(), 45);
         Assertions.assertEquals(4, stats.getPrepareStatementCount());
+    }
 
+    @Test
+    public void testPaginationRequest() {
+        stats.setStatisticsEnabled(true);
+        List<User> users = userService.getAll(Filter.empty(), Sorting.unsorted(), Pagination.of(0, 10)).getData();
+        stats.setStatisticsEnabled(false);
+        Assertions.assertEquals(2, stats.getPrepareStatementCount());
+        Assertions.assertEquals(10, users.size());
     }
 
 

@@ -14,7 +14,6 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.*;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 /**
  * Параметр запроса для фильтрации запрашиваемых ресурсов.
@@ -634,11 +633,11 @@ public class Filter<T> implements Specification<T> {
         return filter;
     }
 
-    public static <T> Filter<T> emptyFilter() {
+    public static <T> Filter<T> empty() {
         return new Filter<>();
     }
 
-    public static <T> Filter<T> emptyFilter(Class<T> entityType) {
+    public static <T> Filter<T> empty(Class<T> entityType) {
         return new Filter<>(entityType);
     }
 
