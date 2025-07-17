@@ -16,14 +16,14 @@ public class ParamValidationUtils {
 
     static {
         LIMIT_ERRORS.put(ParamType.SORT,
-                (size, value) -> "Недопустимое кол-во параметров сортировки: "
+                (size, value) -> "Illegal sort param count: "
                         + size
-                        + " , допустимое кол-во: "
+                        + " , allowed count: "
                         + value);
         LIMIT_ERRORS.put(ParamType.FILTER,
-                (size, value) -> "Недопустимое кол-во параметров фильтрации: "
+                (size, value) -> "Illegal filter param count: "
                         + size
-                        + " , допустимое кол-во: "
+                        + " , allowed count: "
                         + value);
     }
 
@@ -31,9 +31,9 @@ public class ParamValidationUtils {
 
     static {
         NON_ALLOWED_ERRORS.put(ParamType.SORT, (set) ->
-                "Недопустимые параметры сортировки: " + set);
+                "Illegal sort params: " + set);
         NON_ALLOWED_ERRORS.put(ParamType.FILTER, (set) ->
-                "Недопустимые параметры фильтрации: " + set);
+                "Illegal filter params: " + set);
     }
 
 
@@ -89,7 +89,8 @@ public class ParamValidationUtils {
                 continue;
             }
             String alliesName = fieldParamMapping.sqlMapping();
-            String fieldName = Objects.equals(fieldParamMapping.requestParamMapping(), FieldParamMapping.NO_MAPPING) ? field.getName() : fieldParamMapping.requestParamMapping();
+            String fieldName = Objects.equals(fieldParamMapping.requestParamMapping(), FieldParamMapping.NO_MAPPING)
+                    ? field.getName() : fieldParamMapping.requestParamMapping();
             String regexSafeFieldName = Pattern.quote(fieldName);
             for (int i = 0; i < params.size(); i++) {
                 String filterFieldName = validationFunc.apply(params.get(i))[0];

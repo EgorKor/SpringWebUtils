@@ -1,5 +1,6 @@
 package io.github.egorkor.webutils.template.jpa;
 
+import lombok.Getter;
 import lombok.SneakyThrows;
 import org.hibernate.proxy.HibernateProxy;
 import org.springframework.data.annotation.Id;
@@ -20,11 +21,13 @@ import java.util.stream.Collectors;
  * @version 1.0
  * @since 2025
  */
-public class JpaEntityPropertyPatcher {
-    private static final Map<Class<?>, List<Field>> FIELD_CACHE = new ConcurrentHashMap<>();
 
-    private static List<Field> getDeclaredFieldsCached(Class<?> type) {
-        return FIELD_CACHE.computeIfAbsent(type, t ->
+public class JpaEntityPropertyPatcher {
+    @Getter
+    private static final Map<Class<?>, List<Field>> fieldCache = new ConcurrentHashMap<>();
+
+    public static List<Field> getDeclaredFieldsCached(Class<?> type) {
+        return fieldCache.computeIfAbsent(type, t ->
                 Arrays.stream(t.getDeclaredFields())
                         .filter(f -> !shouldSkipField(f))
                         .peek(f -> f.setAccessible(true))
@@ -54,7 +57,7 @@ public class JpaEntityPropertyPatcher {
         }
     }
 
-    private static Object unproxy(Object entity) {
+    public static Object unproxy(Object entity) {
         if (entity instanceof HibernateProxy) {
             return ((HibernateProxy) entity).getHibernateLazyInitializer()
                     .getImplementation();
@@ -62,7 +65,7 @@ public class JpaEntityPropertyPatcher {
         return entity;
     }
 
-    private static boolean shouldSkipField(Field field) {
+    public static boolean shouldSkipField(Field field) {
         if (field.isAnnotationPresent(Version.class) ||
                 field.isAnnotationPresent(Id.class) ||
                 field.isAnnotationPresent(jakarta.persistence.Version.class) ||
@@ -72,7 +75,7 @@ public class JpaEntityPropertyPatcher {
         return (field.getModifiers() & Modifier.FINAL) != 0;
     }
 
-    private static boolean shouldCopyValue(Field field, Object sourceValue, Object targetValue) {
+    public static boolean shouldCopyValue(Field field, Object sourceValue, Object targetValue) {
         if (sourceValue == null && !field.getType().isPrimitive()) {
             return false;
         }

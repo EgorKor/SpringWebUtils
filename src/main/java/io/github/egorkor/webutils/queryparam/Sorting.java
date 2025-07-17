@@ -5,10 +5,7 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Root;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.SneakyThrows;
+import lombok.*;
 import org.springframework.data.domain.Sort;
 
 import java.util.ArrayList;
@@ -34,17 +31,11 @@ import static io.github.egorkor.webutils.queryparam.Filter.getNestedPath;
  * @author EgorKor
  * @since 2025
  */
-//TODO: group by
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class Sorting {
     private List<String> sort = new ArrayList<>();
-
-    public Sorting() {
-    }
-
-    public Sorting(List<String> sort) {
-        this.sort = sort;
-    }
 
     public void checkAllowedSortFields() {
         if (isMethodCallByParentClass()) {
@@ -82,7 +73,7 @@ public class Sorting {
         return toSQLSort("");
     }
 
-    public String toSQLSort(String prefix) {
+    public String toSQLSort(@NonNull String prefix) {
         checkAllowedSortFields();
         StringBuilder sb = new StringBuilder();
         for (String s : sort) {
@@ -104,7 +95,8 @@ public class Sorting {
         return sb.toString();
     }
 
-    public <T> List<Order> toCriteriaOrderList(Root<T> root, CriteriaBuilder cb) {
+    public <T> List<Order> toCriteriaOrderList(@NonNull Root<T> root,
+                                               @NonNull CriteriaBuilder cb) {
         checkAllowedSortFields();
         List<Order> orderList = new ArrayList<>();
         for (String s : sort) {
@@ -137,27 +129,27 @@ public class Sorting {
         return Sort.by(orders);
     }
 
-    private String[] validateAndSplitSort(String sort) {
+    private String[] validateAndSplitSort(@NonNull String sort) {
         String[] split = sort.split(":");
         if (split.length != 2) {
-            throw new IllegalArgumentException("Параметр сортировки должен иметь строго две части " +
-                    "по шаблону 'field:order': " + sort);
+            throw new IllegalArgumentException("Sort param should have only two parts " +
+                    "with current template 'field:order': " + sort);
         }
         validateField(split[0]);
         validateOrder(split[1]);
         return split;
     }
 
-    private void validateField(String field) {
+    private void validateField(@NonNull String field) {
         if (!field.matches("[._\\-a-zA-Z]+")) {
-            throw new IllegalArgumentException("Невалидное название поля параметра сортировки: " + field);
+            throw new IllegalArgumentException("Invalid sort field name: " + field);
         }
     }
 
-    private void validateOrder(String order) {
-        if (!(order.equals("asc") || order.equals("desc"))) {
-            throw new IllegalArgumentException("Невалидный порядок сортировки: " + order +
-                    ". Допустимые порядки - 'asc' 'desc'");
+    private void validateOrder(@NonNull String order) {
+        if (!(order.equalsIgnoreCase("asc") || order.equalsIgnoreCase("desc"))) {
+            throw new IllegalArgumentException("Invalid sort order param: " + order +
+                    ". Allowed params - 'asc' 'desc'");
         }
     }
 

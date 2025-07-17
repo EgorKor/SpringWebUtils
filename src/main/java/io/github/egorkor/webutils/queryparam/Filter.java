@@ -95,7 +95,6 @@ import java.util.function.Consumer;
  * @version 1.0
  * @since 2025
  */
-//TODO: Добавить поддержку операции .length() у поля
 @Slf4j
 @Setter
 @Getter
@@ -119,7 +118,7 @@ public class Filter<T> implements Specification<T> {
     }
 
     public Filter(List<String> filter) {
-        this.filter = filter;
+        this.filter = new ArrayList<>(filter);
         determineEntityType();
     }
 
@@ -151,8 +150,11 @@ public class Filter<T> implements Specification<T> {
     }
     //region SQL Native Mapping
 
+    /**
+     *
+     *
+     * */
     public String toSQLFilter() {
-
         return toSQLFilter("");
     }
 
@@ -167,21 +169,17 @@ public class Filter<T> implements Specification<T> {
             if (sb.isEmpty()) {
                 sb.append("WHERE ");
             }
-            sb.append(parseCondition(filter.get(i), prefix, RequestType.SQL));
+            sb.append(parseCondition(filter.get(i), prefix));
             sb.append(" AND ");
         }
         if (sb.isEmpty() && !filter.isEmpty()) {
             sb.append("WHERE ");
         }
-        sb.append(parseCondition(filter.getLast(), prefix, RequestType.SQL));
+        sb.append(parseCondition(filter.getLast(), prefix));
         return sb.toString().trim();
     }
 
-    public enum RequestType{
-        SQL, HQL
-    }
-
-    private String parseCondition(String filter, String prefix, RequestType type) {
+    private String parseCondition(String filter, String prefix) {
         String[] parts = validateAndSplitFilter(filter);
         String field = validateFieldName(parts[0]);
         String operation = mapOperation(parts[1].toLowerCase());

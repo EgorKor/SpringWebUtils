@@ -8,6 +8,7 @@ import io.github.egorkor.webutils.queryparam.PageableResult;
 import io.github.egorkor.webutils.queryparam.Pagination;
 import io.github.egorkor.webutils.queryparam.Sorting;
 import jakarta.persistence.LockModeType;
+import jakarta.persistence.NonUniqueResultException;
 
 import java.util.List;
 import java.util.stream.Stream;
@@ -58,27 +59,45 @@ public interface CrudService<T, ID> {
     PageableResult<T> getAll(Filter<T> filter, Sorting sorting, Pagination pagination);
 
     /**
+     * Запрос на получение списка сущностей с учётом фильтрации и пагинации
      *
+     * @param filter     параметр запроса фильтрации
+     * @param pagination параметр запроса постраничного доступа
+     * @return PageableResult - результат постраничного запроса к БД, содержащий данные
+     * и параметры страниц
      */
     PageableResult<T> getAll(Filter<T> filter, Pagination pagination);
 
     /**
+     * Запрос на получение списка сущностей с учётом фильтрации и сортировки
      *
+     * @param sorting    параметр запроса сортировки
+     * @param filter     параметр запроса фильтрации
+     * @return List типа T - результат запроса к БД, содержащий данные
      */
     List<T> getAll(Filter<T> filter, Sorting sorting);
 
     /**
+     * Запрос на получение списка сущностей с учётом фильтрации
      *
+     * @param filter     параметр запроса фильтрации
+     * @return List типа T - результат запроса к БД, содержащий данные
      */
     List<T> getAll(Filter<T> filter);
 
     /**
-     *
+     * Запрос на получение потока данных с учётом фильтрации.
+     * В потоке запрашиваются все данные, но выгрузка происходит
+     * частично, в отличие от методов getAll - которые выгружают
+     * сразу весь список. Рекомендуется использовать его при обработке
+     * больших объемов данных.
      */
     Stream<T> getStream(Filter<T> filter);
 
     /**
-     *
+     * Запрос на получение потока данных с учётом фильтрации
+     * и сортировки
+     * @see #getStream(Filter) 
      */
     Stream<T> getStream(Filter<T> filter, Sorting sorting);
 
@@ -112,14 +131,15 @@ public interface CrudService<T, ID> {
     T getByIdWithLock(ID id, LockModeType lockType) throws ResourceNotFoundException;
 
     /**
-     * Запрос на получение одной сущности с применением условий из фильтра
+     * Запрос на получение одной сущности с применением условий из фильтра.
+     * Находимая сущность по данному фильтру должна быть уникальна
      *
      * @param filter параметр запроса фильтрации
      * @return объект Т - удовлетворяющий условиям из фильтра
      * @throws ResourceNotFoundException в случае отсутствия в БД сущности удовлетворяющий
      *                                   условиям из фильтра
      */
-    T getByFilter(Filter<T> filter) throws ResourceNotFoundException;
+    T getByFilter(Filter<T> filter) throws ResourceNotFoundException, NonUniqueResultException;
 
     /**
      * Запрос на получение одной сущности с применением условий из фильтра

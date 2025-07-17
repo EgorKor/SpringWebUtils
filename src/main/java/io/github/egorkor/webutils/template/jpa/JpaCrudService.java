@@ -332,7 +332,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     }
 
     @Override
-    public T getByFilter(@NonNull Filter<T> filter) throws ResourceNotFoundException {
+    public T getByFilter(@NonNull Filter<T> filter) throws ResourceNotFoundException, NonUniqueResultException {
         Supplier<ResourceNotFoundException> exceptionSupplier = () ->
                 new ResourceNotFoundException("Entity "
                         + getEntityTypeName()

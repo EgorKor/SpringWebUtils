@@ -1,4 +1,4 @@
-package io.github.egorkor.tests;
+package io.github.egorkor.tests.params;
 
 import io.github.egorkor.model.TestEntity;
 import io.github.egorkor.model.TestNestedEntity;
