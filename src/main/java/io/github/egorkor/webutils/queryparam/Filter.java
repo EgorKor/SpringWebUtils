@@ -230,6 +230,8 @@ public class Filter<T> implements Specification<T> {
             case "=", "<>", ">", "<", ">=", "<=" -> buildBasicCondition(prefix + field, operation);
             case "IS" -> buildIsCondition(prefix + field, value);
             case "LIKE" -> buildLikeCondition(prefix + field);
+            case "NOT LIKE" -> "NOT " + buildLikeCondition(prefix + field);
+            case "NOT IN" -> "NOT " + buildInCondition(prefix + field, value);
             case "IN" -> buildInCondition(prefix + field, value);
             default -> throw new IllegalArgumentException("Invalid operation: " + operation);
         };
@@ -348,7 +350,9 @@ public class Filter<T> implements Specification<T> {
         return switch (operation.toLowerCase()) {
             case "!=" -> "<>";
             case "like" -> "LIKE";
+            case "not_like" -> "NOT LIKE";
             case "in" -> "IN";
+            case "not_in" -> "NOT IN";
             case "is" -> "IS";
             default -> throw new IllegalArgumentException("Invalid filter operation: " + filter);
         };
