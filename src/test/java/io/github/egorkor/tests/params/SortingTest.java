@@ -21,6 +21,19 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 public class SortingTest {
 
+    @Mock
+    private Root<TestEntity> root;
+    @Mock
+    private CriteriaBuilder cb;
+    @Mock
+    private Path<Object> path;
+    @Mock
+    private Path<Object> nestedPath;
+    @Mock
+    private Order ascOrder;
+    @Mock
+    private Order descOrder;
+
     @Test
     public void testSQLSortEmpty() {
         Sorting sorting = Sorting.unsorted();
@@ -55,35 +68,6 @@ public class SortingTest {
 
         Assertions.assertTrue(Objects.requireNonNull(sort.getOrderFor("id")).getDirection().isAscending());
         Assertions.assertTrue(Objects.requireNonNull(sort.getOrderFor("name")).getDirection().isDescending());
-    }
-
-
-    @Mock
-    private Root<TestEntity> root;
-
-    @Mock
-    private CriteriaBuilder cb;
-
-    @Mock
-    private Path<Object> path;
-
-    @Mock
-    private Path<Object> nestedPath;
-
-    @Mock
-    private Order ascOrder;
-
-    @Mock
-    private Order descOrder;
-
-    static class TestEntity {
-        String name;
-        int age;
-        NestedEntity nested;
-    }
-
-    static class NestedEntity {
-        String property;
     }
 
     @Test
@@ -232,6 +216,16 @@ public class SortingTest {
         assertEquals(2, result.size());
         assertSame(ascOrder, result.get(0));
         assertSame(descOrder, result.get(1));
+    }
+
+    static class TestEntity {
+        String name;
+        int age;
+        NestedEntity nested;
+    }
+
+    static class NestedEntity {
+        String property;
     }
 
 }

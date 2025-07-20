@@ -1,7 +1,6 @@
 package io.github.egorkor.tests.pathing;
 
 import io.github.egorkor.webutils.template.jpa.JpaEntityPropertyPatcher;
-import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import lombok.AllArgsConstructor;
@@ -22,6 +21,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class PatcherTest {
+    // Helper method to access the cache for testing
+    private static Map<Class<?>, List<Field>> getFieldCache() {
+        return JpaEntityPropertyPatcher.getFieldCache();
+    }
+
     @Test
     void shouldSkipIdField() throws NoSuchFieldException {
         Field idField = TestEntity.class.getDeclaredField("id");
@@ -154,21 +158,15 @@ public class PatcherTest {
         assertTrue(JpaEntityPropertyPatcher.getFieldCache().containsKey(TestEntity.class));
     }
 
-    // Helper method to access the cache for testing
-    private static Map<Class<?>, List<Field>> getFieldCache() {
-        return JpaEntityPropertyPatcher.getFieldCache();
-    }
-
     @AllArgsConstructor
     @NoArgsConstructor
     static class TestEntity {
+        final String finalField = "constant";
         @Id
         @GeneratedValue(strategy = GenerationType.IDENTITY)
         Long id;
         @Version
         Long version;
-        final String finalField = "constant";
-
         String name;
         int value;
         boolean flag;

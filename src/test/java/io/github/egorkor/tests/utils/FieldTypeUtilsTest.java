@@ -13,37 +13,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class FieldTypeUtilsTest {
 
-    // Test classes for reflection
-    static class TestClass {
-        public String publicField;
-        private String privateField;
-        protected String protectedField;
-        String packagePrivateField;
-        public NestedClass nested;
-    }
-
-    static class NestedClass {
-        public String nestedField;
-        public DeepNested deepNested;
-    }
-
-    static class DeepNested {
-        public String deepField;
-    }
-
-    static class ParentClass {
-        private String inheritedField;
-    }
-
-    static class ChildClass extends ParentClass {
-        public String childField;
-    }
-
-    static class GenericClass<T> {
-        public T genericField;
-        public List<Map<String, Integer>> complexGenericField;
-    }
-
     @Test
     void shouldGetPublicField() throws Exception {
         Field field = FieldTypeUtils.getField(TestClass.class, "publicField");
@@ -180,5 +149,36 @@ class FieldTypeUtilsTest {
         Field field = FieldTypeUtils.getField(FileHolder.class, "fileWithDots");
         assertEquals("fileWithDots", field.getName());
         assertEquals(File.class, field.getType());
+    }
+
+    // Test classes for reflection
+    static class TestClass {
+        public String publicField;
+        public NestedClass nested;
+        protected String protectedField;
+        String packagePrivateField;
+        private String privateField;
+    }
+
+    static class NestedClass {
+        public String nestedField;
+        public DeepNested deepNested;
+    }
+
+    static class DeepNested {
+        public String deepField;
+    }
+
+    static class ParentClass {
+        private String inheritedField;
+    }
+
+    static class ChildClass extends ParentClass {
+        public String childField;
+    }
+
+    static class GenericClass<T> {
+        public T genericField;
+        public List<Map<String, Integer>> complexGenericField;
     }
 }

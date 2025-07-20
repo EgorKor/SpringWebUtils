@@ -37,6 +37,14 @@ import static io.github.egorkor.webutils.queryparam.Filter.getNestedPath;
 public class Sorting {
     private List<String> sort = new ArrayList<>();
 
+    public static Sorting unsorted() {
+        return new Sorting();
+    }
+
+    public static SortingBuilder builder() {
+        return new SortingBuilder();
+    }
+
     public void checkAllowedSortFields() {
         if (isMethodCallByParentClass()) {
             return;
@@ -55,10 +63,6 @@ public class Sorting {
 
     private boolean isMethodCallByParentClass() {
         return this.getClass() == Sorting.class;
-    }
-
-    public static Sorting unsorted() {
-        return new Sorting();
     }
 
     public boolean isSorted() {
@@ -113,7 +117,6 @@ public class Sorting {
         return orderList;
     }
 
-
     public Sort toJpaSort() {
         if (sort.isEmpty()) {
             return Sort.unsorted();
@@ -153,10 +156,6 @@ public class Sorting {
         }
     }
 
-    public static SortingBuilder builder() {
-        return new SortingBuilder();
-    }
-
     public static class SortingBuilder {
         private final List<SortingUnit> sorting = new ArrayList<>();
 
@@ -180,7 +179,7 @@ public class Sorting {
             R derivedSort = derivedClass.getDeclaredConstructor().newInstance();
             derivedSort.setSort(
                     new ArrayList<>(sorting.stream().map(
-                            (o) -> "%s:%s".formatted(o.field(),o.order())
+                            (o) -> "%s:%s".formatted(o.field(), o.order())
                     ).toList()
                     ));
             return derivedSort;

@@ -16,11 +16,12 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.transaction.BeforeTransaction;
+import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import java.util.List;
 
 
-@Import(UserServiceImpl.class)
+@Import({UserServiceImpl.class, LocalValidatorFactoryBean.class})
 @ActiveProfiles("test")
 @DataJpaTest
 public class UserServiceTests {

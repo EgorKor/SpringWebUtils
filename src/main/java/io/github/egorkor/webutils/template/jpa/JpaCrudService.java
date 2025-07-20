@@ -2,10 +2,7 @@ package io.github.egorkor.webutils.template.jpa;
 
 import io.github.egorkor.webutils.annotations.SoftDeleteFlag;
 import io.github.egorkor.webutils.event.crud.*;
-import io.github.egorkor.webutils.exception.EntityOperation;
-import io.github.egorkor.webutils.exception.EntityProcessingException;
-import io.github.egorkor.webutils.exception.ResourceNotFoundException;
-import io.github.egorkor.webutils.exception.SoftDeleteUnsupportedException;
+import io.github.egorkor.webutils.exception.*;
 import io.github.egorkor.webutils.queryparam.Filter;
 import io.github.egorkor.webutils.queryparam.PageableResult;
 import io.github.egorkor.webutils.queryparam.Pagination;
@@ -16,6 +13,8 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.CriteriaUpdate;
 import jakarta.persistence.criteria.Root;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import lombok.NonNull;
 import lombok.Setter;
 import lombok.SneakyThrows;
@@ -154,6 +153,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     protected final JpaSpecificationExecutor<T> jpaSpecificationExecutor;
     protected final ApplicationEventPublisher eventPublisher;
     protected final TransactionTemplate transactionTemplate;
+    protected final Validator validator;
     protected final Class<T> entityType;
     @Setter
     protected EntityManager entityManager;
@@ -164,11 +164,13 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     public JpaCrudService(JpaRepository<T, ID> jpaRepository,
                           JpaSpecificationExecutor<T> jpaSpecificationExecutor,
                           ApplicationEventPublisher eventPublisher,
-                          TransactionTemplate transactionTemplate) {
+                          TransactionTemplate transactionTemplate,
+                          Validator validator) {
         this.jpaRepository = jpaRepository;
         this.jpaSpecificationExecutor = jpaSpecificationExecutor;
         this.eventPublisher = eventPublisher;
         this.transactionTemplate = transactionTemplate;
+        this.validator = validator;
 
         //initialize entity class definition
         {
@@ -190,13 +192,13 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     @Override
     public List<T> getAll(Filter<T> filter, Sorting sorting) {
         filter.setEntityType(entityType);
-        return getAll(filter, sorting, Pagination.unpaged()).getData();
+        return jpaSpecificationExecutor.findAll(getSoftDeleteSupportedFilter(filter), sorting.toJpaSort());
     }
 
     @Override
     public List<T> getAll(Filter<T> filter) {
         filter.setEntityType(entityType);
-        return getAll(filter, Sorting.unsorted(), Pagination.unpaged()).getData();
+        return jpaSpecificationExecutor.findAll(getSoftDeleteSupportedFilter(filter));
     }
 
     @Override
@@ -271,6 +273,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                 .findAny().orElseThrow(
                         () -> new IllegalStateException("Entity " + entityType.getName() + " has no @Id field")
                 );
+        this.idField.setAccessible(true);
     }
 
     private Filter<T> getSoftDeleteSupportedFilter(@NonNull Filter<T> filter) {
@@ -341,12 +344,10 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                         + " not found.");
         filter.setEntityType(entityType);
         boolean isDeleted = false;
-        return isSoftDeleteSupported ?
+        return !isSoftDeleteSupported ?
                 jpaSpecificationExecutor.findOne(filter)
                         .orElseThrow(exceptionSupplier) :
-                jpaSpecificationExecutor.findOne(
-                                Filter.softDeleteFilter(softDeleteField, isDeleted)
-                                        .concat(filter))
+                jpaSpecificationExecutor.findOne(getSoftDeleteSupportedFilter(filter))
                         .orElseThrow(exceptionSupplier);
     }
 
@@ -385,6 +386,10 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
 
     @Override
     public T create(@NonNull T model) throws EntityProcessingException {
+        Set<ConstraintViolation<T>> violations = validator.validate(model);
+        if (!violations.isEmpty()) {
+            throw new ValidationException(violations);
+        }
         try {
             if (eventPublisher != null) {
                 eventPublisher.publishEvent(new EntityCreatingEvent<>(this, model));
@@ -392,8 +397,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
 
             T saved = transactionTemplate.execute(status -> {
                 try {
-                    entityManager.persist(model);
-                    return model;
+                    return jpaRepository.save(model);
                 } catch (DataAccessException e) {
                     throw new EntityProcessingException("Entity saving data access error",
                             e, entityType, EntityOperation.CREATE);
@@ -415,6 +419,10 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
 
     @Override
     public T fullUpdate(@NonNull T model) throws EntityProcessingException {
+        Set<ConstraintViolation<T>> violations = validator.validate(model);
+        if (!violations.isEmpty()) {
+            throw new ValidationException(violations);
+        }
         try {
             if (eventPublisher != null) {
                 eventPublisher.publishEvent(new EntityUpdatingEvent<>(this, model));
@@ -442,6 +450,10 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     @Override
     public T patchUpdate(@NonNull ID id,
                          @NonNull T model) throws EntityProcessingException {
+        Set<ConstraintViolation<T>> violations = validator.validate(model);
+        if (!violations.isEmpty()) {
+            throw new ValidationException(violations);
+        }
         try {
             T dbModel = getById(id);
             if (eventPublisher != null) {
@@ -450,7 +462,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
             JpaEntityPropertyPatcher.patch(model, dbModel);
             T updated = transactionTemplate.execute(status -> {
                 try {
-                    return jpaRepository.save(model);
+                    return jpaRepository.save(dbModel);
                 } catch (DataAccessException e) {
                     throw new EntityProcessingException("Entity patch updating data access error",
                             e, entityType, EntityOperation.CREATE);
@@ -470,7 +482,15 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
 
     @Override
     public void deleteById(@NonNull ID id) throws ResourceNotFoundException, EntityProcessingException {
+        if (!existsById(id)) {
+            throw new ResourceNotFoundException("Entity "
+                    + getEntityTypeName()
+                    + " with id = "
+                    + id
+                    + " not found.");
+        }
         try {
+
             if (eventPublisher != null) {
                 eventPublisher.publishEvent(new EntityDeletingEvent<>(this, id));
             }
@@ -591,10 +611,13 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     @Override
     public void restoreById(@NonNull ID id) throws ResourceNotFoundException, SoftDeleteUnsupportedException, EntityProcessingException {
         checkSoftDeleteAvailability();
-        T entity = getById(id);
+        Filter<T> filter = Filter.builder().equals(idField.getName(), id.toString()).build();
+        filter.setEntityType(entityType);
+        T entity = jpaSpecificationExecutor.findOne(filter)
+                .orElseThrow(() -> new ResourceNotFoundException("Entity not found: " + id));
         softDeleteField.set(entity, RESTORE_FLAG_MAPPING.get(softDeleteField.getType()).get());
         try {
-            jpaRepository.save(entity);
+            entityManager.merge(entity);
         } catch (Exception e) {
             throw new EntityProcessingException("Unexpected restore entity by id error: " + id, e, entityType, EntityOperation.UPDATE);
         }

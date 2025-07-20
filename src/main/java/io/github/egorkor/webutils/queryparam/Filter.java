@@ -105,12 +105,11 @@ public class Filter<T> implements Specification<T> {
     private static final Set<String> BASIC_OPERATORS
             = Set.of("<", "<=", "=", ">=", ">", "<>");
     private static final String FUNCTION_REGEX = "(length\\(\\))|(size\\(\\))";
-
-    @JsonIgnore
-    private List<String> fieldWhiteList = new ArrayList<>();
     protected List<String> filter;
     protected Class<?> entityType;
     protected List<Consumer<Root<T>>> queryConfigurers = new ArrayList<>();
+    @JsonIgnore
+    private List<String> fieldWhiteList = new ArrayList<>();
 
     public Filter() {
         this.filter = new ArrayList<>();
@@ -127,9 +126,53 @@ public class Filter<T> implements Specification<T> {
         this.filter = new ArrayList<>();
     }
 
-    public Filter(List<String> filter, Class<T> entityType) {
+    public Filter(List<String> filter, Class<?> entityType) {
         this.filter = filter;
         this.entityType = entityType;
+    }
+
+    public static <T> Path<T> getNestedPath(Root<T> root, String field) {
+        String[] fields = field.split("\\.");
+        Path<T> path = root.get(fields[0]);
+        for (int i = 1; i < fields.length; i++) {
+            path = path.get(fields[i]);
+        }
+        return path;
+    }
+
+    public static FilterBuilder builder() {
+        return new FilterBuilder();
+    }
+
+    public static <T> Filter<T> softDeleteFilter(Field field, boolean isDeleted) {
+        return softDeleteFilter(field.getName(), field.getType(), isDeleted);
+    }
+    //region SQL Native Mapping
+
+    public static <T> Filter<T> softDeleteFilter(Field field, boolean isDeleted, Class<T> entityType) {
+        Filter<T> softDeleteFilter = softDeleteFilter(field.getName(), field.getType(), isDeleted);
+        softDeleteFilter.setEntityType(entityType);
+        return softDeleteFilter;
+    }
+
+    public static <T> Filter<T> softDeleteFilter(String fieldName, Class<?> fieldType, boolean isDeleted) {
+        Filter<T> filter = new Filter<>();
+        List<String> filterList = new ArrayList<>();
+        if (fieldType.equals(Boolean.class) || fieldType.equals(boolean.class)) {
+            filterList.add("%s:is:%s".formatted(fieldName, isDeleted));
+        } else {
+            filterList.add("%s:is:%s".formatted(fieldName, isDeleted ? "not_null" : "null"));
+        }
+        filter.setFilter(filterList);
+        return filter;
+    }
+
+    public static <T> Filter<T> empty() {
+        return new Filter<>();
+    }
+
+    public static <T> Filter<T> empty(Class<T> entityType) {
+        return new Filter<>(entityType);
     }
 
     public boolean isFiltered() {
@@ -148,12 +191,10 @@ public class Filter<T> implements Specification<T> {
                 ).toList());
         return _this();
     }
-    //region SQL Native Mapping
 
     /**
      *
-     *
-     * */
+     */
     public String toSQLFilter() {
         return toSQLFilter("");
     }
@@ -194,7 +235,6 @@ public class Filter<T> implements Specification<T> {
         };
     }
 
-
     private String[] validateAndSplitFilter(String filter) {
         String[] parts = filter.split(":", 3);
         if (parts.length != 3) {
@@ -230,6 +270,7 @@ public class Filter<T> implements Specification<T> {
     private String buildLikeCondition(String field) {
         return "%s LIKE ? ESCAPE '!'".formatted(field);
     }
+    //endregion
 
     private String escapeLikeValue(String value) {
         return value.replace("!", "!!")
@@ -312,7 +353,6 @@ public class Filter<T> implements Specification<T> {
             default -> throw new IllegalArgumentException("Invalid filter operation: " + filter);
         };
     }
-    //endregion
 
     //region Criteria API Mapping
     @Override
@@ -323,12 +363,12 @@ public class Filter<T> implements Specification<T> {
     }
 
     public Predicate toPredicate(Root<T> root,
-                                 CriteriaBuilder cb){
+                                 CriteriaBuilder cb) {
         checkAllowedFilterFields();
         mapFilterByAllies();
-        if(queryConfigurers.isEmpty()) {
+        if (queryConfigurers.isEmpty()) {
             configureQuery(root);
-        }else{
+        } else {
             queryConfigurers.forEach(c -> c.accept(root));
         }
         Map<String, List<Predicate>> predicates = new HashMap<>();
@@ -347,27 +387,31 @@ public class Filter<T> implements Specification<T> {
      * Предназначен для переопределения,
      * например чтобы
      */
-    protected void configureQuery(Root<T> root) {}
+    protected void configureQuery(Root<T> root) {
+    }
 
     public <R> Filter<R> configureQuery(Consumer<Root<T>> queryConfigurer) {
         queryConfigurers.add(queryConfigurer);
         return _this();
     }
 
-    public <R> Filter<R> withFetchJoin(String fetchingProperty){
+    public <R> Filter<R> withFetchJoin(String fetchingProperty) {
         queryConfigurers.add((root) -> {
             root.fetch(fetchingProperty, JoinType.LEFT);
         });
         return _this();
     }
 
-    protected Predicate collectPredicates(CriteriaBuilder cb, Map<String, List<Predicate>> predicates) {
+    protected Predicate collectPredicates(CriteriaBuilder cb,
+                                          Map<String, List<Predicate>> predicates) {
         return cb.and(predicates.values().stream()
                 .flatMap(Collection::stream)
                 .toList().toArray(new Predicate[0]));
     }
 
-    private Predicate parsePredicate(String filter, Root<T> root, CriteriaBuilder cb) {
+    private Predicate parsePredicate(String filter,
+                                     Root<T> root,
+                                     CriteriaBuilder cb) {
         String[] parts = filter.split(":");
         if (parts.length != 3) {
             throw new IllegalArgumentException("Invalid filter format. Expected: field:operation:value");
@@ -399,7 +443,9 @@ public class Filter<T> implements Specification<T> {
                         parseComparisonPredicate(cb, path, operation, reflectionField, stringValue, function);
                 case "!=" -> parseNotEqualPredicate(cb, path, fieldType, stringValue, function);
                 case "like" -> parseLikePredicate(cb, path, stringValue);
-                case "in" -> parseInPredicate(cb, path, reflectionField, stringValue);
+                case "not_like" -> cb.not(parseLikePredicate(cb, path, stringValue));
+                case "in" -> parseInPredicate(cb, path, reflectionField, stringValue, function);
+                case "not_in" -> cb.not(parseInPredicate(cb,path,reflectionField, stringValue, function));
                 default -> throw new IllegalArgumentException("Invalid filter operation: " + operation);
             };
         } catch (Exception e) {
@@ -409,11 +455,24 @@ public class Filter<T> implements Specification<T> {
         }
     }
 
-    private Predicate parseInPredicate(CriteriaBuilder cb, Path<?> path, Field reflectionField, String stringValue) {
+    private Predicate parseInPredicate(CriteriaBuilder cb,
+                                       Path<?> path,
+                                       Field reflectionField,
+                                       String stringValue,
+                                       Function function) {
         String[] stringValues = stringValue.split(";");
+
+        //Если есть функция size или length
 
         if (Collection.class.isAssignableFrom(reflectionField.getType())) {
             Class<?> elementType = getCollectionElementType(reflectionField);
+            if(function != null){
+                Object[] values = Arrays.stream(stringValues)
+                        .map(v -> convertValue(v, elementType))
+                        .toArray();
+                return getFunctionPath(cb, path, function).in(values);
+            }
+
 
             List<Predicate> predicates = new ArrayList<>();
             for (String strVal : stringValues) {
@@ -422,7 +481,6 @@ public class Filter<T> implements Specification<T> {
             }
             return cb.or(predicates.toArray(new Predicate[0]));
         }
-
         // Для обычных полей
         Object[] values = Arrays.stream(stringValues)
                 .map(v -> convertValue(v, reflectionField.getType()))
@@ -477,7 +535,6 @@ public class Filter<T> implements Specification<T> {
             if (function != null) {
                 return switch (function) {
                     case LENGTH, SIZE -> cb.equal(getFunctionPath(cb, path, function), convertedValue);
-                    default -> throw new IllegalArgumentException("Invalid function for equals operation: " + function);
                 };
             }
             return cb.isMember(convertedValue, (Path<Collection>) path);
@@ -493,7 +550,6 @@ public class Filter<T> implements Specification<T> {
         return switch (function) {
             case LENGTH -> cb.length(getTypedPath(current, String.class));
             case SIZE -> cb.size(getTypedPath(current, Collection.class));
-            default -> throw new IllegalArgumentException("");
         };
 
     }
@@ -543,6 +599,11 @@ public class Filter<T> implements Specification<T> {
         return cb.notEqual(getFunctionPath(cb, path, function), value);
     }
 
+    //endregion
+
+
+    //region Utility Methods
+
     private Predicate parseLikePredicate(CriteriaBuilder cb, Path<?> path, String stringValue) {
         Path<String> stringPath = getTypedPath(path, String.class);
         return cb.like(stringPath, "%" + stringValue + "%");
@@ -551,19 +612,6 @@ public class Filter<T> implements Specification<T> {
     private <X> Path<X> getTypedPath(Path<?> path, Class<X> type) {
         return (Path<X>) path;
     }
-
-    public static <T> Path<T> getNestedPath(Root<T> root, String field) {
-        String[] fields = field.split("\\.");
-        Path<T> path = root.get(fields[0]);
-        for (int i = 1; i < fields.length; i++) {
-            path = path.get(fields[i]);
-        }
-        return path;
-    }
-
-    //endregion
-
-    //region Universal Private Methods
 
     private void determineEntityType() {
         if (getClass() == Filter.class) {
@@ -601,45 +649,53 @@ public class Filter<T> implements Specification<T> {
 
     //endregion
 
+    @Getter
+    @AllArgsConstructor
+    public enum Function {
+        LENGTH("length()"),
+        SIZE("size()");
 
 
-    //region Utility Methods
+        private final String function;
 
-    public static FilterBuilder builder() {
-        return new FilterBuilder();
-    }
-
-    public static <T> Filter<T> softDeleteFilter(Field field, boolean isDeleted) {
-        return softDeleteFilter(field.getName(), field.getType(), isDeleted);
-    }
-
-    public static <T> Filter<T> softDeleteFilter(Field field, boolean isDeleted, Class<T> entityType) {
-        Filter<T> softDeleteFilter = softDeleteFilter(field.getName(), field.getType(), isDeleted);
-        softDeleteFilter.setEntityType(entityType);
-        return softDeleteFilter;
-    }
-
-    public static <T> Filter<T> softDeleteFilter(String fieldName, Class<?> fieldType, boolean isDeleted) {
-        Filter<T> filter = new Filter<>();
-        List<String> filterList = new ArrayList<>();
-        if (fieldType.equals(Boolean.class) || fieldType.equals(boolean.class)) {
-            filterList.add("%s:is:%s".formatted(fieldName, isDeleted));
-        } else {
-            filterList.add("%s:is:%s".formatted(fieldName, isDeleted ? "not_null" : "null"));
+        public static Function parseByOperation(String operation) {
+            for (Function func : values()) {
+                if (operation.equals(func.function)) {
+                    return func;
+                }
+            }
+            throw new IllegalArgumentException("Illegal operation: " + operation);
         }
-        filter.setFilter(filterList);
-        return filter;
     }
 
-    public static <T> Filter<T> empty() {
-        return new Filter<>();
+    @Getter
+    @AllArgsConstructor
+    public enum Is {
+        TRUE("true"),
+        FALSE("false"),
+        NULL("null"),
+        NOT_NULL("not_null");
+
+        private final String value;
     }
 
-    public static <T> Filter<T> empty(Class<T> entityType) {
-        return new Filter<>(entityType);
-    }
 
-    //endregion
+    @Getter
+    @AllArgsConstructor
+    public enum FilterOperation {
+        EQUALS("="),
+        NOT_EQUALS("!="),
+        GT(">"),
+        GTE(">="),
+        LS("<"),
+        LSE("<="),
+        LIKE("like"),
+        IS("is"),
+        IN("in");
+
+
+        private final String operation;
+    }
 
     //region NestedTypes
     public static class FilterBuilder {
@@ -685,16 +741,25 @@ public class Filter<T> implements Specification<T> {
             return this;
         }
 
+        public FilterBuilder in(String field, Iterable<String> values){
+            filters.add(new FilterUnit(field, FilterOperation.IN, String.join(";", values)));
+            return this;
+        }
+
         public FilterBuilder is(String field, Is value) {
             filters.add(new FilterUnit(field, FilterOperation.IS, value.getValue()));
             return this;
         }
 
         public <T> Filter<T> build() {
+            return build(null);
+        }
+
+        public <T> Filter<T> build(Class<?> entityType) {
             return new Filter<>(
                     new ArrayList<>(filters.stream().map(
                             (o) -> "%s:%s:%s".formatted(o.field(), o.filterOperation().getOperation(), o.value())
-                    ).toList())
+                    ).toList()), entityType
             );
         }
 
@@ -712,57 +777,6 @@ public class Filter<T> implements Specification<T> {
     }
 
     public record FilterUnit(String field, FilterOperation filterOperation, String value) {
-    }
-
-
-    @Getter
-    @AllArgsConstructor
-    public enum Function {
-        LENGTH("length()"),
-        SIZE("size()"),
-        SUM("sum()"),
-        MAX("max()"),
-        AVG("avg()"),
-        MIN("min()");
-
-        private final String function;
-
-        public static Function parseByOperation(String operation) {
-            for (Function func : values()) {
-                if (operation.equals(func.function)) {
-                    return func;
-                }
-            }
-            throw new IllegalArgumentException("Illegal operation: " + operation);
-        }
-    }
-
-    @Getter
-    @AllArgsConstructor
-    public enum Is {
-        TRUE("true"),
-        FALSE("false"),
-        NULL("null"),
-        NOT_NULL("not_null");
-
-        private final String value;
-    }
-
-    @Getter
-    @AllArgsConstructor
-    public enum FilterOperation {
-        EQUALS("="),
-        NOT_EQUALS("!="),
-        GT(">"),
-        GTE(">="),
-        LS("<"),
-        LSE("<="),
-        LIKE("like"),
-        IS("is"),
-        IN("in");
-
-
-        private final String operation;
     }
     //endregion
 

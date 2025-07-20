@@ -18,12 +18,6 @@ public interface AsyncCrudBatchService<T, ID> extends AsyncCrudService<T, ID> {
     CompletableFuture<List<BatchResultWithData<T>>> batchCreateAsync(List<T> models);
 
     /**
-     * Асинхронное пакетное обновление, выполняется не атомарно, при провале
-     * одной операции, выполнение продолжается
-     */
-    CompletableFuture<List<BatchResultWithData<T>>> batchUpdateAsync(List<T> models);
-
-    /**
      * Асинхронное пакетное удаление, выполняется не атомарно, при провале
      * одной операции, выполнение продолжается
      */
@@ -34,12 +28,6 @@ public interface AsyncCrudBatchService<T, ID> extends AsyncCrudService<T, ID> {
      * выполнение прерывается, транзакция откатывается
      */
     CompletableFuture<List<T>> batchCreateAtomicAsync(List<T> models);
-
-    /**
-     * Асинхронное атомарное обновление, при провале одной операции
-     * выполнение прерывается, транзакция откатывается
-     */
-    CompletableFuture<List<T>> batchUpdateAtomicAsync(List<T> models);
 
     /**
      * Асинхронное атомарное удаление, при провале одной операции
@@ -54,12 +42,6 @@ public interface AsyncCrudBatchService<T, ID> extends AsyncCrudService<T, ID> {
     CompletableFuture<List<BatchResultWithData<T>>> batchCreateAsync(List<T> models, int batchSize);
 
     /**
-     * Асинхронное пакетное обновление, выполняется не атомарно, при провале
-     * одной операции, выполнение продолжается
-     */
-    CompletableFuture<List<BatchResultWithData<T>>> batchUpdateAsync(List<T> models, int batchSize);
-
-    /**
      * Асинхронное пакетное удаление, выполняется не атомарно, при провале
      * одной операции, выполнение продолжается
      */
@@ -70,12 +52,6 @@ public interface AsyncCrudBatchService<T, ID> extends AsyncCrudService<T, ID> {
      * выполнение прерывается, транзакция откатывается
      */
     CompletableFuture<List<T>> batchCreateAtomicAsync(List<T> models, int batchSize);
-
-    /**
-     * Асинхронное атомарное обновление, при провале одной операции
-     * выполнение прерывается, транзакция откатывается
-     */
-    CompletableFuture<List<T>> batchUpdateAtomicAsync(List<T> models, int batchSize);
 
     /**
      * Асинхронное атомарное удаление, при провале одной операции

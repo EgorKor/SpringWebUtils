@@ -5,6 +5,7 @@ import io.github.egorkor.webutils.queryparam.PageableResult;
 import io.github.egorkor.webutils.queryparam.Pagination;
 import io.github.egorkor.webutils.queryparam.Sorting;
 import io.github.egorkor.webutils.service.async.AsyncCrudService;
+import jakarta.validation.Validator;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -27,9 +28,10 @@ public abstract class JpaAsyncCrudService<T, ID> extends JpaCrudService<T, ID> i
                                JpaSpecificationExecutor<T> jpaSpecificationExecutor,
                                ApplicationEventPublisher eventPublisher,
                                TransactionTemplate transactionTemplate,
-                               ThreadPoolTaskExecutor executor
+                               ThreadPoolTaskExecutor executor,
+                               Validator validator
     ) {
-        super(jpaRepository, jpaSpecificationExecutor, eventPublisher, transactionTemplate);
+        super(jpaRepository, jpaSpecificationExecutor, eventPublisher, transactionTemplate, validator);
         this.executor = executor;
     }
 

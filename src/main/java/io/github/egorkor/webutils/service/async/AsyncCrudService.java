@@ -23,23 +23,30 @@ public interface AsyncCrudService<T, ID> {
     CompletableFuture<T> createAsync(T model);
 
     CompletableFuture<T> fullUpdateAsync(T model);
+
     CompletableFuture<T> patchUpdateAsync(ID id, T model);
 
     CompletableFuture<Void> deleteByIdAsync(ID id);
+
     CompletableFuture<Void> deleteAllAsync();
+
     CompletableFuture<Void> deleteByFilterAsync(Filter<T> filter);
 
     CompletableFuture<Void> softDeleteByIdAsync(ID id);
+
     CompletableFuture<Void> softDeleteAllAsync();
+
     CompletableFuture<Void> softDeleteByFilterAsync(Filter<T> filter);
 
     CompletableFuture<Void> restoreByIdAsync(ID id);
+
     CompletableFuture<Void> restoreAllAsync();
+
     CompletableFuture<Void> restoreByFilterAsync(Filter<T> filter);
 
     CompletableFuture<Long> countAllAsync();
-    CompletableFuture<Long> countByFilterAsync(Filter<T> filter);
 
+    CompletableFuture<Long> countByFilterAsync(Filter<T> filter);
 
 
 }

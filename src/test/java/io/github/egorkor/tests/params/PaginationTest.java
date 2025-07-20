@@ -6,8 +6,6 @@ import io.github.egorkor.webutils.queryparam.Sorting;
 import io.github.egorkor.webutils.queryparam.utils.DatabaseType;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
@@ -27,7 +25,7 @@ public class PaginationTest {
 
     @Test
     void testAllArgsConstructor() {
-        Pagination pagination = new Pagination(20, 2);
+        Pagination pagination = new Pagination(2, 20);
         assertEquals(20, pagination.getSize());
         assertEquals(2, pagination.getPage());
     }
@@ -40,7 +38,7 @@ public class PaginationTest {
 
     @Test
     void testIsUnpaged_whenNotAllContentSize() {
-        Pagination pagination = new Pagination(10, 0);
+        Pagination pagination = new Pagination(0, 10);
         assertFalse(pagination.isUnpaged());
     }
 
@@ -66,7 +64,7 @@ public class PaginationTest {
 
     @Test
     void testToJpaPageable_whenPaged() {
-        Pagination pagination = new Pagination(15, 2);
+        Pagination pagination = new Pagination(2, 15);
         Pageable pageable = pagination.toJpaPageable();
         assertFalse(pageable.isUnpaged());
         assertEquals(15, pageable.getPageSize());
@@ -84,7 +82,7 @@ public class PaginationTest {
 
     @Test
     void testToJpaPageableWithSort_whenPaged() {
-        Pagination pagination = new Pagination(10, 1);
+        Pagination pagination = new Pagination(1, 10);
         Sort sort = Sort.by("name");
         Pageable pageable = pagination.toJpaPageable(sort);
         assertFalse(pageable.isUnpaged());
@@ -119,7 +117,7 @@ public class PaginationTest {
         );
 
         for (DatabaseType dbType : types) {
-            Pagination pagination = new Pagination(10, 2);
+            Pagination pagination = new Pagination(2, 10);
             String expected = "LIMIT 10 OFFSET 20";
             assertEquals(expected, pagination.toSqlPageable(dbType),
                     "Failed for " + dbType);
@@ -134,7 +132,7 @@ public class PaginationTest {
         );
 
         for (DatabaseType dbType : types) {
-            Pagination pagination = new Pagination(10, 2);
+            Pagination pagination = new Pagination(2, 10);
             String expected = "OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY";
             assertEquals(expected, pagination.toSqlPageable(dbType),
                     "Failed for " + dbType);
@@ -143,20 +141,20 @@ public class PaginationTest {
 
     @Test
     void testToSqlPageable_forDB2() {
-        Pagination pagination = new Pagination(10, 2);
+        Pagination pagination = new Pagination(2, 10);
         String expected = "OFFSET 20 ROWS FETCH FIRST 10 ROWS ONLY";
         assertEquals(expected, pagination.toSqlPageable(DatabaseType.DB2));
     }
 
     @Test
     void testToSqlPageable_withDefaultDatabaseType() {
-        Pagination pagination = new Pagination(10, 2);
+        Pagination pagination = new Pagination(2, 10);
         assertNotNull(pagination.toSqlPageable());
     }
 
     @Test
     void testToSqlPageable_withUnsupportedDatabaseType() {
-        Pagination pagination = new Pagination(10, 2);
+        Pagination pagination = new Pagination(2, 10);
         assertThrows(UnsupportedOperationException.class, () -> {
             pagination.toSqlPageable(DatabaseType.OTHER);
         });
@@ -164,7 +162,7 @@ public class PaginationTest {
 
     @Test
     void testToJpaPageableWithSorting_whenPaged() {
-        Pagination pagination = new Pagination(15, 1);
+        Pagination pagination = new Pagination(1, 15);
         Sorting sorting = new Sorting();
         sorting.getSort().add("name:asc");
         Pageable pageable = pagination.toJpaPageable(sorting);
@@ -192,9 +190,9 @@ public class PaginationTest {
     }
 
     @Test
-    public void testEmptySQLPagination(){
+    public void testEmptySQLPagination() {
         Pagination pagination = Pagination.unpaged();
-        Assertions.assertEquals("",pagination.toSqlPageable());
+        Assertions.assertEquals("", pagination.toSqlPageable());
     }
 
     @Test

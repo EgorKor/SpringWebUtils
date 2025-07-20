@@ -37,12 +37,8 @@ public class Pagination {
     public static final int DEFAULT_PAGE_SIZE = 10;
     private static DatabaseType dbType = DriverUtils.getActiveDatabaseType();
 
-    private int size = DEFAULT_PAGE_SIZE;
     private int page = DEFAULT_PAGE;
-
-    public boolean isUnpaged(){
-        return size == ALL_CONTENT_SIZE;
-    }
+    private int size = DEFAULT_PAGE_SIZE;
 
     public static Pagination unpaged() {
         Pagination pagination = new Pagination();
@@ -55,6 +51,10 @@ public class Pagination {
         pagination.setSize(size);
         pagination.setPage(page);
         return pagination;
+    }
+
+    public boolean isUnpaged() {
+        return size == ALL_CONTENT_SIZE;
     }
 
     public Pageable toJpaPageable() {

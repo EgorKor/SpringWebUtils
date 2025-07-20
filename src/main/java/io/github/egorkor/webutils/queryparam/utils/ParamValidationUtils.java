@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 public class ParamValidationUtils {
 
     private static final HashMap<ParamType, BiFunction<Integer, Integer, String>> LIMIT_ERRORS = new HashMap<>();
+    private static final HashMap<ParamType, Function<Set, String>> NON_ALLOWED_ERRORS = new HashMap<>();
 
     static {
         LIMIT_ERRORS.put(ParamType.SORT,
@@ -27,18 +28,11 @@ public class ParamValidationUtils {
                         + value);
     }
 
-    private static final HashMap<ParamType, Function<Set, String>> NON_ALLOWED_ERRORS = new HashMap<>();
-
     static {
         NON_ALLOWED_ERRORS.put(ParamType.SORT, (set) ->
                 "Illegal sort params: " + set);
         NON_ALLOWED_ERRORS.put(ParamType.FILTER, (set) ->
                 "Illegal filter params: " + set);
-    }
-
-
-    public enum ParamType {
-        SORT, FILTER
     }
 
     public static void validateAllowedParams(List<String> params,
@@ -76,7 +70,6 @@ public class ParamValidationUtils {
         }
     }
 
-
     public static void mapParamsByFilter(
             List<String> params,
             Class<?> paramsClass,
@@ -101,5 +94,10 @@ public class ParamValidationUtils {
                 }
             }
         }
+    }
+
+
+    public enum ParamType {
+        SORT, FILTER
     }
 }

@@ -38,10 +38,9 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
 public @interface FieldParamMapping {
+    String NO_MAPPING = "NO_MAPPING";
+
     String requestParamMapping() default NO_MAPPING;
 
     String sqlMapping() default NO_MAPPING;
-
-
-    String NO_MAPPING = "NO_MAPPING";
 }

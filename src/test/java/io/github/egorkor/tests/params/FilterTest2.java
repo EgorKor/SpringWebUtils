@@ -1,7 +1,10 @@
 package io.github.egorkor.tests.params;
 
 import io.github.egorkor.webutils.queryparam.Filter;
-import jakarta.persistence.criteria.*;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Path;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -26,17 +29,6 @@ public class FilterTest2 {
 
     @Mock
     private Predicate predicate;
-
-    static class TestEntity {
-        String name;
-        int age;
-        boolean active;
-        NestedEntity nested;
-    }
-
-    static class NestedEntity {
-        String property;
-    }
 
     @Test
     void testDefaultConstructor() {
@@ -179,7 +171,7 @@ public class FilterTest2 {
     void testToPredicate_isCondition() throws Exception {
         // Setup
         Path<Boolean> booleanPath = mock(Path.class);
-        when(root.get("active")).thenReturn((Path)booleanPath);
+        when(root.get("active")).thenReturn((Path) booleanPath);
         when(cb.isTrue(booleanPath)).thenReturn(predicate);
         when(cb.and(any())).thenReturn(predicate);
 
@@ -233,5 +225,16 @@ public class FilterTest2 {
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    static class TestEntity {
+        String name;
+        int age;
+        boolean active;
+        NestedEntity nested;
+    }
+
+    static class NestedEntity {
+        String property;
     }
 }

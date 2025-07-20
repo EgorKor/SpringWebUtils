@@ -2,7 +2,6 @@ package io.github.egorkor.webutils.queryparam.utils;
 
 import lombok.SneakyThrows;
 
-import java.io.File;
 import java.lang.reflect.Field;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -18,7 +17,7 @@ public class FieldTypeUtils {
      * @param fieldPath  the field name or path (e.g. "person.address.street")
      * @return the Class<?> type of the field
      * @throws IllegalArgumentException if arguments are invalid
-     * @throws SecurityException if field access is denied by security manager
+     * @throws SecurityException        if field access is denied by security manager
      */
     @SneakyThrows
     public static Field getField(Class<?> targetType, String fieldPath) {
@@ -57,7 +56,7 @@ public class FieldTypeUtils {
         return field;
     }
 
-    public static String getPureClassNameByGenericType(String input){
+    public static String getPureClassNameByGenericType(String input) {
         return input.substring(
                 input.indexOf("<") + 1, input.length() - 1
         );

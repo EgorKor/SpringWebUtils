@@ -71,8 +71,8 @@ public interface CrudService<T, ID> {
     /**
      * Запрос на получение списка сущностей с учётом фильтрации и сортировки
      *
-     * @param sorting    параметр запроса сортировки
-     * @param filter     параметр запроса фильтрации
+     * @param sorting параметр запроса сортировки
+     * @param filter  параметр запроса фильтрации
      * @return List типа T - результат запроса к БД, содержащий данные
      */
     List<T> getAll(Filter<T> filter, Sorting sorting);
@@ -80,7 +80,7 @@ public interface CrudService<T, ID> {
     /**
      * Запрос на получение списка сущностей с учётом фильтрации
      *
-     * @param filter     параметр запроса фильтрации
+     * @param filter параметр запроса фильтрации
      * @return List типа T - результат запроса к БД, содержащий данные
      */
     List<T> getAll(Filter<T> filter);
@@ -97,7 +97,8 @@ public interface CrudService<T, ID> {
     /**
      * Запрос на получение потока данных с учётом фильтрации
      * и сортировки
-     * @see #getStream(Filter) 
+     *
+     * @see #getStream(Filter)
      */
     Stream<T> getStream(Filter<T> filter, Sorting sorting);
 

@@ -17,18 +17,15 @@ public class DriverUtils {
      */
     public static DatabaseType getActiveDatabaseType() {
         // Сначала проверяем зарегистрированные драйверы
-        try {
-            Enumeration<java.sql.Driver> drivers = DriverManager.getDrivers();
-            while (drivers.hasMoreElements()) {
-                java.sql.Driver driver = drivers.nextElement();
-                for (DatabaseType type : DatabaseType.values()) {
-                    if (type != DatabaseType.OTHER &&
-                            driver.getClass().getName().equals(type.getDriverClass())) {
-                        return type;
-                    }
+        Enumeration<java.sql.Driver> drivers = DriverManager.getDrivers();
+        while (drivers.hasMoreElements()) {
+            java.sql.Driver driver = drivers.nextElement();
+            for (DatabaseType type : DatabaseType.values()) {
+                if (type != DatabaseType.OTHER &&
+                        driver.getClass().getName().equals(type.getDriverClass())) {
+                    return type;
                 }
             }
-        } catch (Exception ignore) {
         }
 
         // Если через DriverManager не получилось, проверяем через Class.forName
@@ -73,15 +70,11 @@ public class DriverUtils {
      * Выводит список всех доступных JDBC драйверов
      */
     public static void printAvailableDrivers() {
-        try {
-            System.out.println("Available JDBC Drivers:");
-            Enumeration<java.sql.Driver> drivers = DriverManager.getDrivers();
-            while (drivers.hasMoreElements()) {
-                java.sql.Driver driver = drivers.nextElement();
-                System.out.println(" - " + driver.getClass().getName());
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
+        System.out.println("Available JDBC Drivers:");
+        Enumeration<java.sql.Driver> drivers = DriverManager.getDrivers();
+        while (drivers.hasMoreElements()) {
+            java.sql.Driver driver = drivers.nextElement();
+            System.out.println(" - " + driver.getClass().getName());
         }
     }
 }

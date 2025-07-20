@@ -22,11 +22,12 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import java.util.ArrayList;
 import java.util.List;
 
-@Import({TestEntityCrudServiceImpl.class, TestNestedEntityServiceImpl.class})
+@Import({TestEntityCrudServiceImpl.class, TestNestedEntityServiceImpl.class, LocalValidatorFactoryBean.class})
 @DataJpaTest
 @ActiveProfiles("test")
 public class JpaCrudServiceTests {
@@ -50,7 +51,7 @@ public class JpaCrudServiceTests {
                                 .name("some name")
                                 .isDeleted(false)
                                 .tags(List.of("tag1", "tag2"))
-                                .nums(List.of(1,2,3))
+                                .nums(List.of(1, 2, 3))
                                 .nullableProperty(10)
                                 .flag(true)
                                 .enumTags(List.of(Tag.TAG1, Tag.TAG2))
@@ -61,7 +62,7 @@ public class JpaCrudServiceTests {
                                 .isDeleted(false)
                                 .flag(false)
                                 .nullableProperty(null)
-                                .nums(List.of(1,2))
+                                .nums(List.of(1, 2))
                                 .tags(List.of("tag2"))
                                 .enumTags(List.of(Tag.TAG1))
                                 .build()
@@ -73,8 +74,8 @@ public class JpaCrudServiceTests {
     @Test
     public void shouldThrowExceedLimitParametersCountExceptionForFilter() {
         UserFilter filter = Filter.builder()
-                .equals("id","1")
-                .equals("orders_name","name")
+                .equals("id", "1")
+                .equals("orders_name", "name")
                 .buildDerived(UserFilter.class);
         Assertions.assertThrows(IllegalArgumentException.class, filter::toSQLFilter);
     }
@@ -89,7 +90,7 @@ public class JpaCrudServiceTests {
     }
 
     @Test
-    public void shouldThrowIllegalArgumentExceptionForNonAllowedSortingParam(){
+    public void shouldThrowIllegalArgumentExceptionForNonAllowedSortingParam() {
         UserSort userSort = Sorting.builder()
                 .asc("ids")
                 .buildDerived(UserSort.class);
@@ -98,7 +99,7 @@ public class JpaCrudServiceTests {
 
 
     @Test
-    public void shouldCorrectMapIsTrue(){
+    public void shouldCorrectMapIsTrue() {
         Assertions.assertEquals(1, testEntityService
                 .countByFilter(
                         Filter.builder()
@@ -108,7 +109,7 @@ public class JpaCrudServiceTests {
     }
 
     @Test
-    public void shouldCorrectMapIsFalse(){
+    public void shouldCorrectMapIsFalse() {
         Assertions.assertEquals(1, testEntityService
                 .countByFilter(
                         Filter.builder()
@@ -118,7 +119,7 @@ public class JpaCrudServiceTests {
     }
 
     @Test
-    public void shouldCorrectMapIsNull(){
+    public void shouldCorrectMapIsNull() {
         Assertions.assertEquals(1, testEntityService
                 .countByFilter(
                         Filter.builder()
@@ -128,7 +129,7 @@ public class JpaCrudServiceTests {
     }
 
     @Test
-    public void shouldCorrectMapIsNotNull(){
+    public void shouldCorrectMapIsNotNull() {
         Assertions.assertEquals(1, testEntityService
                 .countByFilter(
                         Filter.builder()
@@ -139,33 +140,33 @@ public class JpaCrudServiceTests {
 
 
     @Test
-    public void shouldCorrectMapInOperationWithList(){
+    public void shouldCorrectMapInOperationWithList() {
         Assertions.assertEquals(
                 1, testEntityService.countByFilter(
                         Filter.builder()
-                                .in("tags","tag1")
+                                .in("tags", "tag1")
                                 .build()
                 )
         );
     }
 
     @Test
-    public void shouldCorrectMapInOperationWithEnumList(){
+    public void shouldCorrectMapInOperationWithEnumList() {
         Assertions.assertEquals(
                 2, testEntityService.countByFilter(
                         Filter.builder()
-                                .in("enumTags","TAG1")
+                                .in("enumTags", "TAG1")
                                 .build()
                 )
         );
     }
 
     @Test
-    public void shouldCorrectMapInOperationWithIntegerList(){
+    public void shouldCorrectMapInOperationWithIntegerList() {
         Assertions.assertEquals(
                 2, testEntityService.countByFilter(
                         Filter.builder()
-                                .in("nums","1","2")
+                                .in("nums", "1", "2")
                                 .build()
                 )
         );
@@ -188,7 +189,7 @@ public class JpaCrudServiceTests {
     }
 
     @Test
-    public void shouldNotFoundAfterSoftDeleteById(){
+    public void shouldNotFoundAfterSoftDeleteById() {
         testEntityService.softDeleteById(2L);
         Assertions.assertThrows(ResourceNotFoundException.class, () -> {
             testEntityService.getById(2L);
@@ -196,59 +197,59 @@ public class JpaCrudServiceTests {
     }
 
     @Test
-    public void shouldNotFoundAfterSoftDeleteWithFilter(){
-        Filter filter = Filter.builder().equals("name","some name").build();
+    public void shouldNotFoundAfterSoftDeleteWithFilter() {
+        Filter filter = Filter.builder().equals("name", "some name").build();
         testEntityService.deleteByFilter(filter);
         Assertions.assertThrows(ResourceNotFoundException.class, () -> {
-           testEntityService.getById(1L);
+            testEntityService.getById(1L);
         });
     }
 
     @Test
-    public void shouldFoundZeroRecordsAfterSoftDeleteAll(){
+    public void shouldFoundZeroRecordsAfterSoftDeleteAll() {
         testEntityService.softDeleteAll();
         Assertions.assertEquals(0, testEntityService.countAll());
     }
 
     @Test
-    public void shouldParseSizeFunctionForEquals(){
-        Assertions.assertEquals(
-                 testEntityService.countByFilter(
-                         Filter.builder()
-                                 .equals("nums.size()","2")
-                                 .build()
-                 ),1
-        );
-    }
-
-    @Test
-    public void shouldParseSizeFunctionForCompare(){
+    public void shouldParseSizeFunctionForEquals() {
         Assertions.assertEquals(
                 testEntityService.countByFilter(
                         Filter.builder()
-                                .greaterOrEquals("nums.size()","2")
+                                .equals("nums.size()", "2")
                                 .build()
-                ),2
+                ), 1
         );
     }
 
     @Test
-    public void shouldParseLengthFunctionForEquals(){
+    public void shouldParseSizeFunctionForCompare() {
         Assertions.assertEquals(
                 testEntityService.countByFilter(
                         Filter.builder()
-                                .equals("name.length()","4")
-                                .build()),1
+                                .greaterOrEquals("nums.size()", "2")
+                                .build()
+                ), 2
         );
     }
 
     @Test
-    public void shouldParseLengthFunctionForCompare(){
+    public void shouldParseLengthFunctionForEquals() {
         Assertions.assertEquals(
                 testEntityService.countByFilter(
                         Filter.builder()
-                                .greaterOrEquals("name.length()","5")
-                                .build()),1
+                                .equals("name.length()", "4")
+                                .build()), 1
+        );
+    }
+
+    @Test
+    public void shouldParseLengthFunctionForCompare() {
+        Assertions.assertEquals(
+                testEntityService.countByFilter(
+                        Filter.builder()
+                                .greaterOrEquals("name.length()", "5")
+                                .build()), 1
         );
     }
 

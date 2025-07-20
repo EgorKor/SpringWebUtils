@@ -1,9 +1,6 @@
 package io.github.egorkor.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.*;
 
 @Getter
@@ -21,6 +18,6 @@ public class Order {
 
     private Double cost;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     private User user;
 }

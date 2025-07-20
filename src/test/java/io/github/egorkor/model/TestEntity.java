@@ -3,6 +3,7 @@ package io.github.egorkor.model;
 import io.github.egorkor.webutils.annotations.SoftDeleteFlag;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.DynamicUpdate;
 
 import java.util.List;
 
@@ -12,15 +13,16 @@ import java.util.List;
 @Entity
 @Getter
 @Setter
+@DynamicUpdate
 public class TestEntity {
     @Id
     private Long id;
     @Column(name = "_name")
     private String name;
-    @OneToMany
+    @OneToMany(cascade = CascadeType.REMOVE, orphanRemoval = true)
     private List<TestNestedEntity> nested;
     private Integer nullableProperty;
-    private boolean flag;
+    private Boolean flag;
     @ElementCollection
     private List<Integer> nums;
     @ElementCollection

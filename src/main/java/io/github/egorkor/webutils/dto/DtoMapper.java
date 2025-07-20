@@ -1,5 +1,6 @@
 package io.github.egorkor.webutils.dto;
 
+import lombok.Getter;
 import org.modelmapper.ModelMapper;
 
 import java.util.List;
@@ -44,6 +45,7 @@ import java.util.List;
  * @since 2025
  */
 public class DtoMapper {
+    @Getter
     private final ModelMapper modelMapper = new ModelMapper();
 
     public <M, D> D toDto(M model, Class<D> destination) {

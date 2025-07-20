@@ -5,6 +5,7 @@ import io.github.egorkor.service.TestEntityService;
 import io.github.egorkor.webutils.template.jpa.JpaCrudService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import jakarta.validation.Validator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Profile;
@@ -20,12 +21,10 @@ public class TestEntityCrudServiceImpl extends JpaCrudService<TestEntity, Long> 
     private EntityManager entityManager;
 
     @Autowired
-    public TestEntityCrudServiceImpl(JpaRepository<TestEntity, Long> jpaRepository,
-                                     JpaSpecificationExecutor<TestEntity> jpaSpecificationExecutor,
-                                     ApplicationEventPublisher eventPublisher,
-                                     TransactionTemplate transactionTemplate) {
-        super(jpaRepository, jpaSpecificationExecutor, eventPublisher, transactionTemplate);
+    public TestEntityCrudServiceImpl(JpaRepository<TestEntity, Long> jpaRepository, JpaSpecificationExecutor<TestEntity> jpaSpecificationExecutor, ApplicationEventPublisher eventPublisher, TransactionTemplate transactionTemplate, Validator validator) {
+        super(jpaRepository, jpaSpecificationExecutor, eventPublisher, transactionTemplate, validator);
     }
+
 
     @Override
     public EntityManager getPersistenceAnnotatedEntityManager() {

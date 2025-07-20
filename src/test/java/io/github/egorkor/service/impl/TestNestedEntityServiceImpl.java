@@ -5,6 +5,7 @@ import io.github.egorkor.service.TestNestedEntityService;
 import io.github.egorkor.webutils.template.jpa.JpaCrudService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import jakarta.validation.Validator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Profile;
@@ -19,13 +20,13 @@ public class TestNestedEntityServiceImpl extends JpaCrudService<TestNestedEntity
     @PersistenceContext
     private EntityManager entityManager;
 
-
     @Autowired
     public TestNestedEntityServiceImpl(JpaRepository<TestNestedEntity, Long> jpaRepository,
                                        JpaSpecificationExecutor<TestNestedEntity> jpaSpecificationExecutor,
                                        ApplicationEventPublisher eventPublisher,
-                                       TransactionTemplate transactionTemplate) {
-        super(jpaRepository, jpaSpecificationExecutor, eventPublisher, transactionTemplate);
+                                       TransactionTemplate transactionTemplate,
+                                       Validator validator) {
+        super(jpaRepository, jpaSpecificationExecutor, eventPublisher, transactionTemplate, validator);
     }
 
     @Override

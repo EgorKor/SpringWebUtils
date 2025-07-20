@@ -9,8 +9,6 @@ import io.github.egorkor.service.impl.UserServiceImpl;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import org.hibernate.stat.Statistics;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -18,11 +16,10 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.transaction.BeforeTransaction;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
-import java.util.List;
 
-
-@Import({UserServiceImpl.class})
+@Import({UserServiceImpl.class, LocalValidatorFactoryBean.class})
 @ActiveProfiles("test")
 @DataJpaTest
 public class HibernateTest {
@@ -62,12 +59,11 @@ public class HibernateTest {
 
     @Transactional
     @Test
-    public void testLazyInit(){
+    public void testLazyInit() {
         User user = userRepository.findById(1L).orElseThrow();
         System.out.println(user.getOrders());
         System.out.println("HELLO");
     }
-
 
 
 }

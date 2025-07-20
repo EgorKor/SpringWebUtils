@@ -5,6 +5,7 @@ import io.github.egorkor.service.UserService;
 import io.github.egorkor.webutils.template.jpa.JpaCrudService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import jakarta.validation.Validator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Profile;
@@ -21,9 +22,10 @@ public class UserServiceImpl extends JpaCrudService<User, Long> implements UserS
     private EntityManager entityManager;
 
     @Autowired
-    public UserServiceImpl(JpaRepository<User, Long> jpaRepository, JpaSpecificationExecutor<User> jpaSpecificationExecutor, ApplicationEventPublisher eventPublisher, TransactionTemplate transactionTemplate) {
-        super(jpaRepository, jpaSpecificationExecutor, eventPublisher, transactionTemplate);
+    public UserServiceImpl(JpaRepository<User, Long> jpaRepository, JpaSpecificationExecutor<User> jpaSpecificationExecutor, ApplicationEventPublisher eventPublisher, TransactionTemplate transactionTemplate, Validator validator) {
+        super(jpaRepository, jpaSpecificationExecutor, eventPublisher, transactionTemplate, validator);
     }
+
 
     @Override
     public EntityManager getPersistenceAnnotatedEntityManager() {
