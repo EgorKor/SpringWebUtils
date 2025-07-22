@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.DynamicUpdate;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Builder
@@ -22,7 +24,9 @@ public class TestEntity {
     @OneToMany(cascade = CascadeType.REMOVE, orphanRemoval = true)
     private List<TestNestedEntity> nested;
     private Integer nullableProperty;
+    private LocalDate someDateField;
     private Boolean flag;
+    private String copyField;
     @ElementCollection
     private List<Integer> nums;
     @ElementCollection

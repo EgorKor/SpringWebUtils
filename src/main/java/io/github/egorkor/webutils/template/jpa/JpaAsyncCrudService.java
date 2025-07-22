@@ -1,7 +1,7 @@
 package io.github.egorkor.webutils.template.jpa;
 
 import io.github.egorkor.webutils.queryparam.Filter;
-import io.github.egorkor.webutils.queryparam.PageableResult;
+import io.github.egorkor.webutils.service.sync.PageableResult;
 import io.github.egorkor.webutils.queryparam.Pagination;
 import io.github.egorkor.webutils.queryparam.Sorting;
 import io.github.egorkor.webutils.service.async.AsyncCrudService;

@@ -4,15 +4,13 @@ import io.github.egorkor.webutils.annotations.SoftDeleteFlag;
 import io.github.egorkor.webutils.event.crud.*;
 import io.github.egorkor.webutils.exception.*;
 import io.github.egorkor.webutils.queryparam.Filter;
-import io.github.egorkor.webutils.queryparam.PageableResult;
+import io.github.egorkor.webutils.service.sync.PageableResult;
 import io.github.egorkor.webutils.queryparam.Pagination;
 import io.github.egorkor.webutils.queryparam.Sorting;
 import io.github.egorkor.webutils.service.sync.CrudService;
+import io.github.egorkor.webutils.service.sync.UpdateSpecification;
 import jakarta.persistence.*;
 import jakarta.persistence.criteria.*;
-import jakarta.persistence.metamodel.Attribute;
-import jakarta.persistence.metamodel.EntityType;
-import jakarta.persistence.metamodel.Metamodel;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import lombok.NonNull;
@@ -26,7 +24,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -581,6 +578,96 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     @Override
     public void softDeleteAll() throws SoftDeleteUnsupportedException, EntityProcessingException {
         softDeleteByFilter(Filter.empty(entityType));
+    }
+
+    @Override
+    public int updateByFilter(UpdateSpecification specification, Filter<T> filter) {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaUpdate<T> update = cb.createCriteriaUpdate(entityType);
+        Root<T> root = update.from(entityType);
+
+        for (Map.Entry<String, UpdateSpecification.UpdatePair> entry :
+                specification.getUpdates().entrySet()) {
+
+            String field = entry.getKey();
+            UpdateSpecification.UpdatePair pair = entry.getValue();
+            Path<Object> path = root.get(field);
+
+            switch (pair.action()) {
+                case UPDATE -> update.set(path, pair.data());
+                case SUM -> {
+                    if (pair.data() instanceof Number number) {
+                        Object sumExpr = cb.sum(path.as(Number.class), number);
+                        update.set(path, sumExpr);
+                    }
+                }
+                case MULTIPLY -> {
+                    if (pair.data() instanceof Number number) {
+                        Object prodExpr = cb.prod(path.as(Number.class), number);
+                        update.set(path, prodExpr);
+                    }
+                }
+                case DIVIDE -> {
+                    if (pair.data() instanceof Number number) {
+                        Object quotExpr = cb.quot(path.as(Number.class), number);
+                        update.set(path, quotExpr);
+                    }
+                }
+                case ADD_DAYS -> {
+                    if (pair.data() instanceof Integer days) {
+                        if (path.getJavaType() == LocalDate.class) {
+                            Object dateAddExpr = cb.function(
+                                    "DATE_ADD",
+                                    LocalDate.class,
+                                    path,
+                                    cb.literal(days)
+                            );
+                            update.set(path, dateAddExpr);
+                        } else if (path.getJavaType() == LocalDateTime.class) {
+                            Object dateTimeAddExpr = cb.function(
+                                    "DATE_ADD",
+                                    LocalDateTime.class,
+                                    path,
+                                    cb.literal(days)
+                            );
+                            update.set(path, dateTimeAddExpr);
+                        }
+                    }
+                }
+                case TRUNCATE_TIME -> {
+                    if (path.getJavaType() == LocalDateTime.class) {
+                        Object truncExpr = cb.function(
+                                "TRUNC",
+                                LocalDate.class,
+                                path
+                        );
+                        update.set(path, truncExpr);
+                    }
+                }
+                case CONCAT -> {
+                    if (pair.data() instanceof String value) {
+                        Object concatExpr = cb.concat(path.as(String.class), value);
+                        update.set(path, concatExpr);
+                    }
+                }
+                case UPPER_CASE -> {
+                    Object upperExpr = cb.upper(path.as(String.class));
+                    update.set(path, upperExpr);
+                }
+                case LOWER_CASE -> {
+                    Object lowerExpr = cb.lower(path.as(String.class));
+                    update.set(path, lowerExpr);
+                }
+                case COPY -> {
+                    if (pair.data() instanceof String sourceField) {
+                        Object sourcePath = root.get(sourceField);
+                        update.set(path, sourcePath);
+                    }
+                }
+            }
+        }
+        update.where(getSoftDeleteSupportedFilter(filter).toPredicate(root, cb));
+        return entityManager.createQuery(update).executeUpdate();
     }
 
     @Override

@@ -1,6 +1,6 @@
 package io.github.egorkor.tests.params;
 
-import io.github.egorkor.webutils.queryparam.PageableResult;
+import io.github.egorkor.webutils.service.sync.PageableResult;
 import io.github.egorkor.webutils.queryparam.Pagination;
 import io.github.egorkor.webutils.queryparam.Sorting;
 import io.github.egorkor.webutils.queryparam.utils.DatabaseType;

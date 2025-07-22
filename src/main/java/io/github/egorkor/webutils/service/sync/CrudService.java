@@ -4,14 +4,12 @@ import io.github.egorkor.webutils.exception.EntityProcessingException;
 import io.github.egorkor.webutils.exception.ResourceNotFoundException;
 import io.github.egorkor.webutils.exception.SoftDeleteUnsupportedException;
 import io.github.egorkor.webutils.queryparam.Filter;
-import io.github.egorkor.webutils.queryparam.PageableResult;
 import io.github.egorkor.webutils.queryparam.Pagination;
 import io.github.egorkor.webutils.queryparam.Sorting;
 import jakarta.persistence.LockModeType;
 import jakarta.persistence.NonUniqueResultException;
 
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Stream;
 
 /**
@@ -179,6 +177,8 @@ public interface CrudService<T, ID> {
      * @throws ResourceNotFoundException в случае отсутствия в БД сущности с указанным id
      */
     T patchUpdate(ID id, T model) throws ResourceNotFoundException, EntityProcessingException;
+
+    int updateByFilter(UpdateSpecification specification, Filter<T> filter);
 
     /**
      * Физическое удаление сущности по ID

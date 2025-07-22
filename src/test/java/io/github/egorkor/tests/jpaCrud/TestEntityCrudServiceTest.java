@@ -9,20 +9,23 @@ import io.github.egorkor.webutils.exception.EntityProcessingException;
 import io.github.egorkor.webutils.exception.ResourceNotFoundException;
 import io.github.egorkor.webutils.exception.SoftDeleteUnsupportedException;
 import io.github.egorkor.webutils.queryparam.Filter;
-import io.github.egorkor.webutils.queryparam.PageableResult;
 import io.github.egorkor.webutils.queryparam.Pagination;
 import io.github.egorkor.webutils.queryparam.Sorting;
+import io.github.egorkor.webutils.service.sync.PageableResult;
+import io.github.egorkor.webutils.service.sync.UpdateSpecification;
 import jakarta.persistence.LockModeType;
 import jakarta.persistence.NonUniqueResultException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
@@ -33,9 +36,11 @@ import static org.junit.jupiter.api.Assertions.*;
 @DataJpaTest
 @ActiveProfiles("test")
 @Import({TestEntityCrudServiceImpl.class, LocalValidatorFactoryBean.class})
-public class TestEntityCrudService {
+public class TestEntityCrudServiceTest {
     @Autowired
     private TestEntityService crudService;
+    @Autowired
+    private TestEntityManager testEntityManager;
 
     private TestEntity testEntity;
     private TestNestedEntity nestedEntity;
@@ -56,6 +61,214 @@ public class TestEntityCrudService {
                 .tags(List.of("tag1", "tag2"))
                 .isDeleted(false)
                 .build();
+    }
+
+    @Test
+    void updateByFilter_SimpleStringUpdate_ShouldUpdateField() {
+        // Arrange
+        TestEntity entity = TestEntity.builder()
+                .id(3L)
+                .name("Old Name")
+                .build();
+        testEntityManager.persist(entity);
+
+        UpdateSpecification spec = new UpdateSpecification.UpdateSpecificationBuilder()
+                .updateValue("name", "New Name")
+                .build();
+
+        // Act
+        int updatedCount = crudService.updateByFilter(spec,Filter.empty());
+
+        // Assert
+        assertEquals(1, updatedCount);
+        TestEntity updated = testEntityManager.find(TestEntity.class, entity.getId());
+        assertEquals("New Name", updated.getName());
+    }
+
+    @Test
+    void updateByFilter_SumOperation_ShouldUpdateNumericField() {
+        // Arrange
+        TestEntity entity = TestEntity.builder()
+                .id(3L)
+                .nullableProperty(5)
+                .build();
+        testEntityManager.persist(entity);
+
+        UpdateSpecification spec = new UpdateSpecification.UpdateSpecificationBuilder()
+                .plus("nullableProperty", 10)
+                .build();
+
+        // Act
+        int updatedCount = crudService.updateByFilter(spec, Filter.empty());
+
+        // Assert
+        assertEquals(1, updatedCount);
+        TestEntity updated = testEntityManager.find(TestEntity.class, entity.getId());
+        assertEquals(15, updated.getNullableProperty());
+    }
+
+    @Test
+    void updateByFilter_AddDaysToLocalDate_ShouldUpdateDate() {
+        // Arrange
+        LocalDate initialDate = LocalDate.of(2023, 1, 1);
+        TestEntity entity = TestEntity.builder()
+                .id(3L)
+                .someDateField(initialDate)
+                .build();
+        testEntityManager.persist(entity);
+
+        UpdateSpecification spec = new UpdateSpecification.UpdateSpecificationBuilder()
+                .addDays("someDateField", 5)
+                .build();
+
+        // Act
+        int updatedCount = crudService.updateByFilter(spec, Filter.empty());
+
+        // Assert
+        assertEquals(1, updatedCount);
+        TestEntity updated = testEntityManager.find(TestEntity.class, entity.getId());
+        assertEquals(initialDate.plusDays(5), updated.getSomeDateField());
+    }
+
+    @Test
+    void updateByFilter_ConcatStrings_ShouldConcatenateValues() {
+        // Arrange
+        TestEntity entity = TestEntity.builder()
+                .id(3L)
+                .name("Prefix")
+                .build();
+        testEntityManager.persist(entity);
+
+        UpdateSpecification spec = new UpdateSpecification.UpdateSpecificationBuilder()
+                .concat("name", "_Suffix")
+                .build();
+
+        // Act
+        int updatedCount = crudService.updateByFilter(spec, Filter.empty());
+
+        // Assert
+        assertEquals(1, updatedCount);
+        TestEntity updated = testEntityManager.find(TestEntity.class, entity.getId());
+        assertEquals("Prefix_Suffix", updated.getName());
+    }
+
+    @Test
+    void updateByFilter_UpperCase_ShouldConvertToUpperCase() {
+        // Arrange
+        TestEntity entity = TestEntity.builder()
+                .id(3L)
+                .name("lowercase")
+                .isDeleted(false)
+                .build();
+        testEntityManager.persist(entity);
+
+        UpdateSpecification spec = new UpdateSpecification.UpdateSpecificationBuilder()
+                .upperCase("name")
+                .build();
+        // Act
+        int updatedCount = crudService.updateByFilter(spec, Filter.empty());
+
+        // Assert
+        assertEquals(1, updatedCount);
+        TestEntity updated = testEntityManager.find(TestEntity.class, entity.getId());
+        assertEquals("LOWERCASE", updated.getName());
+    }
+
+    @Test
+    void updateByFilter_CopyValue_ShouldCopyFieldValue() {
+        // Arrange
+        TestEntity entity = TestEntity.builder()
+                .id(3L)
+                .name("Source Value")
+                .copyField(null)
+                .build();
+        testEntityManager.persist(entity);
+
+        UpdateSpecification spec = new UpdateSpecification.UpdateSpecificationBuilder()
+                .copyValue("name", "copyField")
+                .build();
+
+        // Act
+        int updatedCount = crudService.updateByFilter(spec, Filter.empty());
+
+        // Assert
+        assertEquals(1, updatedCount);
+        TestEntity updated = testEntityManager.find(TestEntity.class, entity.getId());
+        assertEquals("Source Value", updated.getCopyField());
+    }
+
+    @Test
+    void updateByFilter_MultipleOperations_ShouldUpdateAllFields() {
+        // Arrange
+        TestEntity entity = TestEntity.builder()
+                .id(3L)
+                .name("original")
+                .nullableProperty(10)
+                .flag(false)
+                .build();
+        testEntityManager.persist(entity);
+
+        UpdateSpecification spec = new UpdateSpecification.UpdateSpecificationBuilder()
+                .updateValue("flag", true)
+                .plus("nullableProperty", 5)
+                .concat("name", "_updated")
+                .build();
+
+        // Act
+        int updatedCount = crudService.updateByFilter(spec, Filter.empty());
+
+        // Assert
+        assertEquals(1, updatedCount);
+        TestEntity updated = testEntityManager.find(TestEntity.class, entity.getId());
+        assertAll(
+                () -> assertEquals("original_updated", updated.getName()),
+                () -> assertEquals(15, updated.getNullableProperty()),
+                () -> assertTrue(updated.getFlag())
+        );
+    }
+
+    @Test
+    void updateByFilter_WithElementCollection_ShouldUpdateCollection() {
+        // Arrange
+        TestEntity entity = TestEntity.builder()
+                .id(3L)
+                .nums(List.of(1, 2, 3))
+                .build();
+        testEntityManager.persist(entity);
+
+        UpdateSpecification spec = new UpdateSpecification.UpdateSpecificationBuilder()
+                .updateValue("nums", List.of(4, 5, 6))
+                .build();
+
+        // Act
+        int updatedCount = crudService.updateByFilter(spec, Filter.empty());
+
+        // Assert
+        assertEquals(1, updatedCount);
+        TestEntity updated = testEntityManager.find(TestEntity.class, entity.getId());
+        assertEquals(List.of(4, 5, 6), updated.getNums());
+    }
+
+    @Test
+    void updateByFilter_SoftDelete_ShouldMarkAsDeleted() {
+        // Arrange
+        TestEntity entity = TestEntity.builder()
+                .id(3L)
+                .isDeleted(false)
+                .build();
+        testEntityManager.persist(entity);
+
+        UpdateSpecification spec = new UpdateSpecification.UpdateSpecificationBuilder()
+                .updateValue("isDeleted", true)
+                .build();
+
+        // Act
+        int updatedCount = crudService.updateByFilter(spec, Filter.empty());
+
+        // Assert
+        assertEquals(1, updatedCount);
+        TestEntity updated = testEntityManager.find(TestEntity.class, entity.getId());
+        assertTrue(updated.getIsDeleted());
     }
 
     @Test
