@@ -11,6 +11,7 @@ import jakarta.persistence.LockModeType;
 import jakarta.persistence.NonUniqueResultException;
 
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 
 /**
@@ -57,6 +58,18 @@ public interface CrudService<T, ID> {
      * и параметры страниц
      */
     PageableResult<T> getAll(Filter<T> filter, Sorting sorting, Pagination pagination);
+
+    /**
+     * Запрос на получение списка сущностей с учётом фильтрации, сортировки, пагинации,
+     * а также исключения некоторых полей из физической выборки (отсеиваются на этапе SQL запроса)
+     *
+     * @param sorting    параметр запроса сортировки
+     * @param filter     параметр запроса фильтрации
+     * @param pagination параметр запроса постраничного доступа
+     * @return PageableResult - результат постраничного запроса к БД, содержащий данные
+     * и параметры страниц
+     */
+   // PageableResult<T> getAll(Filter<T> filter, Sorting sorting, Pagination pagination, Set<String> excludeFields);
 
     /**
      * Запрос на получение списка сущностей с учётом фильтрации и пагинации

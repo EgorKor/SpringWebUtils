@@ -95,6 +95,10 @@ import java.util.function.Consumer;
  * @version 1.0
  * @since 2025
  */
+//TODO: добавить поддержку операций работы с JSON
+//TODO: добавить поддержку функций size() length() для SQL
+//TODO: добавить динамическое исключение физически выбираемых полей для hibernate
+//TODO: реализовать метод обновления по фильтру
 @Slf4j
 @Setter
 @Getter
@@ -147,7 +151,7 @@ public class Filter<T> implements Specification<T> {
     public static <T> Filter<T> softDeleteFilter(Field field, boolean isDeleted) {
         return softDeleteFilter(field.getName(), field.getType(), isDeleted);
     }
-    //region SQL Native Mapping
+
 
     public static <T> Filter<T> softDeleteFilter(Field field, boolean isDeleted, Class<T> entityType) {
         Filter<T> softDeleteFilter = softDeleteFilter(field.getName(), field.getType(), isDeleted);
@@ -192,9 +196,8 @@ public class Filter<T> implements Specification<T> {
         return _this();
     }
 
-    /**
-     *
-     */
+    //region SQL Native Mapping
+
     public String toSQLFilter() {
         return toSQLFilter("");
     }
@@ -206,17 +209,29 @@ public class Filter<T> implements Specification<T> {
             return "";
         }
         StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < filter.size() - 1; i++) {
+        for (int filterIndex = 0; filterIndex < filter.size() - 1; filterIndex++) {
             if (sb.isEmpty()) {
                 sb.append("WHERE ");
             }
-            sb.append(parseCondition(filter.get(i), prefix));
+            String[] orFilters = filter.get(filterIndex).split(":or:");
+            for(int orFilterIndex = 0; orFilterIndex < orFilters.length; orFilterIndex++) {
+                sb.append(parseCondition(orFilters[orFilterIndex], prefix));
+                if(orFilterIndex < orFilters.length - 1) {
+                    sb.append(" OR ");
+                }
+            }
             sb.append(" AND ");
         }
         if (sb.isEmpty() && !filter.isEmpty()) {
             sb.append("WHERE ");
         }
-        sb.append(parseCondition(filter.getLast(), prefix));
+        String[] orFilters = filter.getLast().split(":or:");
+        for(int orFilterIndex = 0; orFilterIndex < orFilters.length; orFilterIndex++) {
+            sb.append(parseCondition(orFilters[orFilterIndex], prefix));
+            if(orFilterIndex < orFilters.length - 1) {
+                sb.append(" OR ");
+            }
+        }
         return sb.toString().trim();
     }
 
@@ -229,10 +244,10 @@ public class Filter<T> implements Specification<T> {
         return switch (operation) {
             case "=", "<>", ">", "<", ">=", "<=" -> buildBasicCondition(prefix + field, operation);
             case "IS" -> buildIsCondition(prefix + field, value);
-            case "LIKE" -> buildLikeCondition(prefix + field);
-            case "NOT LIKE" -> "NOT " + buildLikeCondition(prefix + field);
-            case "NOT IN" -> "NOT " + buildInCondition(prefix + field, value);
-            case "IN" -> buildInCondition(prefix + field, value);
+            case "LIKE" -> buildLikeCondition(prefix + field, false);
+            case "NOT LIKE" -> buildLikeCondition(prefix + field, true);
+            case "NOT IN" -> buildInCondition(prefix + field, value,true);
+            case "IN" -> buildInCondition(prefix + field, value, false);
             default -> throw new IllegalArgumentException("Invalid operation: " + operation);
         };
     }
@@ -269,8 +284,8 @@ public class Filter<T> implements Specification<T> {
         };
     }
 
-    private String buildLikeCondition(String field) {
-        return "%s LIKE ? ESCAPE '!'".formatted(field);
+    private String buildLikeCondition(String field, boolean not) {
+        return "%s %sLIKE ? ESCAPE '!'".formatted(field, not ? "NOT " : "");
     }
     //endregion
 
@@ -294,10 +309,10 @@ public class Filter<T> implements Specification<T> {
             String value = parts[2];
 
             switch (operation) {
-                case "like":
+                case "like", "not_like":
                     values.add("%" + escapeLikeValue(value) + "%");
                     break;
-                case "in":
+                case "in", "not_in":
                     Collections.addAll(values, parseInValues(value));
                     break;
                 case "is":
@@ -337,10 +352,10 @@ public class Filter<T> implements Specification<T> {
         };
     }
 
-    private String buildInCondition(String field, String value) {
+    private String buildInCondition(String field, String value, boolean not) {
         String[] values = value.split(";");
         String placeholders = String.join(",", Collections.nCopies(values.length, "?"));
-        return String.format("%s IN (%s)", field, placeholders);
+        return String.format("%s %sIN (%s)", field, not ? "NOT " : "",  placeholders);
     }
 
     private String mapOperation(String operation) {
@@ -377,11 +392,14 @@ public class Filter<T> implements Specification<T> {
         }
         Map<String, List<Predicate>> predicates = new HashMap<>();
         filter.forEach(f -> {
-            String field = validateAndSplitFilter(f)[0];
-            if (predicates.containsKey(field)) {
-                predicates.get(field).add(parsePredicate(f, root, cb));
-            } else {
-                predicates.put(field, new ArrayList<>(List.of(parsePredicate(f, root, cb))));
+            String[] filters = f.split(":or:");
+            for(String filter : filters) {
+                String field = validateAndSplitFilter(filter)[0];
+                if (predicates.containsKey(field)) {
+                    predicates.get(field).add(parsePredicate(filter, root, cb));
+                } else {
+                    predicates.put(field, new ArrayList<>(List.of(parsePredicate(filter, root, cb))));
+                }
             }
         });
         return collectPredicates(cb, predicates);
@@ -568,28 +586,28 @@ public class Filter<T> implements Specification<T> {
         Expression<Comparable> comparablePath = (Expression<Comparable>) getFunctionPath(cb, path, function);
 
         if (Collection.class.isAssignableFrom(reflectionField.getType())) {
-            Object convertedValue = convertValue(stringValue, getCollectionElementType(reflectionField));
+            Comparable<?> convertedValue = (Comparable<?>) convertValue(stringValue, getCollectionElementType(reflectionField));
             if (function != null) {
                 return switch (function) {
-                    case LENGTH, SIZE -> switch (operation) {
-                        case ">" -> cb.greaterThan(comparablePath, (Comparable) convertedValue);
-                        case "<" -> cb.lessThan(comparablePath, (Comparable) convertedValue);
-                        case ">=" -> cb.greaterThanOrEqualTo(comparablePath, (Comparable) convertedValue);
-                        case "<=" -> cb.lessThanOrEqualTo(comparablePath, (Comparable) convertedValue);
-                        default -> throw new IllegalArgumentException("Invalid comparison operation: " + operation);
-                    };
-                    default -> throw new IllegalArgumentException("Invalid function for equals operation: " + function);
+                    case LENGTH, SIZE -> getComparisonPredicate(cb,operation,comparablePath,convertedValue);
                 };
             }
             return cb.isMember(convertedValue, (Path<Collection>) path);
         }
 
         Comparable<?> value = (Comparable<?>) convertValue(stringValue, reflectionField.getType());
+        return getComparisonPredicate(cb, operation, comparablePath, value);
+    }
+
+    private static Predicate getComparisonPredicate(CriteriaBuilder cb,
+                                                    String operation,
+                                                    Expression<Comparable> comparablePath,
+                                                    Comparable value) {
         return switch (operation) {
-            case ">" -> cb.greaterThan(comparablePath, (Comparable) value);
-            case "<" -> cb.lessThan(comparablePath, (Comparable) value);
-            case ">=" -> cb.greaterThanOrEqualTo(comparablePath, (Comparable) value);
-            case "<=" -> cb.lessThanOrEqualTo(comparablePath, (Comparable) value);
+            case ">" -> cb.greaterThan(comparablePath, value);
+            case "<" -> cb.lessThan(comparablePath, value);
+            case ">=" -> cb.greaterThanOrEqualTo(comparablePath, value);
+            case "<=" -> cb.lessThanOrEqualTo(comparablePath, value);
             default -> throw new IllegalArgumentException("Invalid comparison operation: " + operation);
         };
     }
@@ -653,6 +671,8 @@ public class Filter<T> implements Specification<T> {
 
     //endregion
 
+
+    //region NestedTypes
     @Getter
     @AllArgsConstructor
     public enum Function {
@@ -695,13 +715,14 @@ public class Filter<T> implements Specification<T> {
         LSE("<="),
         LIKE("like"),
         IS("is"),
-        IN("in");
+        IN("in"),
+        NOT_LIKE("not_like"),
+        NOT_IN("not_in"),;
 
 
         private final String operation;
     }
 
-    //region NestedTypes
     public static class FilterBuilder {
         protected final List<FilterUnit> filters = new ArrayList<>();
 
@@ -752,6 +773,16 @@ public class Filter<T> implements Specification<T> {
 
         public FilterBuilder is(String field, Is value) {
             filters.add(new FilterUnit(field, FilterOperation.IS, value.getValue()));
+            return this;
+        }
+
+        public FilterBuilder notLike(String field, String value) {
+            filters.add(new FilterUnit(field, FilterOperation.NOT_LIKE, value));
+            return this;
+        }
+
+        public FilterBuilder notIn(String field, String... values) {
+            filters.add(new FilterUnit(field, FilterOperation.NOT_IN, String.join(";", values)));
             return this;
         }
 

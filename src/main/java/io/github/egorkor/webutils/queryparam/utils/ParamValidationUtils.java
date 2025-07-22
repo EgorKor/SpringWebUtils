@@ -47,8 +47,15 @@ public class ParamValidationUtils {
             throw new IllegalArgumentException(LIMIT_ERRORS.get(paramType).apply(params.size(), params.size()));
         }
 
-        Set<String> paramsNames = params.stream().map(
-                s -> validationFunc.apply(s)[0]
+        Set<String> paramsNames = params.stream().flatMap(
+                s -> {
+                    String[] orOperators = s.split(":or:");
+                    List<String> fields = new ArrayList<>();
+                    for(String orOperator: orOperators) {
+                        fields.add(validationFunc.apply(orOperator)[0]);
+                    }
+                    return fields.stream();
+                }
         ).collect(Collectors.toSet());
 
         Set<String> allowedFields = Arrays.stream(paramsClass.getDeclaredFields())
@@ -85,12 +92,15 @@ public class ParamValidationUtils {
             String fieldName = Objects.equals(fieldParamMapping.requestParamMapping(), FieldParamMapping.NO_MAPPING)
                     ? field.getName() : fieldParamMapping.requestParamMapping();
             String regexSafeFieldName = Pattern.quote(fieldName);
+
             for (int i = 0; i < params.size(); i++) {
-                String filterFieldName = validationFunc.apply(params.get(i))[0];
-                if (fieldName.equals(filterFieldName)) {
-                    params.set(i, params.get(i)
-                            .replaceFirst(regexSafeFieldName, alliesName));
-                    break;
+                String[] orOperators = params.get(i).split(":or:");
+                for(String orFieldName: orOperators) {
+                    String filterFieldName = validationFunc.apply(orFieldName)[0];
+                    if (fieldName.equals(filterFieldName)) {
+                        params.set(i, params.get(i)
+                                .replaceFirst(regexSafeFieldName, alliesName));
+                    }
                 }
             }
         }
