@@ -13,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.lang.reflect.Field;
 import java.util.List;
 
+import static io.github.egorkor.webutils.queryparam.Filter.fb;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -209,10 +210,10 @@ public class FilterTest2 {
 
     @Test
     void testFilterBuilder() {
-        Filter<TestEntity> filter = Filter.builder()
-                .equals("name", "John")
-                .greater("age", "30")
-                .build();
+        Filter<TestEntity> filter = fb.and(
+                fb.equals("name", "John"),
+                fb.greater("age", "30")
+        ).build();
 
         assertEquals(2, filter.getFilter().size());
         assertTrue(filter.getFilter().get(0).contains("name:=:John"));

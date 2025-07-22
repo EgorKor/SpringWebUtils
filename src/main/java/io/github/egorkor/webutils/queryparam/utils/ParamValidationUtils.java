@@ -12,8 +12,8 @@ import java.util.stream.Collectors;
 
 public class ParamValidationUtils {
 
-    private static final HashMap<ParamType, BiFunction<Integer, Integer, String>> LIMIT_ERRORS = new HashMap<>();
-    private static final HashMap<ParamType, Function<Set, String>> NON_ALLOWED_ERRORS = new HashMap<>();
+    private static final HashMap<ParamType, BiFunction<Integer, Integer, String>> LIMIT_ERRORS = new HashMap<>(2);
+    private static final HashMap<ParamType, Function<Set, String>> NON_ALLOWED_ERRORS = new HashMap<>(2);
 
     static {
         LIMIT_ERRORS.put(ParamType.SORT,

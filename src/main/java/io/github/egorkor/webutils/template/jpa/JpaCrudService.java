@@ -9,10 +9,10 @@ import io.github.egorkor.webutils.queryparam.Pagination;
 import io.github.egorkor.webutils.queryparam.Sorting;
 import io.github.egorkor.webutils.service.sync.CrudService;
 import jakarta.persistence.*;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.CriteriaUpdate;
-import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.*;
+import jakarta.persistence.metamodel.Attribute;
+import jakarta.persistence.metamodel.EntityType;
+import jakarta.persistence.metamodel.Metamodel;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import lombok.NonNull;
@@ -26,6 +26,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -35,6 +36,8 @@ import java.time.*;
 import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
+
+import static io.github.egorkor.webutils.queryparam.Filter.fb;
 
 
 /**
@@ -309,7 +312,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                         + id
                         + " not found.");
         boolean isDeleted = false;
-        Filter<T> idFilter = Filter.builder().equals(idField.getName(), id.toString()).build();
+        Filter<T> idFilter = fb.and(fb.equals(idField.getName(), id.toString())).build();
         idFilter.setEntityType(entityType);
         return !isSoftDeleteSupported ?
                 jpaRepository.findById(id)
@@ -327,7 +330,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                         + " with id = "
                         + id
                         + " not found.");
-        Filter<T> baseIdFilter = Filter.builder().equals(idField.getName(), id.toString()).build();
+        Filter<T> baseIdFilter = fb.and(fb.equals(idField.getName(), id.toString())).build();
         Filter<T> resultIdFilter = getSoftDeleteSupportedFilter(baseIdFilter).concat(filter);
         resultIdFilter.setEntityType(entityType);
         return jpaSpecificationExecutor.findOne(resultIdFilter)
@@ -354,7 +357,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     @Override
     public T getByIdWithLock(@NonNull ID id,
                              @NonNull LockModeType lockType) throws ResourceNotFoundException {
-        Filter<T> idFilter = Filter.builder().equals(idField.getName(), id.toString()).build();
+        Filter<T> idFilter = fb.and(fb.equals(idField.getName(), id.toString())).build();
         idFilter.setEntityType(entityType);
         return getByFilterWithLock(idFilter, lockType);
     }
@@ -547,7 +550,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     @Override
     public boolean existsById(@NonNull ID id) {
         return !isSoftDeleteSupported ? jpaRepository.existsById(id) :
-                existsByFilter(Filter.builder().equals(idField.getName(), id.toString()).build());
+                existsByFilter(fb.and(fb.equals(idField.getName(), id.toString())).build());
     }
 
     @Override
@@ -611,7 +614,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     @Override
     public void restoreById(@NonNull ID id) throws ResourceNotFoundException, SoftDeleteUnsupportedException, EntityProcessingException {
         checkSoftDeleteAvailability();
-        Filter<T> filter = Filter.builder().equals(idField.getName(), id.toString()).build();
+        Filter<T> filter = fb.and(fb.equals(idField.getName(), id.toString())).build();
         filter.setEntityType(entityType);
         T entity = jpaSpecificationExecutor.findOne(filter)
                 .orElseThrow(() -> new ResourceNotFoundException("Entity not found: " + id));

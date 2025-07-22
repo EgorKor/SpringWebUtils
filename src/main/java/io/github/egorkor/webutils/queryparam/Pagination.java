@@ -57,6 +57,10 @@ public class Pagination {
         return size == ALL_CONTENT_SIZE;
     }
 
+    public boolean isPaged(){
+        return size != ALL_CONTENT_SIZE;
+    }
+
     public Pageable toJpaPageable() {
         if (size == ALL_CONTENT_SIZE) {
             return Pageable.unpaged();

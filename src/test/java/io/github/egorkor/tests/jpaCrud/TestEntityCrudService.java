@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 
+import static io.github.egorkor.webutils.queryparam.Filter.fb;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DataJpaTest
@@ -114,9 +115,8 @@ public class TestEntityCrudService {
     @Test
     @Sql(scripts = "/insert-test-data.sql")
     void getByFilterWithLock_shouldReturnEntity() throws ResourceNotFoundException {
-        Filter<TestEntity> filter = Filter
-                .builder()
-                .equals("id", "1")
+        Filter<TestEntity> filter = fb.and(
+                        fb.equals("id", "1"))
                 .build();
         TestEntity result = crudService.getByFilterWithLock(filter, LockModeType.PESSIMISTIC_WRITE);
         assertNotNull(result);
@@ -223,9 +223,7 @@ public class TestEntityCrudService {
     @Sql(scripts = "/insert-test-data.sql")
     void getByFilter_shouldReturnEntityWithMatchingName() throws ResourceNotFoundException, NonUniqueResultException {
         Filter<TestEntity> filter =
-                Filter.builder()
-                        .like("name", "Test Entity")
-                        .build();
+                fb.and(fb.like("name", "Test Entity")).build();
 
         TestEntity result = crudService.getByFilter(filter);
 

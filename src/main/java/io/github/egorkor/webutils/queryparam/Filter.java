@@ -114,6 +114,8 @@ public class Filter<T> implements Specification<T> {
     protected List<Consumer<Root<T>>> queryConfigurers = new ArrayList<>();
     @JsonIgnore
     private List<String> fieldWhiteList = new ArrayList<>();
+    @JsonIgnore
+    private List<String> fetchingProperties = new ArrayList<>();
 
     public Filter() {
         this.filter = new ArrayList<>();
@@ -144,9 +146,7 @@ public class Filter<T> implements Specification<T> {
         return path;
     }
 
-    public static FilterBuilder builder() {
-        return new FilterBuilder();
-    }
+    public final static FilterBuilder fb = new FilterBuilder();
 
     public static <T> Filter<T> softDeleteFilter(Field field, boolean isDeleted) {
         return softDeleteFilter(field.getName(), field.getType(), isDeleted);
@@ -418,6 +418,7 @@ public class Filter<T> implements Specification<T> {
     }
 
     public <R> Filter<R> withFetchJoin(String fetchingProperty) {
+        this.fetchingProperties.add(fetchingProperty);
         queryConfigurers.add((root) -> {
             root.fetch(fetchingProperty, JoinType.LEFT);
         });
@@ -724,95 +725,149 @@ public class Filter<T> implements Specification<T> {
     }
 
     public static class FilterBuilder {
-        protected final List<FilterUnit> filters = new ArrayList<>();
 
-        public FilterBuilder equals(String field, String value) {
-            filters.add(new FilterUnit(field, FilterOperation.EQUALS, value));
-            return this;
+        public FilterUnit equals(String field, String value) {
+            return new BasicOperation(field, FilterOperation.EQUALS, value);
         }
 
-        public FilterBuilder notEquals(String field, String value) {
-            filters.add(new FilterUnit(field, FilterOperation.NOT_EQUALS, value));
-            return this;
+        public FilterUnit notEquals(String field, String value) {
+            return new BasicOperation(field, FilterOperation.NOT_EQUALS, value);
         }
 
-        public FilterBuilder less(String field, String value) {
-            filters.add(new FilterUnit(field, FilterOperation.LS, value));
-            return this;
+        public FilterUnit less(String field, String value) {
+            return new BasicOperation(field, FilterOperation.LS, value);
         }
 
-        public FilterBuilder lessOrEquals(String field, String value) {
-            filters.add(new FilterUnit(field, FilterOperation.LSE, value));
-            return this;
+        public FilterUnit lessOrEquals(String field, String value) {
+            return new BasicOperation(field, FilterOperation.LSE, value);
         }
 
-        public FilterBuilder greater(String field, String value) {
-            filters.add(new FilterUnit(field, FilterOperation.GT, value));
-            return this;
+        public FilterUnit greater(String field, String value) {
+            return new BasicOperation(field, FilterOperation.GT, value);
         }
 
-        public FilterBuilder greaterOrEquals(String field, String value) {
-            filters.add(new FilterUnit(field, FilterOperation.GTE, value));
-            return this;
+        public FilterUnit greaterOrEquals(String field, String value) {
+            return new BasicOperation(field, FilterOperation.GTE, value);
         }
 
-        public FilterBuilder like(String field, String value) {
-            filters.add(new FilterUnit(field, FilterOperation.LIKE, value));
-            return this;
+        public FilterUnit like(String field, String value) {
+            return new BasicOperation(field, FilterOperation.LIKE, value);
         }
 
-        public FilterBuilder in(String field, String... values) {
-            filters.add(new FilterUnit(field, FilterOperation.IN, String.join(";", values)));
-            return this;
+        public FilterUnit in(String field, String... values) {
+            return new BasicOperation(field, FilterOperation.IN, String.join(";", values));
         }
 
-        public FilterBuilder in(String field, Iterable<String> values){
-            filters.add(new FilterUnit(field, FilterOperation.IN, String.join(";", values)));
-            return this;
+        public FilterUnit in(String field, Iterable<String> values){
+            return new BasicOperation(field, FilterOperation.IN, String.join(";", values));
         }
 
-        public FilterBuilder is(String field, Is value) {
-            filters.add(new FilterUnit(field, FilterOperation.IS, value.getValue()));
-            return this;
+        public FilterUnit is(String field, Is value) {
+            return new BasicOperation(field, FilterOperation.IS, value.getValue());
         }
 
-        public FilterBuilder notLike(String field, String value) {
-            filters.add(new FilterUnit(field, FilterOperation.NOT_LIKE, value));
-            return this;
+        public FilterUnit notLike(String field, String value) {
+            return new BasicOperation(field, FilterOperation.NOT_LIKE, value);
         }
 
-        public FilterBuilder notIn(String field, String... values) {
-            filters.add(new FilterUnit(field, FilterOperation.NOT_IN, String.join(";", values)));
-            return this;
+        public FilterUnit notIn(String field, String... values) {
+            return new BasicOperation(field, FilterOperation.NOT_IN, String.join(";", values));
         }
 
+        public BuildableOperation or(FilterUnit... units) {
+            return new OrOperation(Arrays.asList(units));
+        }
+
+        public BuildableOperation and(FilterUnit... units) {
+            return new AndOperation(Arrays.asList(units));
+        }
+
+    }
+
+    public abstract static class BuildableFilterOperation{
         public <T> Filter<T> build() {
             return build(null);
         }
 
         public <T> Filter<T> build(Class<?> entityType) {
+
             return new Filter<>(
-                    new ArrayList<>(filters.stream().map(
-                            (o) -> "%s:%s:%s".formatted(o.field(), o.filterOperation().getOperation(), o.value())
-                    ).toList()), entityType
+                    new ArrayList<>(getFilters().stream()
+                    .map(FilterUnit::toStringFilter).toList()), entityType
             );
         }
 
         @SneakyThrows
         public <R extends Filter> R buildDerived(Class<R> resultType) {
+
             R derivedFilter = resultType.getDeclaredConstructor().newInstance();
             derivedFilter.setFilter(
-                    new ArrayList<>(filters.stream().map(
-                            (o) -> "%s:%s:%s".formatted(o.field(), o.filterOperation().getOperation(), o.value())
-                    ).toList()
-                    ));
+                    new ArrayList<>(getFilters().stream()
+                            .map(FilterUnit::toStringFilter).toList()));
             return derivedFilter;
         }
 
+        protected abstract List<FilterUnit> getFilters();
     }
 
-    public record FilterUnit(String field, FilterOperation filterOperation, String value) {
+    public interface FilterUnit{
+        String toStringFilter();
     }
+
+    public interface BuildableOperation{
+        <T> Filter<T> build();
+        <T> Filter<T> build(Class<?> entityType);
+        <R extends Filter> R buildDerived(Class<R> resultType);
+    }
+
+    protected static class BasicOperation implements FilterUnit{
+        private final String field;
+        private final FilterOperation operation;
+        private final String value;
+
+        public BasicOperation(String field, FilterOperation operation, String value) {
+            this.field = field;
+            this.operation = operation;
+            this.value = value;
+        }
+
+        public String toStringFilter() {
+            return "%s:%s:%s".formatted(field, operation.getOperation(),value);
+        }
+    }
+
+    protected static class OrOperation extends BuildableFilterOperation implements BuildableOperation, FilterUnit{
+        private final List<FilterUnit> filterUnits;
+
+        public OrOperation(List<FilterUnit> filterUnits) {
+            this.filterUnits = filterUnits;
+        }
+
+        @Override
+        public String toStringFilter() {
+            return String.join(":or:",filterUnits.stream().map(FilterUnit::toStringFilter).toList());
+        }
+
+        @Override
+        protected List<FilterUnit> getFilters() {
+            return filterUnits;
+        }
+    }
+
+    protected static class AndOperation extends BuildableFilterOperation implements BuildableOperation{
+        private final List<FilterUnit> filterUnits;
+
+        public AndOperation(List<FilterUnit> filterUnits) {
+            this.filterUnits = filterUnits;
+        }
+
+        @Override
+        protected List<FilterUnit> getFilters() {
+            return filterUnits;
+        }
+    }
+
+
     //endregion
 
 }

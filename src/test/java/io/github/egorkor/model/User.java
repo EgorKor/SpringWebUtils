@@ -4,12 +4,15 @@ import com.github.javafaker.Faker;
 import io.github.egorkor.webutils.annotations.SoftDeleteFlag;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CollectionType;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.beans.ConstructorProperties;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.IntStream;
 
 @Getter
@@ -29,7 +32,7 @@ public class User {
     private String phone;
     private String address;
     @ElementCollection
-    private List<String> roles;
+    private Set<String> roles;
     @CreationTimestamp
     private LocalDateTime createdAt;
     @UpdateTimestamp
@@ -38,6 +41,21 @@ public class User {
     private LocalDateTime deletedAt;
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Order> orders = new ArrayList<>();
+
+
+    public User(User user){
+        this.id = user.id;
+        this.firstName = user.firstName;
+        this.password = user.password;
+        this.email = user.email;
+        this.phone = user.phone;
+        this.address = user.address;
+        this.roles = user.roles;
+        this.createdAt = user.createdAt;
+        this.updatedAt = user.updatedAt;
+        this.deletedAt = user.deletedAt;
+        this.orders = user.orders;
+    }
 
     public static User generateUser(long id) {
         User user = new User();

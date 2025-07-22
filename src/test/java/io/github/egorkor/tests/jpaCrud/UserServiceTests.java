@@ -1,11 +1,13 @@
 package io.github.egorkor.tests.jpaCrud;
 
 import io.github.egorkor.model.User;
+import io.github.egorkor.repository.UserRepository;
 import io.github.egorkor.service.UserService;
 import io.github.egorkor.service.impl.UserServiceImpl;
 import io.github.egorkor.webutils.queryparam.Filter;
 import io.github.egorkor.webutils.queryparam.Pagination;
 import io.github.egorkor.webutils.queryparam.Sorting;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
@@ -19,6 +21,9 @@ import org.springframework.test.context.transaction.BeforeTransaction;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import java.util.List;
+import java.util.Set;
+
+import static io.github.egorkor.webutils.queryparam.Filter.fb;
 
 
 @Import({UserServiceImpl.class, LocalValidatorFactoryBean.class})
@@ -29,7 +34,12 @@ public class UserServiceTests {
     private UserService userService;
     @Autowired
     private EntityManagerFactory entityManagerFactory;
+    @Autowired
+    private EntityManager entityManager;
     private Statistics stats;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @BeforeTransaction
     public void beforeTransaction() {
@@ -37,6 +47,7 @@ public class UserServiceTests {
         User.generateUsers(1, 50).forEach(userService::create);
         this.stats = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
         stats.clear();
+        entityManager.clear();
     }
 
     @Test
@@ -61,8 +72,7 @@ public class UserServiceTests {
     @Test
     public void softDeleteByFilter() {
         stats.setStatisticsEnabled(true);
-        userService.softDeleteByFilter(Filter.builder()
-                .greater("id", "30")
+        userService.softDeleteByFilter(fb.and(fb.greater("id", "30"))
                 .build());
         var res = userService.getAll(Filter.empty(), Sorting.unsorted(), Pagination.unpaged());
         Assertions.assertEquals(2, stats.getPrepareStatementCount());
@@ -73,14 +83,14 @@ public class UserServiceTests {
     @Test
     public void recoverByFilter() {
         stats.setStatisticsEnabled(true);
-        userService.softDeleteByFilter(Filter.builder()
-                .lessOrEquals("id", "10")
-                .build());
+        userService.softDeleteByFilter(fb.and(
+                fb.lessOrEquals("id", "10")
+        ).build());
         var res = userService.getAll(Filter.empty(), Sorting.unsorted(), Pagination.unpaged());
         Assertions.assertEquals(res.getData().size(), 40);
-        userService.restoreByFilter(Filter.builder()
-                .lessOrEquals("id", "5")
-                .build());
+        userService.restoreByFilter(fb.and(
+                fb.lessOrEquals("id", "5")
+        ).build());
         res = userService.getAll(Filter.empty(), Sorting.unsorted(), Pagination.unpaged());
         Assertions.assertEquals(res.getData().size(), 45);
         Assertions.assertEquals(4, stats.getPrepareStatementCount());

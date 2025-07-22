@@ -60,18 +60,6 @@ public interface CrudService<T, ID> {
     PageableResult<T> getAll(Filter<T> filter, Sorting sorting, Pagination pagination);
 
     /**
-     * Запрос на получение списка сущностей с учётом фильтрации, сортировки, пагинации,
-     * а также исключения некоторых полей из физической выборки (отсеиваются на этапе SQL запроса)
-     *
-     * @param sorting    параметр запроса сортировки
-     * @param filter     параметр запроса фильтрации
-     * @param pagination параметр запроса постраничного доступа
-     * @return PageableResult - результат постраничного запроса к БД, содержащий данные
-     * и параметры страниц
-     */
-   // PageableResult<T> getAll(Filter<T> filter, Sorting sorting, Pagination pagination, Set<String> excludeFields);
-
-    /**
      * Запрос на получение списка сущностей с учётом фильтрации и пагинации
      *
      * @param filter     параметр запроса фильтрации
