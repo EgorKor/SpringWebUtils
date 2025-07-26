@@ -1,7 +1,6 @@
 package io.github.egorkor.tests.utils.dto;
 
 import lombok.Data;
-import lombok.Getter;
 
 import java.util.List;
 

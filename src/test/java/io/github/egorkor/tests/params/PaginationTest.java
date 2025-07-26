@@ -1,9 +1,9 @@
 package io.github.egorkor.tests.params;
 
-import io.github.egorkor.webutils.service.PageableResult;
 import io.github.egorkor.webutils.queryparam.Pagination;
 import io.github.egorkor.webutils.queryparam.Sorting;
 import io.github.egorkor.webutils.queryparam.utils.DatabaseType;
+import io.github.egorkor.webutils.service.PageableResult;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Pageable;

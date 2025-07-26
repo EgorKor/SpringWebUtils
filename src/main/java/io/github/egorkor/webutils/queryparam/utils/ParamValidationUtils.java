@@ -51,7 +51,7 @@ public class ParamValidationUtils {
                 s -> {
                     String[] orOperators = s.split(":or:");
                     List<String> fields = new ArrayList<>();
-                    for(String orOperator: orOperators) {
+                    for (String orOperator : orOperators) {
                         fields.add(validationFunc.apply(orOperator)[0]);
                     }
                     return fields.stream();
@@ -95,7 +95,7 @@ public class ParamValidationUtils {
 
             for (int i = 0; i < params.size(); i++) {
                 String[] orOperators = params.get(i).split(":or:");
-                for(String orFieldName: orOperators) {
+                for (String orFieldName : orOperators) {
                     String filterFieldName = validationFunc.apply(orFieldName)[0];
                     if (fieldName.equals(filterFieldName)) {
                         params.set(i, params.get(i)

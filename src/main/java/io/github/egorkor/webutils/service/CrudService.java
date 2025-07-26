@@ -93,8 +93,9 @@ public interface CrudService<T, ID> {
 
     /**
      * Запрос на получение потока данных
+     *
      * @return Stream типа T - поток данных сущностей из БД
-     * */
+     */
     Stream<T> getDataStream();
 
     /**
@@ -103,7 +104,8 @@ public interface CrudService<T, ID> {
      * частично, в отличие от методов getAll - которые выгружают
      * сразу весь список. Рекомендуется использовать его при обработке
      * больших объемов данных.
-     * @param filter  параметр запроса фильтрации
+     *
+     * @param filter параметр запроса фильтрации
      * @return Stream типа T - поток данных сущностей из БД
      */
     Stream<T> getDataStream(Filter<T> filter);
@@ -112,10 +114,10 @@ public interface CrudService<T, ID> {
      * Запрос на получение потока данных с учётом фильтрации
      * и сортировки
      *
-     * @see #getDataStream(Filter)
      * @param sorting параметр запроса сортировки
      * @param filter  параметр запроса фильтрации
      * @return Stream типа T - поток данных сущностей из БД
+     * @see #getDataStream(Filter)
      */
     Stream<T> getDataStream(Filter<T> filter, Sorting sorting);
 
@@ -200,9 +202,9 @@ public interface CrudService<T, ID> {
      * Массовое обновление по условию
      *
      * @param specification спецификация обновления в которой указан список изменений
-     * @param filter фильтр записей, которые должны быть обновлены
+     * @param filter        фильтр записей, которые должны быть обновлены
      * @return int число записей которые были обновлены
-     * */
+     */
     int updateByFilter(UpdateSpecification specification, Filter<T> filter);
 
     /**

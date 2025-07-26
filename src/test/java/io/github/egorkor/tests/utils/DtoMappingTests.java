@@ -18,7 +18,6 @@ public class DtoMappingTests {
     private final DtoMapper dtoMapper = new DtoMapper();
 
 
-
     @Test
     void shouldMapDepartmentWithEmployees() {
         Department department = new Department();
@@ -138,7 +137,7 @@ public class DtoMappingTests {
                 new Employee(601L, "Mike", dept),
                 new Employee(602L, "Sarah", dept)
         );
- 
+
         List<EmployeeDto> dtos = dtoMapper.toDto(employees, EmployeeDto.class);
 
         assertEquals(2, dtos.size());
@@ -174,11 +173,6 @@ public class DtoMappingTests {
 
         assertEquals(801L, employee.getId());
     }
-
-
-
-
-
 
 
 }

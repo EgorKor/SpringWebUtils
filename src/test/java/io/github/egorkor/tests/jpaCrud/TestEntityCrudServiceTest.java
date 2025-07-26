@@ -25,7 +25,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
@@ -78,7 +77,7 @@ public class TestEntityCrudServiceTest {
                 .build();
 
         // Act
-        int updatedCount = crudService.updateByFilter(spec,Filter.empty());
+        int updatedCount = crudService.updateByFilter(spec, Filter.empty());
         testEntityManager.flush();
         testEntityManager.clear();
         // Assert

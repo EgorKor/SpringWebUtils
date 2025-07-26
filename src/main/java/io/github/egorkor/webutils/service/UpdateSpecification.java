@@ -14,9 +14,6 @@ public class UpdateSpecification {
     private Map<String, UpdatePair> updates = new HashMap<>();
 
 
-    public record UpdatePair(Action action, Object data) {
-    }
-
     public enum Action {
         UPDATE,
         SUM,
@@ -28,6 +25,9 @@ public class UpdateSpecification {
         UPPER_CASE,
         LOWER_CASE,
         COPY
+    }
+
+    public record UpdatePair(Action action, Object data) {
     }
 
     public static class UpdateSpecificationBuilder {

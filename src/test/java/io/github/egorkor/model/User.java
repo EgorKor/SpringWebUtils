@@ -4,11 +4,9 @@ import com.github.javafaker.Faker;
 import io.github.egorkor.webutils.annotations.SoftDeleteFlag;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CollectionType;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.beans.ConstructorProperties;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -43,7 +41,7 @@ public class User {
     private List<Order> orders = new ArrayList<>();
 
 
-    public User(User user){
+    public User(User user) {
         this.id = user.id;
         this.firstName = user.firstName;
         this.password = user.password;

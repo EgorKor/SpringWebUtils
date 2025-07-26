@@ -57,7 +57,7 @@ public class Pagination {
         return size == ALL_CONTENT_SIZE;
     }
 
-    public boolean isPaged(){
+    public boolean isPaged() {
         return size != ALL_CONTENT_SIZE;
     }
 
