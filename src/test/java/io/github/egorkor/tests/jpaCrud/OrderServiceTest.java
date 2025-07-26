@@ -51,7 +51,7 @@ public class OrderServiceTest {
 
     @Test
     public void testOrderNPlus1() {
-        List<Order> orders = orderService.getAll(Filter.empty());
+        List<Order> orders = orderService.getList(Filter.empty());
         System.out.println(orders.size());
     }
 

@@ -6,7 +6,7 @@ import io.github.egorkor.webutils.exception.ResourceNotFoundException;
 import io.github.egorkor.webutils.exception.ValidationException;
 import io.github.egorkor.webutils.service.batching.BatchOperationStatus;
 import io.github.egorkor.webutils.service.batching.BatchResultWithData;
-import io.github.egorkor.webutils.service.sync.CrudBatchService;
+import io.github.egorkor.webutils.service.CrudBatchService;
 import io.github.egorkor.webutils.template.BatchResultWithDataImpl;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;

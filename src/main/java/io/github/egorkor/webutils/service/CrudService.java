@@ -1,4 +1,4 @@
-package io.github.egorkor.webutils.service.sync;
+package io.github.egorkor.webutils.service;
 
 import io.github.egorkor.webutils.exception.EntityProcessingException;
 import io.github.egorkor.webutils.exception.ResourceNotFoundException;
@@ -17,7 +17,7 @@ import java.util.stream.Stream;
  * <p>
  * Методы
  *     <ul>
- *         <li>{@link #getAll(Filter, Sorting, Pagination)}</li>
+ *         <li>{@link #getPage(Filter, Sorting, Pagination)}</li>
  *         <li>{@link #getById(ID)}</li>
  *         <li>{@link #getByIdWithLock(ID, LockModeType)}</li>
  *         <li>{@link #getByFilter(Filter)}</li>
@@ -47,7 +47,7 @@ import java.util.stream.Stream;
  */
 public interface CrudService<T, ID> {
     /**
-     * Запрос на получение списка сущностей с учётом фильтрации, сортировки, пагинации
+     * Запрос на получение страницы сущностей с учётом фильтрации, сортировки, пагинации
      *
      * @param sorting    параметр запроса сортировки
      * @param filter     параметр запроса фильтрации
@@ -55,17 +55,32 @@ public interface CrudService<T, ID> {
      * @return PageableResult - результат постраничного запроса к БД, содержащий данные
      * и параметры страниц
      */
-    PageableResult<T> getAll(Filter<T> filter, Sorting sorting, Pagination pagination);
+    PageableResult<T> getPage(Filter<T> filter, Sorting sorting, Pagination pagination);
 
     /**
-     * Запрос на получение списка сущностей с учётом фильтрации и пагинации
+     * Запрос на получение страницы сущностей с учётом фильтрации и пагинации
      *
      * @param filter     параметр запроса фильтрации
      * @param pagination параметр запроса постраничного доступа
      * @return PageableResult - результат постраничного запроса к БД, содержащий данные
      * и параметры страниц
      */
-    PageableResult<T> getAll(Filter<T> filter, Pagination pagination);
+    PageableResult<T> getPage(Filter<T> filter, Pagination pagination);
+
+    /**
+     * Запрос на получение полного списка сущностей
+     *
+     * @return List типа T - результат запроса к БД, содержащий данные
+     */
+    List<T> getList();
+
+    /**
+     * Запрос на получение списка сущностей с учётом фильтрации
+     *
+     * @param filter параметр запроса фильтрации
+     * @return List типа T - результат запроса к БД, содержащий данные
+     */
+    List<T> getList(Filter<T> filter);
 
     /**
      * Запрос на получение списка сущностей с учётом фильтрации и сортировки
@@ -74,15 +89,13 @@ public interface CrudService<T, ID> {
      * @param filter  параметр запроса фильтрации
      * @return List типа T - результат запроса к БД, содержащий данные
      */
-    List<T> getAll(Filter<T> filter, Sorting sorting);
+    List<T> getList(Filter<T> filter, Sorting sorting);
 
     /**
-     * Запрос на получение списка сущностей с учётом фильтрации
-     *
-     * @param filter параметр запроса фильтрации
-     * @return List типа T - результат запроса к БД, содержащий данные
-     */
-    List<T> getAll(Filter<T> filter);
+     * Запрос на получение потока данных
+     * @return Stream типа T - поток данных сущностей из БД
+     * */
+    Stream<T> getDataStream();
 
     /**
      * Запрос на получение потока данных с учётом фильтрации.
@@ -90,16 +103,21 @@ public interface CrudService<T, ID> {
      * частично, в отличие от методов getAll - которые выгружают
      * сразу весь список. Рекомендуется использовать его при обработке
      * больших объемов данных.
+     * @param filter  параметр запроса фильтрации
+     * @return Stream типа T - поток данных сущностей из БД
      */
-    Stream<T> getStream(Filter<T> filter);
+    Stream<T> getDataStream(Filter<T> filter);
 
     /**
      * Запрос на получение потока данных с учётом фильтрации
      * и сортировки
      *
-     * @see #getStream(Filter)
+     * @see #getDataStream(Filter)
+     * @param sorting параметр запроса сортировки
+     * @param filter  параметр запроса фильтрации
+     * @return Stream типа T - поток данных сущностей из БД
      */
-    Stream<T> getStream(Filter<T> filter, Sorting sorting);
+    Stream<T> getDataStream(Filter<T> filter, Sorting sorting);
 
     /**
      * Запрос на получение сущности по идентификатору
@@ -178,6 +196,13 @@ public interface CrudService<T, ID> {
      */
     T patchUpdate(ID id, T model) throws ResourceNotFoundException, EntityProcessingException;
 
+    /**
+     * Массовое обновление по условию
+     *
+     * @param specification спецификация обновления в которой указан список изменений
+     * @param filter фильтр записей, которые должны быть обновлены
+     * @return int число записей которые были обновлены
+     * */
     int updateByFilter(UpdateSpecification specification, Filter<T> filter);
 
     /**

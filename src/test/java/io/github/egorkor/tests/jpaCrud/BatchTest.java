@@ -152,7 +152,7 @@ public class BatchTest {
         assertThrows(BatchOperationException.class, () -> {
             service.batchCreateAtomic(entities);
         });
-        var res = service.getAll(Filter.empty());
+        var res = service.getList(Filter.empty());
         // Verify no entities were persisted
         assertEquals(0, service.countAll());
     }

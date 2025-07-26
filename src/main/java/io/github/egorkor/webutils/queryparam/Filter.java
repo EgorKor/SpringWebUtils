@@ -148,6 +148,10 @@ public class Filter<T> implements Specification<T> {
 
     public final static FilterBuilder fb = new FilterBuilder();
 
+    public static FilterBuilder builder(){
+        return fb;
+    }
+
     public static <T> Filter<T> softDeleteFilter(Field field, boolean isDeleted) {
         return softDeleteFilter(field.getName(), field.getType(), isDeleted);
     }
@@ -632,7 +636,7 @@ public class Filter<T> implements Specification<T> {
         return cb.like(stringPath, "%" + stringValue + "%");
     }
 
-    private <X> Path<X> getTypedPath(Path<?> path, Class<X> type) {
+    public static <X> Path<X> getTypedPath(Path<?> path, Class<X> type) {
         return (Path<X>) path;
     }
 

@@ -1,4 +1,4 @@
-package io.github.egorkor.webutils.service.sync;
+package io.github.egorkor.webutils.service;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

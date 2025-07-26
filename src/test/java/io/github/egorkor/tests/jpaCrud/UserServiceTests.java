@@ -21,7 +21,6 @@ import org.springframework.test.context.transaction.BeforeTransaction;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import java.util.List;
-import java.util.Set;
 
 import static io.github.egorkor.webutils.queryparam.Filter.fb;
 
@@ -53,7 +52,7 @@ public class UserServiceTests {
     @Test
     public void testFindAll() {
         stats.setStatisticsEnabled(true);
-        var res = userService.getAll(Filter.empty(), Sorting.unsorted(), Pagination.unpaged());
+        var res = userService.getPage(Filter.empty(), Sorting.unsorted(), Pagination.unpaged());
         stats.setStatisticsEnabled(false);
         Assertions.assertEquals(1, stats.getPrepareStatementCount());
     }
@@ -74,7 +73,7 @@ public class UserServiceTests {
         stats.setStatisticsEnabled(true);
         userService.softDeleteByFilter(fb.and(fb.greater("id", "30"))
                 .build());
-        var res = userService.getAll(Filter.empty(), Sorting.unsorted(), Pagination.unpaged());
+        var res = userService.getPage(Filter.empty(), Sorting.unsorted(), Pagination.unpaged());
         Assertions.assertEquals(2, stats.getPrepareStatementCount());
         Assertions.assertEquals(30, res.getData().size());
         stats.setStatisticsEnabled(false);
@@ -86,12 +85,12 @@ public class UserServiceTests {
         userService.softDeleteByFilter(fb.and(
                 fb.lessOrEquals("id", "10")
         ).build());
-        var res = userService.getAll(Filter.empty(), Sorting.unsorted(), Pagination.unpaged());
+        var res = userService.getPage(Filter.empty(), Sorting.unsorted(), Pagination.unpaged());
         Assertions.assertEquals(res.getData().size(), 40);
         userService.restoreByFilter(fb.and(
                 fb.lessOrEquals("id", "5")
         ).build());
-        res = userService.getAll(Filter.empty(), Sorting.unsorted(), Pagination.unpaged());
+        res = userService.getPage(Filter.empty(), Sorting.unsorted(), Pagination.unpaged());
         Assertions.assertEquals(res.getData().size(), 45);
         Assertions.assertEquals(4, stats.getPrepareStatementCount());
     }
@@ -99,7 +98,7 @@ public class UserServiceTests {
     @Test
     public void testPaginationRequest() {
         stats.setStatisticsEnabled(true);
-        List<User> users = userService.getAll(Filter.empty(), Sorting.unsorted(), Pagination.of(0, 10)).getData();
+        List<User> users = userService.getPage(Filter.empty(), Sorting.unsorted(), Pagination.of(0, 10)).getData();
         stats.setStatisticsEnabled(false);
         Assertions.assertEquals(2, stats.getPrepareStatementCount());
         Assertions.assertEquals(10, users.size());

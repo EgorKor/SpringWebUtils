@@ -1,7 +1,7 @@
 package io.github.egorkor.webutils.template.jpa;
 
 import io.github.egorkor.webutils.queryparam.Filter;
-import io.github.egorkor.webutils.service.sync.PageableResult;
+import io.github.egorkor.webutils.service.PageableResult;
 import io.github.egorkor.webutils.queryparam.Pagination;
 import io.github.egorkor.webutils.queryparam.Sorting;
 import io.github.egorkor.webutils.service.async.AsyncCrudService;
@@ -38,7 +38,7 @@ public abstract class JpaAsyncCrudService<T, ID> extends JpaCrudService<T, ID> i
     @Async
     @Override
     public CompletableFuture<PageableResult<T>> getAllAsync(Filter<T> filter, Sorting sorting, Pagination pagination) {
-        return CompletableFuture.supplyAsync(() -> this.getAll(filter, sorting, pagination), executor);
+        return CompletableFuture.supplyAsync(() -> this.getPage(filter, sorting, pagination), executor);
     }
 
     @Async

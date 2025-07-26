@@ -20,14 +20,10 @@ public class TestNestedEntityServiceImpl extends JpaCrudService<TestNestedEntity
     @PersistenceContext
     private EntityManager entityManager;
 
-    @Autowired
-    public TestNestedEntityServiceImpl(JpaRepository<TestNestedEntity, Long> jpaRepository,
-                                       JpaSpecificationExecutor<TestNestedEntity> jpaSpecificationExecutor,
-                                       ApplicationEventPublisher eventPublisher,
-                                       TransactionTemplate transactionTemplate,
-                                       Validator validator) {
+    public TestNestedEntityServiceImpl(JpaRepository<TestNestedEntity, Long> jpaRepository, JpaSpecificationExecutor<TestNestedEntity> jpaSpecificationExecutor, ApplicationEventPublisher eventPublisher, TransactionTemplate transactionTemplate, Validator validator) {
         super(jpaRepository, jpaSpecificationExecutor, eventPublisher, transactionTemplate, validator);
     }
+
 
     @Override
     public EntityManager getPersistenceAnnotatedEntityManager() {

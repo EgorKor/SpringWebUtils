@@ -4,11 +4,11 @@ import io.github.egorkor.webutils.annotations.SoftDeleteFlag;
 import io.github.egorkor.webutils.event.crud.*;
 import io.github.egorkor.webutils.exception.*;
 import io.github.egorkor.webutils.queryparam.Filter;
-import io.github.egorkor.webutils.service.sync.PageableResult;
+import io.github.egorkor.webutils.service.PageableResult;
 import io.github.egorkor.webutils.queryparam.Pagination;
 import io.github.egorkor.webutils.queryparam.Sorting;
-import io.github.egorkor.webutils.service.sync.CrudService;
-import io.github.egorkor.webutils.service.sync.UpdateSpecification;
+import io.github.egorkor.webutils.service.CrudService;
+import io.github.egorkor.webutils.service.UpdateSpecification;
 import jakarta.persistence.*;
 import jakarta.persistence.criteria.*;
 import jakarta.validation.ConstraintViolation;
@@ -184,31 +184,41 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     }
 
     @Override
-    public PageableResult<T> getAll(Filter<T> filter, Pagination pagination) {
-        filter.setEntityType(entityType);
-        return getAll(filter, Sorting.unsorted(), pagination);
+    public List<T> getList() {
+        return getList(Filter.empty());
     }
 
     @Override
-    public List<T> getAll(Filter<T> filter, Sorting sorting) {
+    public Stream<T> getDataStream() {
+        return getDataStream(Filter.empty());
+    }
+
+    @Override
+    public PageableResult<T> getPage(Filter<T> filter, Pagination pagination) {
+        filter.setEntityType(entityType);
+        return getPage(filter, Sorting.unsorted(), pagination);
+    }
+
+    @Override
+    public List<T> getList(Filter<T> filter, Sorting sorting) {
         filter.setEntityType(entityType);
         return jpaSpecificationExecutor.findAll(getSoftDeleteSupportedFilter(filter), sorting.toJpaSort());
     }
 
     @Override
-    public List<T> getAll(Filter<T> filter) {
+    public List<T> getList(Filter<T> filter) {
         filter.setEntityType(entityType);
         return jpaSpecificationExecutor.findAll(getSoftDeleteSupportedFilter(filter));
     }
 
     @Override
-    public Stream<T> getStream(Filter<T> filter) {
+    public Stream<T> getDataStream(Filter<T> filter) {
         filter.setEntityType(entityType);
-        return getStream(filter, Sorting.unsorted());
+        return getDataStream(filter, Sorting.unsorted());
     }
 
     @Override
-    public Stream<T> getStream(Filter<T> filter, Sorting sorting) {
+    public Stream<T> getDataStream(Filter<T> filter, Sorting sorting) {
         filter.setEntityType(entityType);
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<T> criteriaQuery = cb.createQuery(entityType);
@@ -292,9 +302,9 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     }
 
     @Override
-    public PageableResult<T> getAll(@NonNull Filter<T> filter,
-                                    @NonNull Sorting sorting,
-                                    @NonNull Pagination pagination) {
+    public PageableResult<T> getPage(@NonNull Filter<T> filter,
+                                     @NonNull Sorting sorting,
+                                     @NonNull Pagination pagination) {
         filter.setEntityType(entityType);
         return PageableResult.of(jpaSpecificationExecutor.findAll(getSoftDeleteSupportedFilter(filter),
                 pagination.toJpaPageable(sorting)));
@@ -597,19 +607,19 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                 case UPDATE -> update.set(path, pair.data());
                 case SUM -> {
                     if (pair.data() instanceof Number number) {
-                        Object sumExpr = cb.sum(path.as(Number.class), number);
+                        Object sumExpr = cb.sum(Filter.getTypedPath(path, Number.class), number);
                         update.set(path, sumExpr);
                     }
                 }
                 case MULTIPLY -> {
                     if (pair.data() instanceof Number number) {
-                        Object prodExpr = cb.prod(path.as(Number.class), number);
+                        Object prodExpr = cb.prod(Filter.getTypedPath(path, Number.class), number);
                         update.set(path, prodExpr);
                     }
                 }
                 case DIVIDE -> {
                     if (pair.data() instanceof Number number) {
-                        Object quotExpr = cb.quot(path.as(Number.class), number);
+                        Object quotExpr = cb.quot(Filter.getTypedPath(path, Number.class), number);
                         update.set(path, quotExpr);
                     }
                 }
