@@ -1,21 +1,20 @@
-package io.github.egorkor.webutils.analyze;
+package io.github.egorkor.webutils.analyze.jpa;
 
 import io.github.egorkor.webutils.annotations.AttributeMeta;
 import io.github.egorkor.webutils.annotations.CatalogMeta;
 import io.github.egorkor.webutils.annotations.RelationMeta;
 import io.github.egorkor.webutils.queryparam.Filter;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.Version;
+import jakarta.persistence.*;
 import jakarta.persistence.metamodel.Attribute;
 import jakarta.persistence.metamodel.EntityType;
+import jakarta.validation.constraints.*;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.SoftDelete;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.validator.constraints.Range;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
@@ -29,14 +28,17 @@ import java.util.function.Predicate;
 @Slf4j
 @RequiredArgsConstructor
 public class JpaCatalogEntityMetaAnalyzer {
-    private final EntityManager entityManager;
     private final static List<Predicate<Field>> FIELD_META_PREDICATES = new ArrayList<>();
+    private final static Map<EntityManager, Map<Class<?>, ModelMeta>> CACHE = new HashMap<>();
 
     static {
         //IGNORE  @OneToMany fields
         //TAKE IF @MetaRelation presents
         FIELD_META_PREDICATES.add(field -> {
             if (field.getAnnotation(OneToMany.class) == null) {
+                return true;
+            }
+            if(field.getAnnotation(ManyToMany.class) == null){
                 return true;
             }
             return field.getAnnotation(RelationMeta.class) != null;
@@ -57,19 +59,23 @@ public class JpaCatalogEntityMetaAnalyzer {
     }
 
 
-    public Map<Class<?>, ModelMeta> getMeta() {
+    public static Map<Class<?>, ModelMeta> getMeta(EntityManager entityManager) {
+        if (CACHE.containsKey(entityManager)) {
+            return CACHE.get(entityManager);
+        }
         Map<Class<?>, ModelMeta> metaMap = new HashMap<>();
         Set<EntityType<?>> entityTypes = entityManager.getMetamodel().getEntities();
         for (var entityType : entityTypes) {
             if (entityType.getJavaType().getAnnotation(CatalogMeta.class) == null) {
                 continue;
             }
-            metaMap.put(entityType.getJavaType(), getMetaForEntityType(entityType));
+            metaMap.put(entityType.getJavaType(), getModelMetaForEntityType(entityType));
         }
+        CACHE.put(entityManager, metaMap);
         return metaMap;
     }
 
-    public ModelMeta getMetaForEntityType(@NonNull EntityType<?> entityType) {
+    public static ModelMeta getModelMetaForEntityType(@NonNull EntityType<?> entityType) {
         CatalogMeta catalogMeta;
         if ((catalogMeta = entityType.getJavaType().getAnnotation(CatalogMeta.class)) == null) {
             throw new IllegalStateException();
@@ -92,7 +98,7 @@ public class JpaCatalogEntityMetaAnalyzer {
                         continue attributeMetaCycle;
                     }
                 }
-                modelAttributeMetaSet.add(getMetaForAttribute(field));
+                modelAttributeMetaSet.add(getModelAttributeMetaForField(field));
             } catch (Exception e) {
                 log.debug("Error while getting meta attributes for entity {} {}", entityType.getJavaType().getSimpleName(), attribute.getName(), e);
             }
@@ -105,7 +111,7 @@ public class JpaCatalogEntityMetaAnalyzer {
                 .build();
     }
 
-    public ModelAttributeMeta getMetaForAttribute(@NonNull Field field) {
+    public static ModelAttributeMeta getModelAttributeMetaForField(@NonNull Field field) {
         String name = field.getName();
         String verboseName = name;
         boolean isRelation = false;
@@ -154,7 +160,7 @@ public class JpaCatalogEntityMetaAnalyzer {
                     type = "OBJECT";
                 }
             }
-            if(field.isAnnotationPresent(GeneratedValue.class)) {
+            if (field.isAnnotationPresent(GeneratedValue.class)) {
                 type = "GENERATED " + type;
             }
         }
@@ -165,7 +171,7 @@ public class JpaCatalogEntityMetaAnalyzer {
             }
             relatedEntity = fieldType.getSimpleName();
         }
-
+        List<Validator> validators = getValidatorsForField(field);
 
         return ModelAttributeMeta.builder()
                 .type(type)
@@ -173,7 +179,129 @@ public class JpaCatalogEntityMetaAnalyzer {
                 .required(required)
                 .relatedModel(relatedEntity)
                 .isRelation(isRelation)
+                .validators(validators)
                 .verboseName(verboseName)
                 .build();
+    }
+
+    public static List<Validator> getValidatorsForField(Field field) {
+        List<Validator> validators = new ArrayList<>();
+        if (field.isAnnotationPresent(NotNull.class)) {
+            validators.add(Validator.builder()
+                    .validatorCode(ValidatorCode.NOT_NULL)
+                    .build());
+        }
+        if (field.isAnnotationPresent(NotEmpty.class)) {
+            validators.add(Validator.builder()
+                    .validatorCode(ValidatorCode.NOT_EMPTY)
+                    .build());
+        }
+        if (field.isAnnotationPresent(NotBlank.class)) {
+            validators.add(Validator.builder()
+                    .validatorCode(ValidatorCode.NOT_BLANK)
+                    .build());
+        }
+        if (field.isAnnotationPresent(Range.class)) {
+            Range range = field.getAnnotation(Range.class);
+            validators.add(ValuableValidator.builder()
+                    .validatorCode(ValidatorCode.NOT_BLANK)
+                    .constraints(Map.of("minValue", range.min(), "maxValue", range.max()))
+                    .build());
+        }
+        if (field.isAnnotationPresent(Size.class)) {
+            Size size = field.getAnnotation(Size.class);
+            validators.add(ValuableValidator.builder()
+                    .validatorCode(ValidatorCode.SIZE)
+                    .constraints(Map.of("minValue", size.min(), "maxValue", size.max()))
+                    .build());
+        }
+        if (field.isAnnotationPresent(Min.class)) {
+            Min min = field.getAnnotation(Min.class);
+            validators.add(ValuableValidator.builder()
+                    .validatorCode(ValidatorCode.MIN)
+                    .constraints(Map.of("minValue", min.value()))
+                    .build());
+        }
+        if (field.isAnnotationPresent(Max.class)) {
+            Max max = field.getAnnotation(Max.class);
+            validators.add(ValuableValidator.builder()
+                    .validatorCode(ValidatorCode.MAX)
+                    .constraints(Map.of("maxValue", max.value()))
+                    .build());
+        }
+        if (field.isAnnotationPresent(Pattern.class)) {
+            Pattern pattern = field.getAnnotation(Pattern.class);
+            validators.add(ValuableValidator.builder()
+                    .validatorCode(ValidatorCode.PATTERN)
+                    .constraints(Map.of("regex", pattern.regexp()))
+                    .build());
+        }
+        if (field.isAnnotationPresent(Email.class)) {
+            validators.add(Validator.builder()
+                    .validatorCode(ValidatorCode.EMAIL)
+                    .build());
+        }
+        if (field.isAnnotationPresent(Negative.class)) {
+            validators.add(Validator.builder()
+                    .validatorCode(ValidatorCode.NEGATIVE)
+                    .build());
+        }
+        if (field.isAnnotationPresent(NegativeOrZero.class)) {
+            validators.add(Validator.builder()
+                    .validatorCode(ValidatorCode.NEGATIVE_OR_ZERO)
+                    .build());
+        }
+        if (field.isAnnotationPresent(Positive.class)) {
+            validators.add(Validator.builder()
+                    .validatorCode(ValidatorCode.POSITIVE)
+                    .build());
+        }
+        if (field.isAnnotationPresent(PositiveOrZero.class)) {
+            validators.add(Validator.builder()
+                    .validatorCode(ValidatorCode.POSITIVE_OR_ZERO)
+                    .build());
+        }
+        if (field.isAnnotationPresent(Future.class)) {
+            validators.add(Validator.builder()
+                    .validatorCode(ValidatorCode.FUTURE)
+                    .build());
+        }
+        if (field.isAnnotationPresent(FutureOrPresent.class)) {
+            validators.add(Validator.builder()
+                    .validatorCode(ValidatorCode.FUTURE_OR_PRESENT)
+                    .build());
+        }
+        if (field.isAnnotationPresent(Past.class)) {
+            validators.add(Validator.builder()
+                    .validatorCode(ValidatorCode.PAST)
+                    .build());
+        }
+        if (field.isAnnotationPresent(PastOrPresent.class)) {
+            validators.add(Validator.builder()
+                    .validatorCode(ValidatorCode.PAST_OR_PRESENT)
+                    .build());
+        }
+        if (field.isAnnotationPresent(Digits.class)) {
+            Digits digits = field.getAnnotation(Digits.class);
+            validators.add(ValuableValidator.builder()
+                    .validatorCode(ValidatorCode.NEGATIVE_OR_ZERO)
+                    .constraints(Map.of("integer", digits.integer(), "fraction", digits.fraction()))
+                    .build());
+        }
+        if (field.isAnnotationPresent(DecimalMin.class)) {
+            DecimalMin decimalMin = field.getAnnotation(DecimalMin.class);
+            validators.add(ValuableValidator.builder()
+                    .validatorCode(ValidatorCode.NEGATIVE_OR_ZERO)
+                    .constraints(Map.of("minValue", decimalMin.value()))
+                    .build());
+        }
+        if (field.isAnnotationPresent(DecimalMax.class)) {
+            DecimalMax decimalMax = field.getAnnotation(DecimalMax.class);
+            validators.add(ValuableValidator.builder()
+                    .validatorCode(ValidatorCode.NEGATIVE_OR_ZERO)
+                    .constraints(Map.of("maxValue", decimalMax.value()))
+                    .build());
+        }
+        return validators;
     }
 }

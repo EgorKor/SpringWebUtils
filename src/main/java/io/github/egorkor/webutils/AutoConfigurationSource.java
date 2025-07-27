@@ -1,12 +1,17 @@
 package io.github.egorkor.webutils;
 
+import io.github.egorkor.webutils.analyze.jpa.JpaCatalogEntityMetaAnalyzer;
+import io.github.egorkor.webutils.analyze.jpa.ModelMeta;
+import io.github.egorkor.webutils.analyze.jpa.ModelMetaHolder;
 import io.github.egorkor.webutils.dto.DtoMapper;
-import io.github.egorkor.webutils.postProcessor.JpaServiceTemplateInheritorValidationBeanPostProcessor;
 import jakarta.persistence.EntityManager;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor;
+
+import java.util.Map;
 
 /**
  * @author EgorKor
@@ -14,9 +19,9 @@ import org.springframework.dao.annotation.PersistenceExceptionTranslationPostPro
  * @since 2025
  */
 @AutoConfiguration
+@RequiredArgsConstructor
 public class AutoConfigurationSource {
-    @Autowired
-    private EntityManager entityManager;
+    private final EntityManager entityManager;
 
     @Bean
     public DtoMapper dtoConverter() {
@@ -24,8 +29,9 @@ public class AutoConfigurationSource {
     }
 
     @Bean
-    public JpaServiceTemplateInheritorValidationBeanPostProcessor jpaServiceTemplateInheritorValidationBeanPostProcessor() {
-        return new JpaServiceTemplateInheritorValidationBeanPostProcessor();
+    public ModelMetaHolder jpaServiceTemplateInheritorValidationBeanPostProcessor() {
+        Map<Class<?>, ModelMeta> meta = JpaCatalogEntityMetaAnalyzer.getMeta(entityManager);
+        return new ModelMetaHolder(meta);
     }
 
     @Bean

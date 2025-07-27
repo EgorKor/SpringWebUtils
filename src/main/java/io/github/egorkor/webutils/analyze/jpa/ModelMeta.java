@@ -1,4 +1,4 @@
-package io.github.egorkor.webutils.analyze;
+package io.github.egorkor.webutils.analyze.jpa;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

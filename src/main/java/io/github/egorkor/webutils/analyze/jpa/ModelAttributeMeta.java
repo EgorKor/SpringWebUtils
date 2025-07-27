@@ -1,4 +1,4 @@
-package io.github.egorkor.webutils.analyze;
+package io.github.egorkor.webutils.analyze.jpa;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,6 +24,6 @@ public class ModelAttributeMeta {
     private boolean required;
     //определяется в зависимости от типа поля
     private String type;
-    private List<Object> validators;
+    private List<Validator> validators;
     private List<Object> choices;
 }
