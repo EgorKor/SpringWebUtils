@@ -531,7 +531,7 @@ public class Filter<T> implements Specification<T> {
         return path.in(values);
     }
 
-    private Class<?> getCollectionElementType(Field field) {
+    public static Class<?> getCollectionElementType(Field field) {
         Type type = field.getGenericType();
         if (type instanceof ParameterizedType) {
             Type[] typeArgs = ((ParameterizedType) type).getActualTypeArguments();

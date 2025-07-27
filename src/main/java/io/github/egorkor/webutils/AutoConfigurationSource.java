@@ -2,6 +2,8 @@ package io.github.egorkor.webutils;
 
 import io.github.egorkor.webutils.dto.DtoMapper;
 import io.github.egorkor.webutils.postProcessor.JpaServiceTemplateInheritorValidationBeanPostProcessor;
+import jakarta.persistence.EntityManager;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor;
@@ -13,6 +15,8 @@ import org.springframework.dao.annotation.PersistenceExceptionTranslationPostPro
  */
 @AutoConfiguration
 public class AutoConfigurationSource {
+    @Autowired
+    private EntityManager entityManager;
 
     @Bean
     public DtoMapper dtoConverter() {
