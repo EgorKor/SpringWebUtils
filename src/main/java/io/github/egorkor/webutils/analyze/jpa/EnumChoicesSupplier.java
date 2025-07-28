@@ -7,10 +7,10 @@ import java.util.function.Supplier;
 
 @RequiredArgsConstructor
 public class EnumChoicesSupplier implements Supplier<List<Object>> {
-    private final List<Object> cachedEnumConstants;
+    private final List<Object> cachedEnumChoices;
 
     @Override
     public List<Object> get() {
-        return cachedEnumConstants;
+        return cachedEnumChoices;
     }
 }

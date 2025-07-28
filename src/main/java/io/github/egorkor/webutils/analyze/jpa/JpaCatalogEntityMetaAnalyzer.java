@@ -227,13 +227,13 @@ public class JpaCatalogEntityMetaAnalyzer {
             case "OBJECT" -> {
                 Object choiceSupplierBean = applicationContext.getBean(field.getAnnotation(Choices.class).value());
                 if(choiceSupplierBean instanceof ChoicesSupplier supplier){
-                    return supplier::getChoices;
+                    return () -> supplier.getChoices();
                 }else{
                     throw new IllegalStateException("@Choices class should implements ChoicesSupplier interface or be an Enum type - " + choiceSupplierBean);
                 }
             }
             default -> {
-                return choicesSupplier;
+                throw new IllegalStateException("Cannot define ChoiceSupplier for field type " + type);
             }
         }
     }

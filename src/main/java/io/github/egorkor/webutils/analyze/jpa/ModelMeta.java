@@ -25,5 +25,5 @@ public class ModelMeta {
                         .map(ModelAttributeMeta::getWithChoices)
                         .collect(Collectors.toSet()))
                 .build();
-    }
+     }
 }
