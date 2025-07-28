@@ -6,13 +6,24 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Builder
 @AllArgsConstructor
 @Getter
 @Setter
 public class ModelMeta {
-    private Set<ModelAttributeMeta> attributes;
     private String name;
     private String verboseName;
+    private Set<ModelAttributeMeta> attributes;
+
+    public ModelMeta getMetaWithAttributeChoices(){
+        return ModelMeta.builder()
+                .name(name)
+                .verboseName(verboseName)
+                .attributes(attributes.stream()
+                        .map(ModelAttributeMeta::getWithChoices)
+                        .collect(Collectors.toSet()))
+                .build();
+    }
 }

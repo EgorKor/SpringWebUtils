@@ -8,6 +8,7 @@ import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor;
 
@@ -22,6 +23,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AutoConfigurationSource {
     private final EntityManager entityManager;
+    private final ApplicationContext applicationContext;
 
     @Bean
     public DtoMapper dtoConverter() {
@@ -30,7 +32,7 @@ public class AutoConfigurationSource {
 
     @Bean
     public ModelMetaHolder jpaServiceTemplateInheritorValidationBeanPostProcessor() {
-        Map<Class<?>, ModelMeta> meta = JpaCatalogEntityMetaAnalyzer.getMeta(entityManager);
+        Map<Class<?>, ModelMeta> meta = JpaCatalogEntityMetaAnalyzer.getMeta(entityManager, applicationContext);
         return new ModelMetaHolder(meta);
     }
 

@@ -22,7 +22,6 @@ public class ModelMetaHolder {
             catalogNameClassMapping.put(entry.getValue().getName(), entry.getKey());
             catalogVerboseNameClassMapping.put(entry.getValue().getVerboseName(), entry.getKey());
         }
-
     }
 
     public ModelMeta getModelMeta(String name) {
