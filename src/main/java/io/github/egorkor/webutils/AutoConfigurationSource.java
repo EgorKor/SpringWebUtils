@@ -19,6 +19,7 @@ import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
  * @version 1.0
  * @since 2025
  */
+@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 @AutoConfiguration
 @RequiredArgsConstructor
 public class AutoConfigurationSource {

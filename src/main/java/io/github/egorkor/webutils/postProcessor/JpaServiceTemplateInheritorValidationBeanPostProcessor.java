@@ -12,7 +12,9 @@ import java.util.Arrays;
  * @version 1.0
  * @since 2025
  */
-public class JpaServiceTemplateInheritorValidationBeanPostProcessor implements BeanPostProcessor {
+public class JpaServiceTemplateInheritorValidationBeanPostProcessor
+        implements BeanPostProcessor {
+
     @Override
     public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
         Class<?> clazz = bean.getClass();
