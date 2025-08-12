@@ -1,17 +1,18 @@
 package io.github.egorkor.webutils;
 
 import io.github.egorkor.webutils.dto.DtoMapper;
+import io.github.egorkor.webutils.postProcessor.JpaServiceTemplateInheritorValidationBeanPostProcessor;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Role;
 import org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
-
-import java.util.Map;
 
 /**
  * @author EgorKor
@@ -39,7 +40,13 @@ public class AutoConfigurationSource {
         return new DtoMapper();
     }
 
+    @Role(value = BeanDefinition.ROLE_INFRASTRUCTURE)
+    @Bean
+    public JpaServiceTemplateInheritorValidationBeanPostProcessor jpaServiceTemplateInheritorValidationBeanPostProcessor() {
+        return new JpaServiceTemplateInheritorValidationBeanPostProcessor();
+    }
 
+    @Role(value = BeanDefinition.ROLE_INFRASTRUCTURE)
     @Bean
     public PersistenceExceptionTranslationPostProcessor persistenceExceptionTranslationPostProcessor() {
         return new PersistenceExceptionTranslationPostProcessor();
