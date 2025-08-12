@@ -34,10 +34,4 @@ public class DirectionProfileServiceImpl extends JpaCrudService<DirectionProfile
         return em;
     }
 
-    @Override
-    public List<Object> getChoices() {
-        return getList().stream().map(
-                profile -> (Object) new DirectionProfileChoice(profile.getId(), profile.getName())
-        ).toList();
-    }
 }
