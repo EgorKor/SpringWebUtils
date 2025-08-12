@@ -1,7 +1,6 @@
 package io.github.egorkor.service.impl;
 
 import io.github.egorkor.model.DirectionProfile;
-import io.github.egorkor.model.DirectionProfileChoice;
 import io.github.egorkor.service.DirectionProfileService;
 import io.github.egorkor.webutils.template.jpa.JpaCrudService;
 import jakarta.persistence.EntityManager;
@@ -14,8 +13,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
-
-import java.util.List;
 
 @Service
 @Profile("test")

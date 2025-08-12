@@ -35,10 +35,4 @@ public class StructureDepartmentServiceImpl
         return entityManager;
     }
 
-    @Override
-    public List<Object> getChoices() {
-        return getList().stream()
-                .map((dep) -> (Object)new DepartmentChoice(dep.getId(), dep.getName()))
-                .toList();
-    }
 }
