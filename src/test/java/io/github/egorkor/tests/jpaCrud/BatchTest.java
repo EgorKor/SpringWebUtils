@@ -23,12 +23,13 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 @ActiveProfiles("test")
-@Import({BatchTestEntityServiceImpl.class, LocalValidatorFactoryBean.class})
+@Import({BatchTestEntityServiceImpl.class,})
 public class BatchTest {
     @Autowired
     private BatchTestEntityService service;
     @Autowired
     private DataSource dataSource;
+
 
     @BeforeEach
     void checkAutoCommit() {

@@ -1,7 +1,7 @@
 package io.github.egorkor.service.impl;
 
-import io.github.egorkor.model.TestEntity;
-import io.github.egorkor.service.TestEntityService;
+import io.github.egorkor.model.EducationProgram;
+import io.github.egorkor.service.EducationProgramService;
 import io.github.egorkor.webutils.template.jpa.JpaCrudService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -14,23 +14,21 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
-@Profile("test")
 @Service
-public class TestEntityCrudServiceImpl extends JpaCrudService<TestEntity, Long> implements TestEntityService {
+@Profile("test")
+public class EducationProgramServiceImpl
+        extends JpaCrudService<EducationProgram, Long>
+        implements EducationProgramService {
     @PersistenceContext
     private EntityManager entityManager;
 
     @Autowired
-    public TestEntityCrudServiceImpl(JpaRepository<TestEntity, Long> jpaRepository, JpaSpecificationExecutor<TestEntity> jpaSpecificationExecutor, ApplicationEventPublisher eventPublisher, TransactionTemplate transactionTemplate,
-                                     Validator validator) {
+    public EducationProgramServiceImpl(JpaRepository<EducationProgram, Long> jpaRepository, JpaSpecificationExecutor<EducationProgram> jpaSpecificationExecutor, ApplicationEventPublisher eventPublisher, TransactionTemplate transactionTemplate, Validator validator) {
         super(jpaRepository, jpaSpecificationExecutor, eventPublisher, transactionTemplate, validator);
     }
-
 
     @Override
     public EntityManager getPersistenceAnnotatedEntityManager() {
         return entityManager;
     }
-
-
 }

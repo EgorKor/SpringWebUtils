@@ -8,6 +8,8 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 
+import java.util.List;
+
 @Entity
 @Getter
 @Setter
@@ -15,6 +17,7 @@ import lombok.*;
 @NoArgsConstructor
 @Builder
 @CatalogMeta(verboseName = "Профили")
+@ToString
 public class DirectionProfile {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,4 +33,8 @@ public class DirectionProfile {
             placeholder = "Кафедра 'Информатика и вычислительная техника'")
     @ManyToOne(optional = false)
     private StructureDepartment structureDepartment;
+
+
+    @ManyToMany(mappedBy = "profiles")
+    private List<EducationProgram> programs;
 }

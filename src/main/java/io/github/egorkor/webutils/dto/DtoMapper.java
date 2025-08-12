@@ -44,8 +44,8 @@ import java.util.List;
  * @version 1.0
  * @since 2025
  */
+@Getter
 public class DtoMapper {
-    @Getter
     private final ModelMapper modelMapper = new ModelMapper();
 
     public <M, D> D toDto(M model, Class<D> destination) {
@@ -59,4 +59,5 @@ public class DtoMapper {
     public <M, D> M toModel(D dto, Class<M> destination) {
         return modelMapper.map(dto, destination);
     }
+
 }

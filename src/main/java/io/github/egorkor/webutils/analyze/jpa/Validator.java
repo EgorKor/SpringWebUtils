@@ -1,13 +1,11 @@
 package io.github.egorkor.webutils.analyze.jpa;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
+@ToString
 @Builder
 public class Validator {
     private ValidatorCode validatorCode;

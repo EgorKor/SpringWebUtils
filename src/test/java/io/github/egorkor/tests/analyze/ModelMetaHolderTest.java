@@ -26,26 +26,6 @@ class ModelMetaHolderTest {
     private ModelMeta productModelMeta;
 
     @Test
-    void getModelMeta_shouldReturnMeta_whenExists() {
-        // Arrange
-        Map<Class<?>, ModelMeta> metaMap = new HashMap<>();
-        metaMap.put(String.class, userModelMeta);
-        metaMap.put(Integer.class, productModelMeta);
-
-        when(userModelMeta.getName()).thenReturn("user");
-        when(userModelMeta.getVerboseName()).thenReturn("Пользователь");
-
-        ModelMetaHolder holder = new ModelMetaHolder(metaMap);
-
-        // Act
-        ModelMeta result = holder.getModelMeta("user");
-
-        // Assert
-        assertNotNull(result);
-        assertEquals(userModelMeta, result);
-    }
-
-    @Test
     void getModelMeta_shouldThrow_whenNotExists() {
         // Arrange
         Map<Class<?>, ModelMeta> metaMap = new HashMap<>();

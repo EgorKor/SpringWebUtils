@@ -37,7 +37,6 @@ public class JpaCatalogEntityMetaAnalyzer {
         //IGNORE TOOL FIELDS
         FIELD_META_PREDICATES.add(field -> field.getAnnotation(SoftDeleteFlag.class) == null
                 && field.getAnnotation(OneToMany.class) == null
-                && field.getAnnotation(ManyToMany.class) == null
                 && field.getAnnotation(CreationTimestamp.class) == null
                 && field.getAnnotation(UpdateTimestamp.class) == null
                 && field.getAnnotation(CreatedBy.class) == null
@@ -121,7 +120,9 @@ public class JpaCatalogEntityMetaAnalyzer {
         }
         //define is_relation
         {
-            isRelation = field.isAnnotationPresent(OneToOne.class) || field.isAnnotationPresent(ManyToOne.class);
+            isRelation = field.isAnnotationPresent(OneToOne.class)
+                    || field.isAnnotationPresent(ManyToOne.class)
+                    || field.isAnnotationPresent(ManyToMany.class);
             if (isRelation) {
                 Class<?> fieldType = field.getType();
                 if (Collection.class.isAssignableFrom(fieldType)) {
@@ -132,43 +133,9 @@ public class JpaCatalogEntityMetaAnalyzer {
         }
         //define type
         {
-            Class<?> fieldType = field.getType();
-            if (Collection.class.isAssignableFrom(fieldType)) {
-                type = "LIST";
-                if (!isRelation) {
-                    fieldType = Filter.getCollectionElementType(field);
-                    type += " " + fieldType.getSimpleName();
-                }
-            } else {
-                if (Double.class.isAssignableFrom(fieldType)
-                        || double.class.isAssignableFrom(fieldType)
-                        || Float.class.isAssignableFrom(fieldType)
-                        || float.class.isAssignableFrom(fieldType)) {
-                    type = "FLOAT";
-                } else if (Integer.class.isAssignableFrom(fieldType)
-                        || int.class.isAssignableFrom(fieldType)
-                        || Long.class.isAssignableFrom(fieldType)
-                        || long.class.isAssignableFrom(fieldType)
-                        || Short.class.isAssignableFrom(fieldType)
-                        || short.class.isAssignableFrom(fieldType)
-                        || Byte.class.isAssignableFrom(fieldType)
-                        || byte.class.isAssignableFrom(fieldType)) {
-                    type = "INT";
-                } else if (String.class.isAssignableFrom(fieldType)) {
-                    type = "STRING";
-                } else if (fieldType.isEnum()) {
-                    type = "ENUM";
-                } else if (boolean.class.isAssignableFrom(fieldType)
-                        || Boolean.class.isAssignableFrom(fieldType)) {
-                    type = "BOOLEAN";
-                } else {
-                    type = "OBJECT";
-                }
-            }
-            if (field.isAnnotationPresent(GeneratedValue.class)) {
-                type = "GENERATED " + type;
-            }
+            type = defineType(field, isRelation);
         }
+        //define choices supplier
         Supplier<List<Object>> choicesSupplier = null;
         //define_validators
         List<Validator> validators = getValidatorsForField(field);
@@ -187,6 +154,51 @@ public class JpaCatalogEntityMetaAnalyzer {
                 .placeholder(placeholder)
                 .choicesSupplier(choicesSupplier)
                 .build();
+    }
+
+    private static String defineType(Field field, boolean isRelation) {
+        Class<?> fieldType = field.getType();
+        String type;
+        if (Collection.class.isAssignableFrom(fieldType)) {
+            type = "LIST";
+            fieldType = Filter.getCollectionElementType(field);
+            type += " " + defineSimpleType(fieldType);
+        } else {
+            type = defineSimpleType(fieldType);
+        }
+        if (field.isAnnotationPresent(GeneratedValue.class)) {
+            type = "GENERATED " + type;
+        }
+        return type;
+    }
+
+    private static String defineSimpleType(Class<?> fieldType) {
+        String type;
+        if (Double.class.isAssignableFrom(fieldType)
+                || double.class.isAssignableFrom(fieldType)
+                || Float.class.isAssignableFrom(fieldType)
+                || float.class.isAssignableFrom(fieldType)) {
+            type = "FLOAT";
+        } else if (Integer.class.isAssignableFrom(fieldType)
+                || int.class.isAssignableFrom(fieldType)
+                || Long.class.isAssignableFrom(fieldType)
+                || long.class.isAssignableFrom(fieldType)
+                || Short.class.isAssignableFrom(fieldType)
+                || short.class.isAssignableFrom(fieldType)
+                || Byte.class.isAssignableFrom(fieldType)
+                || byte.class.isAssignableFrom(fieldType)) {
+            type = "INT";
+        } else if (String.class.isAssignableFrom(fieldType)) {
+            type = "STRING";
+        } else if (fieldType.isEnum()) {
+            type = "ENUM";
+        } else if (boolean.class.isAssignableFrom(fieldType)
+                || Boolean.class.isAssignableFrom(fieldType)) {
+            type = "BOOLEAN";
+        } else {
+            type = "OBJECT";
+        }
+        return type;
     }
 
     public static Supplier<List<Object>> getChoicesSupplierForField(@NonNull Field field,
@@ -224,11 +236,11 @@ public class JpaCatalogEntityMetaAnalyzer {
                         })
                         .toList());
             }
-            case "OBJECT" -> {
+            case "OBJECT", "LIST OBJECT" -> {
                 Object choiceSupplierBean = applicationContext.getBean(field.getAnnotation(Choices.class).value());
-                if(choiceSupplierBean instanceof ChoicesSupplier supplier){
+                if (choiceSupplierBean instanceof ChoicesSupplier supplier) {
                     return () -> supplier.getChoices();
-                }else{
+                } else {
                     throw new IllegalStateException("@Choices class should implements ChoicesSupplier interface or be an Enum type - " + choiceSupplierBean);
                 }
             }

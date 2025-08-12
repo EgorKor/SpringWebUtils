@@ -17,7 +17,7 @@ public class ModelMeta {
     private String verboseName;
     private Set<ModelAttributeMeta> attributes;
 
-    public ModelMeta getMetaWithAttributeChoices(){
+    public ModelMeta getMetaWithAttributeChoices() {
         return ModelMeta.builder()
                 .name(name)
                 .verboseName(verboseName)
@@ -25,5 +25,18 @@ public class ModelMeta {
                         .map(ModelAttributeMeta::getWithChoices)
                         .collect(Collectors.toSet()))
                 .build();
-     }
+    }
+
+    @Override
+    public String toString() {
+        return "ModelMeta(name=" + this.getName()
+                + ", verboseName=" + this.getVerboseName()
+                + "\nattributes=" + setToString(attributes) + ")";
+    }
+
+    private String setToString(Set<?> set) {
+        StringBuilder sb = new StringBuilder();
+        set.forEach(el -> sb.append(el.toString()).append("\n"));
+        return sb.toString();
+    }
 }

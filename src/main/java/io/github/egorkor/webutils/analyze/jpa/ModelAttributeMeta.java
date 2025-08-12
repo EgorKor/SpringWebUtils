@@ -32,13 +32,15 @@ public class ModelAttributeMeta {
     private List<Validator> validators;
     //определяется по аннотации @Choices
     private List<Object> choices;
+
+
     //поставщик выбора
     @JsonIgnore
     private Supplier<List<Object>> choicesSupplier;
 
     public ModelAttributeMeta getWithChoices() {
         List<Object> choices = null;
-        if(choicesSupplier != null){
+        if (choicesSupplier != null) {
             choices = choicesSupplier.get();
         }
         return ModelAttributeMeta.builder()
@@ -55,4 +57,15 @@ public class ModelAttributeMeta {
                 .build();
     }
 
+    public String toString() {
+        return "ModelAttributeMeta(name=" + this.getName()
+                + "\n\tverboseName=" + this.getVerboseName()
+                + "\n\tisRelation=" + this.isRelation()
+                + "\n\trelatedModel=" + this.getRelatedModel()
+                + "\n\trequired=" + this.isRequired()
+                + "\n\tplaceholder=" + this.getPlaceholder()
+                + "\n\ttype=" + this.getType()
+                + "\n\tvalidators=" + this.getValidators()
+                + "\n\tchoices=" + this.getChoices() + ")";
+    }
 }

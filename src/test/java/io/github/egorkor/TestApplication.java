@@ -7,24 +7,22 @@ import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Profile;
 
 
 @SpringBootApplication
 public class TestApplication {
 
+    @Profile("test")
     @Bean
     public JpaServiceTemplateInheritorValidationBeanPostProcessor jpaBeanPostProcessor() {
         return new JpaServiceTemplateInheritorValidationBeanPostProcessor();
     }
 
+    @Profile("test")
     @Bean
     public PersistenceContextAnnotationValidationBeanPostProcessor persistenceBeanPostProcessor() {
         return new PersistenceContextAnnotationValidationBeanPostProcessor();
     }
-
-    @Bean
-    public Validator validator() {
-        ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
-        return factory.getValidator();
-    }
+    
 }

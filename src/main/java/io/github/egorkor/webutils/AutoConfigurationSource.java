@@ -5,12 +5,14 @@ import io.github.egorkor.webutils.analyze.jpa.ModelMeta;
 import io.github.egorkor.webutils.analyze.jpa.ModelMetaHolder;
 import io.github.egorkor.webutils.dto.DtoMapper;
 import jakarta.persistence.EntityManager;
+import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor;
+import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import java.util.Map;
 
@@ -24,6 +26,16 @@ import java.util.Map;
 public class AutoConfigurationSource {
     private final EntityManager entityManager;
     private final ApplicationContext applicationContext;
+
+    @Bean
+    public LocalValidatorFactoryBean validatorFactoryBean() {
+        return new LocalValidatorFactoryBean();
+    }
+
+    @Bean
+    public Validator validator(@Autowired LocalValidatorFactoryBean validatorFactoryBean) {
+        return validatorFactoryBean.getValidator();
+    }
 
     @Bean
     public DtoMapper dtoConverter() {
