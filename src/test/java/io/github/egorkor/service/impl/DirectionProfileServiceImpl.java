@@ -3,7 +3,6 @@ package io.github.egorkor.service.impl;
 import io.github.egorkor.model.DirectionProfile;
 import io.github.egorkor.model.DirectionProfileChoice;
 import io.github.egorkor.service.DirectionProfileService;
-import io.github.egorkor.webutils.analyze.jpa.ChoicesSupplier;
 import io.github.egorkor.webutils.template.jpa.JpaCrudService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -21,7 +20,7 @@ import java.util.List;
 @Service
 @Profile("test")
 public class DirectionProfileServiceImpl extends JpaCrudService<DirectionProfile, Long>
-        implements DirectionProfileService, ChoicesSupplier {
+        implements DirectionProfileService {
     @PersistenceContext
     private EntityManager em;
 

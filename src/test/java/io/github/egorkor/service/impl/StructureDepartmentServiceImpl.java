@@ -3,7 +3,6 @@ package io.github.egorkor.service.impl;
 import io.github.egorkor.model.DepartmentChoice;
 import io.github.egorkor.model.StructureDepartment;
 import io.github.egorkor.service.StructureDepartmentService;
-import io.github.egorkor.webutils.analyze.jpa.ChoicesSupplier;
 import io.github.egorkor.webutils.template.jpa.JpaCrudService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -22,7 +21,7 @@ import java.util.List;
 @Service
 public class StructureDepartmentServiceImpl
         extends JpaCrudService<StructureDepartment, Long>
-        implements StructureDepartmentService, ChoicesSupplier {
+        implements StructureDepartmentService {
     @PersistenceContext
     private EntityManager entityManager;
 
