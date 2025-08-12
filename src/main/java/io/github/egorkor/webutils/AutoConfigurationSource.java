@@ -1,8 +1,5 @@
 package io.github.egorkor.webutils;
 
-import io.github.egorkor.webutils.analyze.jpa.JpaCatalogEntityMetaAnalyzer;
-import io.github.egorkor.webutils.analyze.jpa.ModelMeta;
-import io.github.egorkor.webutils.analyze.jpa.ModelMetaHolder;
 import io.github.egorkor.webutils.dto.DtoMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.Validator;
@@ -42,11 +39,6 @@ public class AutoConfigurationSource {
         return new DtoMapper();
     }
 
-    @Bean
-    public ModelMetaHolder jpaServiceTemplateInheritorValidationBeanPostProcessor() {
-        Map<Class<?>, ModelMeta> meta = JpaCatalogEntityMetaAnalyzer.getMeta(entityManager, applicationContext);
-        return new ModelMetaHolder(meta);
-    }
 
     @Bean
     public PersistenceExceptionTranslationPostProcessor persistenceExceptionTranslationPostProcessor() {
