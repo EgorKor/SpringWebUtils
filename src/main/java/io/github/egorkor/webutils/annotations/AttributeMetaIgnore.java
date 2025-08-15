@@ -7,12 +7,5 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
-public @interface AttributeMeta {
-    String verboseName();
-
-    boolean required() default false;
-
-    String placeholder() default "";
-
-    int order() default 0;
+public @interface AttributeMetaIgnore {
 }
