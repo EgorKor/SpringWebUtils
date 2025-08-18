@@ -1,5 +1,6 @@
 package io.github.egorkor.webutils;
 
+import io.github.egorkor.webutils.api.GenericApiControllerAdvice;
 import io.github.egorkor.webutils.dto.DtoMapper;
 import io.github.egorkor.webutils.postProcessor.JpaServiceTemplateInheritorValidationBeanPostProcessor;
 import jakarta.persistence.EntityManager;
@@ -8,11 +9,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Role;
 import org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 /**
  * @author EgorKor
@@ -25,6 +28,13 @@ import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 public class AutoConfigurationSource {
     private final EntityManager entityManager;
     private final ApplicationContext applicationContext;
+
+
+    @ConditionalOnMissingBean(GenericApiControllerAdvice.class)
+    @Bean
+    public GenericApiControllerAdvice genericApiControllerAdvice(){
+        return new GenericApiControllerAdvice();
+    }
 
     @Bean
     public LocalValidatorFactoryBean validatorFactoryBean() {

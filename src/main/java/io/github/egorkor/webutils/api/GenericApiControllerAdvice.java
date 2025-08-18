@@ -9,6 +9,7 @@ import io.github.egorkor.webutils.exception.ValidationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -25,8 +26,8 @@ import java.util.Map;
  * @version 1.0
  * @since 2025
  */
-@Slf4j
 @RestControllerAdvice
+@Slf4j
 public class GenericApiControllerAdvice {
 
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -63,6 +64,7 @@ public class GenericApiControllerAdvice {
                 .build();
     }
 
+    @ResponseBody
     @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
     @ExceptionHandler
     public GenericErrorDto<Void> handleBatchOperationException(BatchOperationException e) {
@@ -74,6 +76,7 @@ public class GenericApiControllerAdvice {
                 .build();
     }
 
+    @ResponseBody
     @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
     @ExceptionHandler
     public GenericErrorDto<EntityProcessingErrorDto> handleEntityProcessingException(EntityProcessingException e) {
