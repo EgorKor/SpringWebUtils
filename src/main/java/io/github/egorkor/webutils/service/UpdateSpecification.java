@@ -30,6 +30,11 @@ public class UpdateSpecification {
     public record UpdatePair(Action action, Object data) {
     }
 
+
+    public static UpdateSpecificationBuilder builder() {
+        return new UpdateSpecificationBuilder();
+    }
+
     public static class UpdateSpecificationBuilder {
         private final Map<String, UpdatePair> updates = new HashMap<>();
 
