@@ -592,6 +592,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
 
     @Override
     public int updateByFilter(UpdateSpecification specification, Filter<T> filter) {
+        filter.setEntityType(entityType);
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaUpdate<T> update = cb.createCriteriaUpdate(entityType);
         Root<T> root = update.from(entityType);

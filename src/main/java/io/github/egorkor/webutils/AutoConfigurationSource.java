@@ -36,11 +36,13 @@ public class AutoConfigurationSource {
         return new GenericApiControllerAdvice();
     }
 
+    @ConditionalOnMissingBean(LocalValidatorFactoryBean.class)
     @Bean
     public LocalValidatorFactoryBean validatorFactoryBean() {
         return new LocalValidatorFactoryBean();
     }
 
+    @ConditionalOnMissingBean(Validator.class)
     @Bean
     public Validator validator(@Autowired LocalValidatorFactoryBean validatorFactoryBean) {
         return validatorFactoryBean.getValidator();
