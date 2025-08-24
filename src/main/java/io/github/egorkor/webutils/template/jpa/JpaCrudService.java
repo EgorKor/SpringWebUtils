@@ -338,7 +338,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                         + id
                         + " not found.");
         Filter<T> baseIdFilter = fb.and(fb.equals(idField.getName(), id.toString())).build();
-        Filter<T> resultIdFilter = getSoftDeleteSupportedFilter(baseIdFilter).concat(filter);
+        Filter<T> resultIdFilter = filter.concat(getSoftDeleteSupportedFilter(baseIdFilter));
         resultIdFilter.setEntityType(entityType);
         return jpaSpecificationExecutor.findOne(resultIdFilter)
                 .orElseThrow(exceptionSupplier);

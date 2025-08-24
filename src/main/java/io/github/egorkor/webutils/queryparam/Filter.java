@@ -440,7 +440,22 @@ public class Filter<T> implements Specification<T> {
     public <R> Filter<R> withFetchJoin(String fetchingProperty) {
         this.fetchingProperties.add(fetchingProperty);
         queryConfigurers.add((root) -> {
-            root.fetch(fetchingProperty, JoinType.LEFT);
+            if (!fetchingProperty.contains(".")) {
+                root.fetch(fetchingProperty, JoinType.LEFT);
+            } else {
+                String[] attributes = fetchingProperty.split("\\.");
+                if (attributes.length > 2) {
+                    throw new IllegalArgumentException("Invalid fetching property, allowed nested level is 2: " + fetchingProperty);
+                }
+                String parentAttribute = attributes[0];
+                String secondAttribute = attributes[1];
+                Fetch<?, ?> parentFetch = root.getFetches()
+                        .stream()
+                        .filter(f -> f.getAttribute().getName().equals(parentAttribute))
+                        .toList().getFirst();
+                parentFetch.fetch(secondAttribute, JoinType.LEFT);
+            }
+
         });
         return _this();
     }
