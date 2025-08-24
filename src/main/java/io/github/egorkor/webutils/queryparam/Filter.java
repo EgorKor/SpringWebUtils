@@ -281,7 +281,7 @@ public class Filter<T> implements Specification<T> {
     }
 
     private String validateFieldName(String field) {
-        if (!field.matches("[a-zA-Z0-9_]+")) {
+        if (!field.matches("[a-zA-Z0-9_.]+")) {
             throw new IllegalArgumentException("Invalid field name");
         }
         return field;
