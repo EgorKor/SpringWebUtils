@@ -3,7 +3,7 @@ on: [push]
 
 jobs:
   build:
-    runs-on: ubuntu-22.04 # или другой доступный runner
+    runs-on: linux_amd64
     steps:
       - name: Checkout
         uses: actions/checkout@v3

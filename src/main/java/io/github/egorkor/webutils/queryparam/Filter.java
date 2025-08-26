@@ -273,11 +273,25 @@ public class Filter<T> implements Specification<T> {
     }
 
     private String[] validateAndSplitFilter(String filter) {
-        String[] parts = filter.split(":", 3);
-        if (parts.length != 3) {
+        String[] parts = filter.split(":");
+        if (parts.length == 3) {
+            return parts;
+        }
+        if (parts.length < 3) {
             throw new IllegalArgumentException("Invalid filter format");
         }
-        return parts;
+        String[] newParts = new String[3];
+        newParts[0] = validateFieldName(parts[0]);
+        newParts[1] = parts[1];
+        newParts[2] = "";
+        for (int i = 2; i < parts.length; i++) {
+            newParts[2] += parts[i];
+            if (i != parts.length - 1) {
+                newParts[2] += ":";
+            }
+        }
+
+        return newParts;
     }
 
     private String validateFieldName(String field) {
@@ -412,7 +426,7 @@ public class Filter<T> implements Specification<T> {
         }
         Map<String, List<Predicate>> predicates = new HashMap<>();
         filter.forEach(f -> {
-            String[] filters = f.split(":or:");
+            String[] filters = f.split(";or;");
             for (String filter : filters) {
                 String field = validateAndSplitFilter(filter)[0];
                 if (predicates.containsKey(field)) {
@@ -470,10 +484,7 @@ public class Filter<T> implements Specification<T> {
     private Predicate parsePredicate(String filter,
                                      Root<T> root,
                                      CriteriaBuilder cb) {
-        String[] parts = filter.split(":");
-        if (parts.length != 3) {
-            throw new IllegalArgumentException("Invalid filter format. Expected: field:operation:value");
-        }
+        String[] parts = validateAndSplitFilter(filter);
 
         String field = parts[0];
         String operation = parts[1].toLowerCase();

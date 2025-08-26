@@ -198,7 +198,7 @@ public interface CrudService<T, ID> {
      */
     T patchUpdate(ID id, T model) throws ResourceNotFoundException, EntityProcessingException;
 
-    /**
+        /**
      * Массовое обновление по условию
      *
      * @param specification спецификация обновления в которой указан список изменений
