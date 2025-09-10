@@ -16,6 +16,7 @@ import jakarta.validation.Validator;
 import lombok.NonNull;
 import lombok.Setter;
 import lombok.SneakyThrows;
+import org.hibernate.Session;
 import org.hibernate.jpa.HibernateHints;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationEventPublisher;
@@ -329,8 +330,8 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     }
 
     @Override
-    public T getByIdWithFilter(@NonNull ID id,
-                               @NonNull Filter<T> filter) throws ResourceNotFoundException {
+    public T getById(@NonNull ID id,
+                     @NonNull String... fetchingProperties) throws ResourceNotFoundException {
         Supplier<ResourceNotFoundException> exceptionSupplier = () ->
                 new ResourceNotFoundException("Entity "
                         + getEntityTypeName()
@@ -338,7 +339,9 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                         + id
                         + " not found.");
         Filter<T> baseIdFilter = fb.and(fb.equals(idField.getName(), id.toString())).build();
-        Filter<T> resultIdFilter = filter.concat(getSoftDeleteSupportedFilter(baseIdFilter));
+        Filter<T> resultIdFilter = getSoftDeleteSupportedFilter(baseIdFilter);
+        Arrays.stream(fetchingProperties).forEach(resultIdFilter::withFetchJoin);
+
         resultIdFilter.setEntityType(entityType);
         return jpaSpecificationExecutor.findOne(resultIdFilter)
                 .orElseThrow(exceptionSupplier);
@@ -439,7 +442,9 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
             }
             T updated = transactionTemplate.execute(status -> {
                 try {
-                    return jpaRepository.save(model);
+                    Session session = entityManager.unwrap(Session.class);
+                    session.update(model);
+                    return model;
                 } catch (DataAccessException e) {
                     throw new EntityProcessingException("Entity full updating data access error",
                             e, entityType, EntityOperation.CREATE);

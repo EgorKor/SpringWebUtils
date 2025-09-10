@@ -137,7 +137,7 @@ public interface CrudService<T, ID> {
      * @return объект T - сущность найденная по id
      * @throws ResourceNotFoundException в случае отсутствия в БД сущности с таким id
      */
-    T getByIdWithFilter(ID id, Filter<T> filter) throws ResourceNotFoundException;
+    T getById(ID id, String... fetchingProperties) throws ResourceNotFoundException;
 
     /**
      * Запрос на получение сущности по идентификатору с возможностью блокировки
@@ -183,6 +183,7 @@ public interface CrudService<T, ID> {
     /**
      * Полное (PUT) обновление сущности на основе переданной модели, переписывает все поля оригинальной сущности
      *
+     * @param model объект сущности
      * @return объект сущности после обновления в БД
      */
     T fullUpdate(T model) throws EntityProcessingException;
@@ -198,7 +199,7 @@ public interface CrudService<T, ID> {
      */
     T patchUpdate(ID id, T model) throws ResourceNotFoundException, EntityProcessingException;
 
-        /**
+    /**
      * Массовое обновление по условию
      *
      * @param specification спецификация обновления в которой указан список изменений

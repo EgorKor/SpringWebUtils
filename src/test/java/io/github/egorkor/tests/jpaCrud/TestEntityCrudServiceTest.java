@@ -335,10 +335,10 @@ public class TestEntityCrudServiceTest {
                 .build();
 
         TestEntity result = crudService.fullUpdate(updatedEntity);
-
         assertEquals("Updated Entity", result.getName());
         assertFalse(result.getFlag());
         assertEquals(List.of(4, 5, 6), result.getNums());
+        testEntityManager.flush();
     }
 
     @Test

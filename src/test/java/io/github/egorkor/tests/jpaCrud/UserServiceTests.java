@@ -60,9 +60,7 @@ public class UserServiceTests {
     @Test
     public void testFindByIdWithJoin() {
         stats.setStatisticsEnabled(true);
-        var res = userService.getByIdWithFilter(1L, Filter
-                .empty()
-                .withFetchJoin("orders"));
+        var res = userService.getById(1L, "orders");
         stats.setStatisticsEnabled(false);
         Assertions.assertEquals(1, stats.getPrepareStatementCount());
         Assertions.assertNotNull(res.getOrders());
