@@ -2,7 +2,6 @@ package io.github.egorkor.webutils;
 
 import io.github.egorkor.webutils.api.GenericApiControllerAdvice;
 import io.github.egorkor.webutils.dto.DtoMapper;
-import io.github.egorkor.webutils.postProcessor.JpaServiceTemplateInheritorValidationBeanPostProcessor;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
@@ -53,11 +52,7 @@ public class AutoConfigurationSource {
         return new DtoMapper();
     }
 
-    @Role(value = BeanDefinition.ROLE_INFRASTRUCTURE)
-    @Bean
-    public JpaServiceTemplateInheritorValidationBeanPostProcessor jpaServiceTemplateInheritorValidationBeanPostProcessor() {
-        return new JpaServiceTemplateInheritorValidationBeanPostProcessor();
-    }
+
 
     @Role(value = BeanDefinition.ROLE_INFRASTRUCTURE)
     @Bean

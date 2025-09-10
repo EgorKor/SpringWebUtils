@@ -2,10 +2,7 @@ package io.github.egorkor.webutils.api;
 
 import io.github.egorkor.webutils.dto.EntityProcessingErrorDto;
 import io.github.egorkor.webutils.dto.GenericErrorDto;
-import io.github.egorkor.webutils.exception.BatchOperationException;
-import io.github.egorkor.webutils.exception.EntityProcessingException;
-import io.github.egorkor.webutils.exception.ResourceNotFoundException;
-import io.github.egorkor.webutils.exception.ValidationException;
+import io.github.egorkor.webutils.exception.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -42,9 +39,19 @@ public class GenericApiControllerAdvice {
     }
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public GenericErrorDto<Void> handleInvalidParameterException(InvalidParameterException e) {
+        log.warn("Invalid parameter error: {}", e.getMessage(), e);
+        return GenericErrorDto.<Void>builder()
+                .code(400)
+                .message(e.getMessage())
+                .date(LocalDateTime.ofInstant(Instant.now(), ZoneId.of("UTC")).toString())
+                .build();
+    }
+
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler
     public GenericErrorDto<Map<String, List<String>>> handleValidationException(ValidationException e) {
-        log.error("Validation error: {}", e.getMessage(), e);
+        log.warn("Validation error: {}", e.getMessage(), e);
         return GenericErrorDto.<Map<String, List<String>>>builder()
                 .error(e.getErrors())
                 .message(e.getMessage())
@@ -56,7 +63,7 @@ public class GenericApiControllerAdvice {
     @ResponseStatus(HttpStatus.NOT_FOUND)
     @ExceptionHandler
     public GenericErrorDto<Void> handleNotFoundException(ResourceNotFoundException e) {
-        log.error("Resource not found: {}", e.getMessage(), e);
+        log.warn("Resource not found: {}", e.getMessage(), e);
         return GenericErrorDto.<Void>builder()
                 .code(404)
                 .message(e.getMessage())
@@ -68,7 +75,7 @@ public class GenericApiControllerAdvice {
     @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
     @ExceptionHandler
     public GenericErrorDto<Void> handleBatchOperationException(BatchOperationException e) {
-        log.error("Batch operation error: {}", e.getMessage(), e);
+        log.warn("Batch operation error: {}", e.getMessage(), e);
         return GenericErrorDto.<Void>builder()
                 .message(e.getMessage())
                 .code(422)
@@ -81,7 +88,7 @@ public class GenericApiControllerAdvice {
     @ExceptionHandler
     public GenericErrorDto<EntityProcessingErrorDto> handleEntityProcessingException(EntityProcessingException e) {
         String detailedMessage = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
-        log.error("Entity processing error: {}", detailedMessage);
+        log.warn("Entity processing error: {}", detailedMessage);
         return GenericErrorDto.<EntityProcessingErrorDto>builder()
                 .code(422)
                 .error(new EntityProcessingErrorDto(e.getEntityType().getName(), e.getOperation(), detailedMessage))

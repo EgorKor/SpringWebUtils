@@ -8,6 +8,7 @@ import io.github.egorkor.service.TestEntityService;
 import io.github.egorkor.service.TestNestedEntityService;
 import io.github.egorkor.service.impl.TestEntityCrudServiceImpl;
 import io.github.egorkor.service.impl.TestNestedEntityServiceImpl;
+import io.github.egorkor.webutils.exception.InvalidParameterException;
 import io.github.egorkor.webutils.exception.ResourceNotFoundException;
 import io.github.egorkor.webutils.queryparam.Filter;
 import io.github.egorkor.webutils.queryparam.Pagination;
@@ -79,7 +80,7 @@ public class JpaCrudServiceTests {
                         fb.equals("id", "1"),
                         fb.equals("orders_name", "name"))
                 .buildDerived(UserFilter.class);
-        Assertions.assertThrows(IllegalArgumentException.class, filter::toSQLFilter);
+        Assertions.assertThrows(InvalidParameterException.class, filter::toSQLFilter);
     }
 
     @Test
@@ -88,7 +89,7 @@ public class JpaCrudServiceTests {
                 .asc("id")
                 .desc("name")
                 .buildDerived(UserSort.class);
-        Assertions.assertThrows(IllegalArgumentException.class, userSort::toSQLSort);
+        Assertions.assertThrows(InvalidParameterException.class, userSort::toSQLSort);
     }
 
     @Test
@@ -96,7 +97,7 @@ public class JpaCrudServiceTests {
         UserSort userSort = Sorting.builder()
                 .asc("ids")
                 .buildDerived(UserSort.class);
-        Assertions.assertThrows(IllegalArgumentException.class, userSort::toSQLSort);
+        Assertions.assertThrows(InvalidParameterException.class, userSort::toSQLSort);
     }
 
 

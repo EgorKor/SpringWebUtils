@@ -747,8 +747,7 @@ public class Filter<T> implements Specification<T> {
         IS("is"),
         IN("in"),
         NOT_LIKE("not_like"),
-        NOT_IN("not_in"),
-        ;
+        NOT_IN("not_in");
 
 
         private final String operation;

@@ -2,6 +2,7 @@ package io.github.egorkor.tests.utils;
 
 import io.github.egorkor.webutils.annotations.FieldParamMapping;
 import io.github.egorkor.webutils.annotations.ParamCountLimit;
+import io.github.egorkor.webutils.exception.InvalidParameterException;
 import io.github.egorkor.webutils.queryparam.utils.ParamValidationUtils;
 import org.junit.jupiter.api.Test;
 
@@ -46,7 +47,7 @@ class ParamValidationUtilsTest {
         }
 
         List<String> params = Arrays.asList("field1=val1", "field2=val2", "field3=val3");
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+        InvalidParameterException exception = assertThrows(InvalidParameterException.class, () ->
                 ParamValidationUtils.validateAllowedParams(
                         params,
                         TestParams.class,
@@ -84,7 +85,7 @@ class ParamValidationUtilsTest {
         }
 
         List<String> params = Arrays.asList("allowed=yes", "forbidden=no");
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+        InvalidParameterException exception = assertThrows(InvalidParameterException.class, () ->
                 ParamValidationUtils.validateAllowedParams(
                         params,
                         TestParams.class,

@@ -2,6 +2,7 @@ package io.github.egorkor.webutils.queryparam.utils;
 
 import io.github.egorkor.webutils.annotations.FieldParamMapping;
 import io.github.egorkor.webutils.annotations.ParamCountLimit;
+import io.github.egorkor.webutils.exception.InvalidParameterException;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -44,7 +45,7 @@ public class ParamValidationUtils {
         if ((limit = paramsClass.getAnnotation(ParamCountLimit.class)) != null
                 && limit.value() != ParamCountLimit.UNLIMITED
                 && params.size() > limit.value()) {
-            throw new IllegalArgumentException(LIMIT_ERRORS.get(paramType).apply(params.size(), params.size()));
+            throw new InvalidParameterException(LIMIT_ERRORS.get(paramType).apply(params.size(), params.size()));
         }
 
         Set<String> paramsNames = params.stream().flatMap(
@@ -73,7 +74,7 @@ public class ParamValidationUtils {
         paramsNames.removeAll(allowedFields);
         whiteList.forEach(paramsNames::remove);
         if (!paramsNames.isEmpty()) {
-            throw new IllegalArgumentException(NON_ALLOWED_ERRORS.get(paramType).apply(paramsNames));
+            throw new InvalidParameterException(NON_ALLOWED_ERRORS.get(paramType).apply(paramsNames));
         }
     }
 
