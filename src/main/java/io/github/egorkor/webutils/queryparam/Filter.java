@@ -474,8 +474,8 @@ public class Filter<T> implements Specification<T> {
         return _this();
     }
 
-    public static <T> Filter<T> equalsFilter(Map<String, String> equalsFilters) {
-        return new Filter<T>(
+    public static <T> Filter<T> equals(Map<String, String> equalsFilters) {
+        return new Filter<>(
                 equalsFilters.entrySet()
                         .stream()
                         .map(filterUnit -> "%s:=:%s".formatted(filterUnit.getKey(), filterUnit.getValue()))
@@ -483,9 +483,51 @@ public class Filter<T> implements Specification<T> {
         );
     }
 
-    public static <T> Filter equalsFilter(String field, String value){
-        return new Filter(new ArrayList<>(List.of("%s:=:%s".formatted(field, value))));
+    public static <T> Filter<T> equals(String field, Object value) {
+        return fb.and(fb.equals(field, value)).build();
     }
+
+    public static <T> Filter<T> notEquals(String field, Object value) {
+        return fb.and(fb.notEquals(field, value)).build();
+    }
+
+    public static <T> Filter<T> like(String field, String value){
+        return fb.and(fb.like(field,value)).build();
+    }
+
+    public static <T> Filter<T> notLike(String field, String value){
+        return fb.and(fb.notLike(field, value)).build();
+    }
+
+    public static <T> Filter<T> is(String field, Is value) {
+        return fb.and(fb.is(field, value)).build();
+    }
+
+    public static <T> Filter<T> in(String field, Object... values) {
+        return fb.and(fb.in(field, values)).build();
+    }
+
+    public static <T> Filter<T> notIn(String field, Object... values){
+        return fb.and(fb.notIn(field, values)).build();
+    }
+
+    public static <T> Filter<T> greaterThan(String field, Comparable<?> value) {
+        return fb.and(fb.greater(field, value)).build();
+    }
+
+    public static <T> Filter<T> greaterThanOrEqual(String field, Comparable<?> value) {
+        return fb.and(fb.greater(field, value)).build();
+    }
+
+    public static <T> Filter<T> lessThan(String field, Comparable<?> value) {
+        return fb.and(fb.less(field, value)).build();
+    }
+
+    public static <T> Filter<T> lessThanOrEqual(String field, Comparable<?> value) {
+        return fb.and(fb.lessOrEquals(field, value)).build();
+    }
+
+
 
     protected Predicate collectPredicates(CriteriaBuilder cb,
                                           Map<String, List<Predicate>> predicates) {
@@ -780,27 +822,27 @@ public class Filter<T> implements Specification<T> {
 
     public static class FilterBuilder {
 
-        public FilterUnit equals(String field, String value) {
+        public FilterUnit equals(String field, Object value) {
             return new BasicOperation(field, FilterOperation.EQUALS, value);
         }
 
-        public FilterUnit notEquals(String field, String value) {
+        public FilterUnit notEquals(String field, Object value) {
             return new BasicOperation(field, FilterOperation.NOT_EQUALS, value);
         }
 
-        public FilterUnit less(String field, String value) {
+        public FilterUnit less(String field, Comparable<?> value) {
             return new BasicOperation(field, FilterOperation.LS, value);
         }
 
-        public FilterUnit lessOrEquals(String field, String value) {
+        public FilterUnit lessOrEquals(String field, Comparable<?> value) {
             return new BasicOperation(field, FilterOperation.LSE, value);
         }
 
-        public FilterUnit greater(String field, String value) {
+        public FilterUnit greater(String field, Comparable<?> value) {
             return new BasicOperation(field, FilterOperation.GT, value);
         }
 
-        public FilterUnit greaterOrEquals(String field, String value) {
+        public FilterUnit greaterOrEquals(String field, Comparable<?> value) {
             return new BasicOperation(field, FilterOperation.GTE, value);
         }
 
@@ -808,12 +850,12 @@ public class Filter<T> implements Specification<T> {
             return new BasicOperation(field, FilterOperation.LIKE, value);
         }
 
-        public FilterUnit in(String field, String... values) {
-            return new BasicOperation(field, FilterOperation.IN, String.join(";", values));
+        public FilterUnit in(String field, Object... values) {
+            return new BasicOperation(field, FilterOperation.IN, String.join(";", Arrays.stream(values).map(Object::toString).toList()));
         }
 
-        public FilterUnit in(String field, Iterable<String> values) {
-            return new BasicOperation(field, FilterOperation.IN, String.join(";", values));
+        public FilterUnit in(String field, Collection<Object> values) {
+            return new BasicOperation(field, FilterOperation.IN, String.join(";", values.stream().map(Object::toString).toList()));
         }
 
         public FilterUnit is(String field, Is value) {
@@ -824,8 +866,8 @@ public class Filter<T> implements Specification<T> {
             return new BasicOperation(field, FilterOperation.NOT_LIKE, value);
         }
 
-        public FilterUnit notIn(String field, String... values) {
-            return new BasicOperation(field, FilterOperation.NOT_IN, String.join(";", values));
+        public FilterUnit notIn(String field, Object... values) {
+            return new BasicOperation(field, FilterOperation.NOT_IN, String.join(";", Arrays.stream(values).map(Object::toString).toList()));
         }
 
         public BuildableOperation or(FilterUnit... units) {
@@ -867,9 +909,9 @@ public class Filter<T> implements Specification<T> {
     protected static class BasicOperation implements FilterUnit {
         private final String field;
         private final FilterOperation operation;
-        private final String value;
+        private final Object value;
 
-        public BasicOperation(String field, FilterOperation operation, String value) {
+        public BasicOperation(String field, FilterOperation operation, Object value) {
             this.field = field;
             this.operation = operation;
             this.value = value;
