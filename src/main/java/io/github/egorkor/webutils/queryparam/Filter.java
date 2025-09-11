@@ -151,19 +151,19 @@ public class Filter<T> implements Specification<T> {
         return fb;
     }
 
-    public static <T> Filter<T> softDeleteFilter(Field field, boolean isDeleted) {
+    public static <T extends Filter<?>> T softDeleteFilter(Field field, boolean isDeleted) {
         return softDeleteFilter(field.getName(), field.getType(), isDeleted);
     }
 
 
-    public static <T> Filter<T> softDeleteFilter(Field field, boolean isDeleted, Class<T> entityType) {
-        Filter<T> softDeleteFilter = softDeleteFilter(field.getName(), field.getType(), isDeleted);
+    public static <T extends Filter<?>> T softDeleteFilter(Field field, boolean isDeleted, Class<T> entityType) {
+        T softDeleteFilter = softDeleteFilter(field.getName(), field.getType(), isDeleted);
         softDeleteFilter.setEntityType(entityType);
         return softDeleteFilter;
     }
 
-    public static <T> Filter<T> softDeleteFilter(String fieldName, Class<?> fieldType, boolean isDeleted) {
-        Filter<T> filter = new Filter<>();
+    public static <T extends Filter<?>> T softDeleteFilter(String fieldName, Class<?> fieldType, boolean isDeleted) {
+        T filter = (T) new Filter<>();
         List<String> filterList = new ArrayList<>();
         if (fieldType.equals(Boolean.class) || fieldType.equals(boolean.class)) {
             filterList.add("%s:is:%s".formatted(fieldName, isDeleted));
@@ -451,7 +451,7 @@ public class Filter<T> implements Specification<T> {
         return _this();
     }
 
-    public <R> Filter<R> withFetchJoin(String fetchingProperty) {
+    public <R extends Filter<?>> R withFetchJoin(String fetchingProperty) {
         this.fetchingProperties.add(fetchingProperty);
         queryConfigurers.add((root) -> {
             if (!fetchingProperty.contains(".")) {
@@ -472,6 +472,19 @@ public class Filter<T> implements Specification<T> {
 
         });
         return _this();
+    }
+
+    public static <T> Filter<T> equalsFilter(Map<String, String> equalsFilters) {
+        return new Filter<T>(
+                equalsFilters.entrySet()
+                        .stream()
+                        .map(filterUnit -> "%s:=:%s".formatted(filterUnit.getKey(), filterUnit.getValue()))
+                        .toList()
+        );
+    }
+
+    public static <T> Filter equalsFilter(String field, String value){
+        return new Filter(new ArrayList<>(List.of("%s:=:%s".formatted(field, value))));
     }
 
     protected Predicate collectPredicates(CriteriaBuilder cb,
@@ -679,8 +692,8 @@ public class Filter<T> implements Specification<T> {
         }
     }
 
-    private <SameType> Filter<SameType> _this() {
-        return (Filter<SameType>) this;
+    private <SameType extends Filter<?>> SameType _this() {
+        return (SameType) this;
     }
 
     private void mapFilterByAllies() {
