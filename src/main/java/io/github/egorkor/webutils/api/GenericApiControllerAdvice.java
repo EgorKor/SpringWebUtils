@@ -5,6 +5,7 @@ import io.github.egorkor.webutils.dto.GenericErrorDto;
 import io.github.egorkor.webutils.exception.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -38,7 +39,21 @@ public class GenericApiControllerAdvice {
                 .build();
     }
 
+
+
+    @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
+    @ExceptionHandler
+    public GenericErrorDto<Void> handleHttpRequestMethodNotSupported(HttpRequestMethodNotSupportedException e) {
+        log.warn("Wrong method for url: {}", e.getMessage(), e);
+        return GenericErrorDto.<Void>builder()
+                .code(400)
+                .message(e.getMessage())
+                .date(LocalDateTime.ofInstant(Instant.now(), ZoneId.of("UTC")).toString())
+                .build();
+    }
+
     @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler
     public GenericErrorDto<Void> handleInvalidParameterException(InvalidParameterException e) {
         log.warn("Invalid parameter error: {}", e.getMessage(), e);
         return GenericErrorDto.<Void>builder()
