@@ -27,9 +27,15 @@ public class UpdateSpecification {
         COPY
     }
 
-    public record UpdatePair(Action action, Object data) {
+
+    public static UpdateSpecification updateValue(String field, Object value) {
+        return UpdateSpecification.builder()
+                .updateValue(field, value)
+                .build();
     }
 
+    public record UpdatePair(Action action, Object data) {
+    }
 
     public static UpdateSpecificationBuilder builder() {
         return new UpdateSpecificationBuilder();

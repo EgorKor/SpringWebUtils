@@ -217,15 +217,18 @@ public interface CrudService<T, ID> {
 
     /**
      * Физическое удаление всех сущностей
+     *
+     * @return
      */
-    void deleteAll() throws EntityProcessingException;
+    long deleteAll() throws EntityProcessingException;
 
     /**
      * Физическое удаление всех сущностей с учётом фильтрации
      *
      * @param filter параметр запроса фильтрации
+     * @return
      */
-    void deleteByFilter(Filter<T> filter) throws EntityProcessingException;
+    long deleteByFilter(Filter<T> filter) throws EntityProcessingException;
 
     /**
      * Кол-во сущностей с учётом фильтрации
@@ -270,17 +273,19 @@ public interface CrudService<T, ID> {
     /**
      * Мягкое удаление всех сущностей
      *
+     * @return
      * @throws SoftDeleteUnsupportedException если сущность не поддерживает мягкое удаление
      */
-    void softDeleteAll() throws SoftDeleteUnsupportedException, EntityProcessingException;
+    int softDeleteAll() throws SoftDeleteUnsupportedException, EntityProcessingException;
 
     /**
      * Мягкое удаление всех по условию
      *
      * @param filter параметр запроса
+     * @return количество обновлений
      * @throws SoftDeleteUnsupportedException если сущность не поддерживает мягкое удаление
      */
-    void softDeleteByFilter(Filter<T> filter) throws SoftDeleteUnsupportedException, EntityProcessingException;
+    int softDeleteByFilter(Filter<T> filter) throws SoftDeleteUnsupportedException, EntityProcessingException;
 
     /**
      * Восстановление после мягкого удаления по ID

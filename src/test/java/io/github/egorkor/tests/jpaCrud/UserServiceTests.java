@@ -4,6 +4,7 @@ import io.github.egorkor.model.User;
 import io.github.egorkor.repository.UserRepository;
 import io.github.egorkor.service.UserService;
 import io.github.egorkor.service.impl.UserServiceImpl;
+import io.github.egorkor.webutils.exception.ResourceNotFoundException;
 import io.github.egorkor.webutils.queryparam.Filter;
 import io.github.egorkor.webutils.queryparam.Pagination;
 import io.github.egorkor.webutils.queryparam.Sorting;
@@ -47,6 +48,30 @@ public class UserServiceTests {
         this.stats = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
         stats.clear();
         entityManager.clear();
+    }
+
+    @Test
+    public void deleteById(){
+        stats.setStatisticsEnabled(true);
+        userService.deleteById(1L);
+        stats.setStatisticsEnabled(false);
+        Assertions.assertEquals(2, stats.getPrepareStatementCount());
+    }
+
+    @Test
+    public void deleteAll(){
+        stats.setStatisticsEnabled(true);
+        userService.deleteAll();
+        stats.setStatisticsEnabled(false);
+        Assertions.assertEquals(2, stats.getPrepareStatementCount());
+    }
+
+    @Test
+    public void deleteByIdNotFound(){
+        stats.setStatisticsEnabled(true);
+        Assertions.assertThrows(ResourceNotFoundException.class, () -> userService.deleteById(1000L));
+        stats.setStatisticsEnabled(false);
+        Assertions.assertEquals(2, stats.getPrepareStatementCount());
     }
 
     @Test

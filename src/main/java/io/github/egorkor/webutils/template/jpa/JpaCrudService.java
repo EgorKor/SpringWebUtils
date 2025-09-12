@@ -497,13 +497,6 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
 
     @Override
     public void deleteById(@NonNull ID id) throws ResourceNotFoundException, EntityProcessingException {
-        if (!existsById(id)) {
-            throw new ResourceNotFoundException("Entity "
-                    + getEntityTypeName()
-                    + " with id = "
-                    + id
-                    + " not found.");
-        }
         try {
 
             if (eventPublisher != null) {
@@ -511,7 +504,13 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
             }
             transactionTemplate.executeWithoutResult(status -> {
                 try {
-                    jpaRepository.deleteById(id);
+                    if (deleteByFilter(Filter.equals(idField.getName(), id)) != 1) {
+                        throw new ResourceNotFoundException("Entity "
+                                + getEntityTypeName()
+                                + " with id = "
+                                + id
+                                + " not found.");
+                    }
                 } catch (DataAccessException e) {
                     throw new EntityProcessingException("Entity delete by id data access error: " + id, e, entityType, EntityOperation.DELETE);
                 }
@@ -519,7 +518,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
             if (eventPublisher != null) {
                 eventPublisher.publishEvent(new EntityDeletedEvent<>(this, id, entityType));
             }
-        } catch (EntityProcessingException e) {
+        } catch (EntityProcessingException | ResourceNotFoundException e) {
             throw e;
         } catch (Exception e) {
             throw new EntityProcessingException("Unexpected delete by id entity error: " + id,
@@ -529,19 +528,19 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     }
 
     @Override
-    public void deleteAll() throws EntityProcessingException {
+    public long deleteAll() throws EntityProcessingException {
         try {
-            jpaRepository.deleteAll();
+            return deleteByFilter(Filter.empty(entityType));
         } catch (Exception e) {
             throw new EntityProcessingException("Unexpected delete all entities error", e, entityType, EntityOperation.DELETE);
         }
     }
 
     @Override
-    public void deleteByFilter(@NonNull Filter<T> filter) throws EntityProcessingException {
+    public long deleteByFilter(@NonNull Filter<T> filter) throws EntityProcessingException {
         try {
             filter.setEntityType(entityType);
-            jpaSpecificationExecutor.delete(filter);
+            return jpaSpecificationExecutor.delete(filter);
         } catch (Exception e) {
             throw new EntityProcessingException("Unexpected delete by filter entities error: " + filter, e, entityType, EntityOperation.DELETE);
         }
@@ -581,18 +580,29 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     @Override
     public void softDeleteById(@NonNull ID id) throws ResourceNotFoundException, SoftDeleteUnsupportedException, EntityProcessingException {
         checkSoftDeleteAvailability();
-        T entity = getById(id);
-        softDeleteField.set(entity, SOFT_DELETE_FLAG_MAPPING.get(softDeleteField.getType()).get());
         try {
-            transactionTemplate.execute(status -> jpaRepository.save(entity));
+            Object updateValue = SOFT_DELETE_FLAG_MAPPING.get(softDeleteField.getType()).get();
+            transactionTemplate.executeWithoutResult(status -> {
+                if (updateByFilter(
+                        UpdateSpecification.updateValue(softDeleteField.getName(), updateValue),
+                        Filter.equals(idField.getName(), id)) != 1) {
+                    throw new ResourceNotFoundException("Entity "
+                            + getEntityTypeName()
+                            + " with id = "
+                            + id
+                            + " not found.");
+                }
+            });
+        } catch (ResourceNotFoundException e) {
+            throw e;
         } catch (Exception e) {
             throw new EntityProcessingException("Unexpected soft delete entity by id error: " + id, e, entityType, EntityOperation.UPDATE);
         }
     }
 
     @Override
-    public void softDeleteAll() throws SoftDeleteUnsupportedException, EntityProcessingException {
-        softDeleteByFilter(Filter.empty(entityType));
+    public int softDeleteAll() throws SoftDeleteUnsupportedException, EntityProcessingException {
+        return softDeleteByFilter(Filter.empty(entityType));
     }
 
     @Override
@@ -682,12 +692,12 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                 }
             }
         }
-        update.where(getSoftDeleteSupportedFilter(filter).toPredicate(root, cb));
+        update.where(filter.toPredicate(root, cb));
         return entityManager.createQuery(update).executeUpdate();
     }
 
     @Override
-    public void softDeleteByFilter(@NonNull Filter<T> filter) throws SoftDeleteUnsupportedException, EntityProcessingException {
+    public int softDeleteByFilter(@NonNull Filter<T> filter) throws SoftDeleteUnsupportedException, EntityProcessingException {
         checkSoftDeleteAvailability();
         try {
             CriteriaBuilder cb = entityManager.getCriteriaBuilder();
@@ -699,10 +709,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                 filter.setEntityType(entityType);
                 update.where(filter.toPredicate(root, cb));
             }
-            transactionTemplate.executeWithoutResult(status -> {
-                entityManager.createQuery(update).executeUpdate();
-            });
-
+            return transactionTemplate.execute(status -> entityManager.createQuery(update).executeUpdate());
         } catch (Exception e) {
             throw new EntityProcessingException(
                     "Unexpected soft delete entities by filter error: " + filter,
@@ -717,13 +724,17 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     @Override
     public void restoreById(@NonNull ID id) throws ResourceNotFoundException, SoftDeleteUnsupportedException, EntityProcessingException {
         checkSoftDeleteAvailability();
-        Filter<T> filter = fb.and(fb.equals(idField.getName(), id.toString())).build();
-        filter.setEntityType(entityType);
-        T entity = jpaSpecificationExecutor.findOne(filter)
-                .orElseThrow(() -> new ResourceNotFoundException("Entity not found: " + id));
-        softDeleteField.set(entity, RESTORE_FLAG_MAPPING.get(softDeleteField.getType()).get());
+        Object updateValue = RESTORE_FLAG_MAPPING.get(softDeleteField.getType()).get();
         try {
-            entityManager.merge(entity);
+            int updatedCount = updateByFilter(
+                    UpdateSpecification.updateValue(softDeleteField.getName(), updateValue),
+                    Filter.equals(idField.getName(), id)
+            );
+            if (updatedCount != 1) {
+                throw new ResourceNotFoundException("Entity not found: " + id);
+            }
+        } catch (ResourceNotFoundException e) {
+            throw e;
         } catch (Exception e) {
             throw new EntityProcessingException("Unexpected restore entity by id error: " + id, e, entityType, EntityOperation.UPDATE);
         }
@@ -735,7 +746,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     }
 
     @Override
-    public void restoreByFilter(@NonNull Filter<T> filter) throws SoftDeleteUnsupportedException, EntityProcessingException {
+    public void restoreByFilter(@NonNull Filter<T> filter) throws SoftDeleteUnsupportedException, EntityProcessingException, ResourceNotFoundException {
         checkSoftDeleteAvailability();
         try {
             CriteriaBuilder cb = entityManager.getCriteriaBuilder();
