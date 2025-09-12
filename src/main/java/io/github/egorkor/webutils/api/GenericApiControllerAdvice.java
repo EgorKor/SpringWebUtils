@@ -46,7 +46,7 @@ public class GenericApiControllerAdvice {
     public GenericErrorDto<Void> handleHttpRequestMethodNotSupported(HttpRequestMethodNotSupportedException e) {
         log.warn("Wrong method for url: {}", e.getMessage(), e);
         return GenericErrorDto.<Void>builder()
-                .code(400)
+                .code(405)
                 .message(e.getMessage())
                 .date(LocalDateTime.ofInstant(Instant.now(), ZoneId.of("UTC")).toString())
                 .build();
