@@ -307,7 +307,9 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                                      @NonNull Sorting sorting,
                                      @NonNull Pagination pagination) {
         filter.setEntityType(entityType);
+        Filter<T> countFilter = new Filter<>(filter.getFilter());
         return PageableResult.of(jpaSpecificationExecutor.findAll(getSoftDeleteSupportedFilter(filter),
+                getSoftDeleteSupportedFilter(countFilter),
                 pagination.toJpaPageable(sorting)));
     }
 
