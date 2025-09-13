@@ -62,7 +62,7 @@ public class Pagination {
     }
 
     public Pagination withDefault(int page, int size) {
-        if(!isUnpaged()) {
+        if(isUnpaged()) {
             this.page = page;
             this.size = size;
         }
