@@ -35,6 +35,8 @@ import static io.github.egorkor.webutils.queryparam.Filter.getNestedPath;
 @AllArgsConstructor
 @NoArgsConstructor
 public class Sorting {
+    public static final String DESC = "desc";
+    public static final String ASC = "asc";
     private List<String> sort = new ArrayList<>();
 
     public static Sorting unsorted() {
@@ -52,6 +54,21 @@ public class Sorting {
         ParamValidationUtils.validateAllowedParams(sort, this.getClass(),
                 ParamValidationUtils.ParamType.SORT, this::validateAndSplitSort,
                 List.of());
+    }
+
+    public Sorting withDefault(String field, String order){
+        if(isUnsorted()){
+            sort.add("%s:%s".formatted(field, order));
+        }
+        return this;
+    }
+
+    public Sorting withDefaultAsc(String field){
+        return withDefault(field, ASC);
+    }
+
+    public Sorting withDefaultDesc(String field){
+        return withDefault(field, DESC);
     }
 
     public void mapSortByAllies() {
@@ -160,12 +177,12 @@ public class Sorting {
         private final List<SortingUnit> sorting = new ArrayList<>();
 
         public SortingBuilder asc(String field) {
-            sorting.add(new SortingUnit(field, "asc"));
+            sorting.add(new SortingUnit(field, ASC));
             return this;
         }
 
         public SortingBuilder desc(String field) {
-            sorting.add(new SortingUnit(field, "desc"));
+            sorting.add(new SortingUnit(field, DESC));
             return this;
         }
 

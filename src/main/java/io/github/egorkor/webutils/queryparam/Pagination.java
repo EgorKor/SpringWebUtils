@@ -61,6 +61,14 @@ public class Pagination {
         return size != ALL_CONTENT_SIZE;
     }
 
+    public Pagination withDefault(int page, int size) {
+        if(!isUnpaged()) {
+            this.page = page;
+            this.size = size;
+        }
+        return this;
+    }
+
     public Pageable toJpaPageable() {
         if (size == ALL_CONTENT_SIZE) {
             return Pageable.unpaged();
