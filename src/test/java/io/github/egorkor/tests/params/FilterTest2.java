@@ -58,11 +58,11 @@ public class FilterTest2 {
     }
 
     @Test
-    void testConcat() {
+    void testAnd() {
         Filter<TestEntity> filter1 = new Filter<>(List.of("name:like:John"));
         Filter<TestEntity> filter2 = new Filter<>(List.of("age:>:30"));
 
-        Filter<TestEntity> result = filter1.concat(filter2);
+        Filter<TestEntity> result = filter1._and(filter2);
         assertEquals(2, result.getFilter().size());
     }
 

@@ -293,7 +293,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
         }
         boolean isDeleted = false;
         Filter<T> softDeleteFilter = Filter.softDeleteFilter(softDeleteField, isDeleted);
-        Filter<T> concantinatedFilter = filter.concat(softDeleteFilter);
+        Filter<T> concantinatedFilter = filter._and(softDeleteFilter);
         concantinatedFilter.setEntityType(entityType);
         return concantinatedFilter;
     }

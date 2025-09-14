@@ -14,6 +14,8 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Параметр запроса для фильтрации запрашиваемых ресурсов.
@@ -110,6 +112,7 @@ public class Filter<T> implements Specification<T> {
     private static final Set<String> BASIC_OPERATORS
             = Set.of("<", "<=", "=", ">=", ">", "<>");
     private static final String FUNCTION_REGEX = "(length\\(\\))|(size\\(\\))";
+    public static final Pattern CONCAT_FUNCTION_PATTERN = Pattern.compile("concat\\((.*)\\)");
     protected List<String> filter;
     protected Class<?> entityType;
     protected List<Consumer<Root<T>>> queryConfigurers = new ArrayList<>();
@@ -195,8 +198,8 @@ public class Filter<T> implements Specification<T> {
         };
     }
 
-    public static <X> Path<X> getTypedPath(Path<?> path, Class<X> type) {
-        return (Path<X>) path;
+    public static <X> Expression<X> getTypedPath(Expression<?> path, Class<X> type) {
+        return (Expression<X>) path;
     }
 
     public boolean isFiltered() {
@@ -209,7 +212,7 @@ public class Filter<T> implements Specification<T> {
         return filter.isEmpty();
     }
 
-    public <R> Filter<R> concat(Filter<R> filter) {
+    public <R> Filter<R> _and(Filter<R> filter) {
         this.filter.addAll(filter.getFilter());
         this.fieldWhiteList.addAll(filter.getFilter()
                 .stream().map(
@@ -491,11 +494,11 @@ public class Filter<T> implements Specification<T> {
         return fb.and(fb.notEquals(field, value)).build();
     }
 
-    public static <T> Filter<T> like(String field, String value){
-        return fb.and(fb.like(field,value)).build();
+    public static <T> Filter<T> like(String field, String value) {
+        return fb.and(fb.like(field, value)).build();
     }
 
-    public static <T> Filter<T> notLike(String field, String value){
+    public static <T> Filter<T> notLike(String field, String value) {
         return fb.and(fb.notLike(field, value)).build();
     }
 
@@ -507,7 +510,7 @@ public class Filter<T> implements Specification<T> {
         return fb.and(fb.in(field, values)).build();
     }
 
-    public static <T> Filter<T> notIn(String field, Object... values){
+    public static <T> Filter<T> notIn(String field, Object... values) {
         return fb.and(fb.notIn(field, values)).build();
     }
 
@@ -528,7 +531,6 @@ public class Filter<T> implements Specification<T> {
     }
 
 
-
     protected Predicate collectPredicates(CriteriaBuilder cb,
                                           Map<String, List<Predicate>> predicates) {
         return cb.and(predicates.values().stream()
@@ -546,7 +548,7 @@ public class Filter<T> implements Specification<T> {
         String stringValue = parts[2];
 
         Function function = null;
-        if (field.contains(".")) {
+        if (field.contains(".") && !field.startsWith("concat")) {
             String[] subFields = field.split("\\.");
             String lastSubField = subFields[subFields.length - 1];
             if (lastSubField.toLowerCase().matches(FUNCTION_REGEX)) {
@@ -555,9 +557,9 @@ public class Filter<T> implements Specification<T> {
             }
         }
 
-        Path<?> path = field.contains(".") ? getNestedPath(root, field) : root.get(field);
+        Expression<?> path = getPath(root, field, cb);
         Field reflectionField = FieldTypeUtils.getField(entityType, field);
-        Class<?> fieldType = reflectionField.getType();
+        Class<?> fieldType = reflectionField != null ? reflectionField.getType() : null;
 
         try {
             return switch (operation) {
@@ -579,8 +581,57 @@ public class Filter<T> implements Specification<T> {
         }
     }
 
+    private static <T> Expression<?> getPath(Root<T> root, String field, CriteriaBuilder cb) {
+        if (!field.startsWith("concat")) {
+            return field.contains(".") ? getNestedPath(root, field) : root.get(field);
+        }
+        Matcher matcher = CONCAT_FUNCTION_PATTERN.matcher(field);
+        if (!matcher.matches()) {
+            throw new IllegalArgumentException("Invalid concat function syntax: " + field);
+        }
+        String[] concatValues = matcher.group(1).split(",");
+        List<Expression<?>> concatExpressions = new ArrayList<>();
+        for (String concatValue : concatValues) {
+            String trimmedValue = concatValue.trim();
+            if (concatValue.startsWith("'") && concatValue.endsWith("'")) {
+                String literalValue = trimmedValue.substring(1, trimmedValue.length() - 1);
+                concatExpressions.add(cb.literal(literalValue));
+            } else {
+                concatExpressions.add(getPath(root, concatValue, cb));
+            }
+        }
+
+        return concate(cb, concatExpressions);
+    }
+
+    private static Expression<String> concate(CriteriaBuilder cb, List<Expression<?>> expressions) {
+        if (expressions == null || expressions.isEmpty()) {
+            return cb.literal("");
+        }
+
+        Expression<String> result = null;
+
+        for (Expression<?> expr : expressions) {
+            if (result == null) {
+                result = convertToString(cb, expr);
+            } else {
+                result = cb.concat(result, convertToString(cb, expr));
+            }
+        }
+
+        return result;
+    }
+
+    private static Expression<String> convertToString(CriteriaBuilder cb, Expression<?> expression) {
+        if (expression.getJavaType() == String.class) {
+            return (Expression<String>) expression;
+        }
+        // Для числовых и других типов преобразуем в строку
+        return cb.toString((Expression<Character>) expression);
+    }
+
     private Predicate parseInPredicate(CriteriaBuilder cb,
-                                       Path<?> path,
+                                       Expression<?> path,
                                        Field reflectionField,
                                        String stringValue,
                                        Function function) {
@@ -627,6 +678,7 @@ public class Filter<T> implements Specification<T> {
         if (stringValue == null) return null;
 
         try {
+            if (targetType == null) return stringValue;
             if (targetType == String.class) return stringValue;
             if (targetType == Integer.class || targetType == int.class) return Integer.parseInt(stringValue);
             if (targetType == Long.class || targetType == long.class) return Long.parseLong(stringValue);
@@ -643,7 +695,7 @@ public class Filter<T> implements Specification<T> {
         }
     }
 
-    private Predicate parseIsPredicate(CriteriaBuilder cb, Path<?> path, String value) {
+    private Predicate parseIsPredicate(CriteriaBuilder cb, Expression<?> path, String value) {
         return switch (value) {
             case "true" -> cb.isTrue(getTypedPath(path, Boolean.class));
             case "false" -> cb.isFalse(getTypedPath(path, Boolean.class));
@@ -653,7 +705,7 @@ public class Filter<T> implements Specification<T> {
         };
     }
 
-    private Predicate parseEqualPredicate(CriteriaBuilder cb, Path<?> path, Field reflectionField, String stringValue, Function function) {
+    private Predicate parseEqualPredicate(CriteriaBuilder cb, Expression<?> path, Field reflectionField, String stringValue, Function function) {
         if (Collection.class.isAssignableFrom(reflectionField.getType())) {
             Object convertedValue = convertValue(stringValue, getCollectionElementType(reflectionField));
             if (function != null) {
@@ -661,13 +713,13 @@ public class Filter<T> implements Specification<T> {
                     case LENGTH, SIZE -> cb.equal(getFunctionPath(cb, path, function), convertedValue);
                 };
             }
-            return cb.isMember(convertedValue, (Path<Collection>) path);
+            return cb.isMember(convertedValue, (Expression<Collection>) path);
         }
         Object value = convertValue(stringValue, reflectionField.getType());
         return cb.equal(getFunctionPath(cb, path, function), value);
     }
 
-    private Expression<?> getFunctionPath(CriteriaBuilder cb, Path<?> current, Function function) {
+    private Expression<?> getFunctionPath(CriteriaBuilder cb, Expression<?> current, Function function) {
         if (function == null) {
             return current;
         }
@@ -678,7 +730,7 @@ public class Filter<T> implements Specification<T> {
 
     }
 
-    private Predicate parseComparisonPredicate(CriteriaBuilder cb, Path<?> path, String operation,
+    private Predicate parseComparisonPredicate(CriteriaBuilder cb, Expression<?> path, String operation,
                                                Field reflectionField, String stringValue, Function function) {
         if (!Comparable.class.isAssignableFrom(reflectionField.getType())
                 && function == null) {
@@ -707,7 +759,7 @@ public class Filter<T> implements Specification<T> {
     //region Utility Methods
 
     private Predicate parseNotEqualPredicate(CriteriaBuilder cb,
-                                             Path<?> path,
+                                             Expression<?> path,
                                              Class<?> fieldType,
                                              String stringValue,
                                              Function function) {
@@ -715,8 +767,8 @@ public class Filter<T> implements Specification<T> {
         return cb.notEqual(getFunctionPath(cb, path, function), value);
     }
 
-    private Predicate parseLikePredicate(CriteriaBuilder cb, Path<?> path, String stringValue) {
-        Path<String> stringPath = getTypedPath(path, String.class);
+    private Predicate parseLikePredicate(CriteriaBuilder cb, Expression<?> path, String stringValue) {
+        Expression<String> stringPath = getTypedPath(path, String.class);
         return cb.like(stringPath, "%" + stringValue + "%");
     }
 

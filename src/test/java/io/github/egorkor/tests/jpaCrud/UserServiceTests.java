@@ -127,5 +127,14 @@ public class UserServiceTests {
         Assertions.assertEquals(10, users.size());
     }
 
+    @Test
+    public void testFilterConcat(){
+        stats.setStatisticsEnabled(true);
+        List<User> users = userService.getPage(Filter.like("concat(id,'.',email,'.',firstName)","some"),
+                Sorting.unsorted(), Pagination.of(0, 10)).getData();
+        stats.setStatisticsEnabled(false);
+        Assertions.assertEquals(1, stats.getPrepareStatementCount());
+    }
+
 
 }

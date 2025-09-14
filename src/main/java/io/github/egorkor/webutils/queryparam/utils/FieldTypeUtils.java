@@ -21,6 +21,9 @@ public class FieldTypeUtils {
      */
     @SneakyThrows
     public static Field getField(Class<?> targetType, String fieldPath) {
+        if(fieldPath.matches("concat\\(.*\\)")){
+            return null;
+        }
         // Input validation
         Objects.requireNonNull(targetType, "Target type cannot be null");
         Objects.requireNonNull(fieldPath, "Field path cannot be null");
