@@ -34,6 +34,116 @@ public class UpdateSpecification {
                 .build();
     }
 
+    public static UpdateSpecification setNull(String field) {
+        return UpdateSpecification.builder()
+                .setNull(field)
+                .build();
+    }
+
+    public static UpdateSpecification plus(String field, Byte value) {
+        return UpdateSpecification.builder()
+                .plus(field, value)
+                .build();
+    }
+
+    public static UpdateSpecification plus(String field, Short value) {
+        return UpdateSpecification.builder()
+                .plus(field, value)
+                .build();
+    }
+
+    public static UpdateSpecification plus(String field, Integer value) {
+        return UpdateSpecification.builder()
+                .plus(field, value)
+                .build();
+    }
+
+    public static UpdateSpecification plus(String field, Long value) {
+        return UpdateSpecification.builder()
+                .plus(field, value)
+                .build();
+    }
+
+    public static UpdateSpecification plus(String field, Float value) {
+        return UpdateSpecification.builder()
+                .plus(field, value)
+                .build();
+    }
+
+    public static UpdateSpecification plus(String field, Double value) {
+        return UpdateSpecification.builder()
+                .plus(field, value)
+                .build();
+    }
+
+    public static UpdateSpecification minus(String field, Byte value) {
+        return UpdateSpecification.builder()
+                .minus(field, value)
+                .build();
+    }
+
+    public static UpdateSpecification minus(String field, Short value) {
+        return UpdateSpecification.builder()
+                .minus(field, value)
+                .build();
+    }
+
+    public static UpdateSpecification minus(String field, Integer value) {
+        return UpdateSpecification.builder()
+                .minus(field, value)
+                .build();
+    }
+
+    public static UpdateSpecification minus(String field, Long value) {
+        return UpdateSpecification.builder()
+                .minus(field, value)
+                .build();
+    }
+
+    public static UpdateSpecification minus(String field, Float value) {
+        return UpdateSpecification.builder()
+                .minus(field, value)
+                .build();
+    }
+
+    public static UpdateSpecification minus(String field, Double value) {
+        return UpdateSpecification.builder()
+                .minus(field, value)
+                .build();
+    }
+
+    public static UpdateSpecification concat(String field, String value){
+        return UpdateSpecification.builder()
+                .concat(field, value)
+                .build();
+    }
+
+    public static UpdateSpecification truncateTime(String field){
+        return UpdateSpecification.builder()
+                .truncateTime(field)
+                .build();
+    }
+
+    public static UpdateSpecification addDays(String field, Integer days){
+        return UpdateSpecification.builder()
+                .addDays(field, days)
+                .build();
+    }
+
+    public static UpdateSpecification toUpperCase(String field){
+        return UpdateSpecification.builder()
+                .upperCase(field)
+                .build();
+    }
+
+    public static UpdateSpecification toLowerCase(String field){
+        return UpdateSpecification.builder()
+                .lowerCase(field)
+                .build();
+    }
+
+
+
     public record UpdatePair(Action action, Object data) {
     }
 

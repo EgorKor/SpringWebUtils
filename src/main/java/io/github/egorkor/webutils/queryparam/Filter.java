@@ -493,7 +493,15 @@ public class Filter<T> implements Specification<T> {
         return fb.and(fb.notEquals(field, value)).build();
     }
 
-    public static <T> Filter<T> like(String field, String value) {
+    public static <T> Filter<T> contains(String field, String value) {
+        return fb.and(fb.like(field, value)).build();
+    }
+
+    public static <T> Filter<T> notContains(String field, String value) {
+        return fb.and(fb.notLike(field, value)).build();
+    }
+
+    public static <T> Filter<T> like(String field, String value){
         return fb.and(fb.like(field, value)).build();
     }
 
@@ -566,6 +574,8 @@ public class Filter<T> implements Specification<T> {
                 case ">", "<", ">=", "<=" ->
                         parseComparisonPredicate(cb, selection, operation, reflectionField, stringValue, function);
                 case "!=" -> parseNotEqualPredicate(cb, selection, fieldType, stringValue, function);
+                case "contains" -> parseContainsPredicate(cb, selection, stringValue);
+                case "not_contains" -> cb.not(parseContainsPredicate(cb, selection, stringValue));
                 case "like" -> parseLikePredicate(cb, selection, stringValue);
                 case "not_like" -> cb.not(parseLikePredicate(cb, selection, stringValue));
                 case "in" -> parseInPredicate(cb, selection, reflectionField, stringValue, function);
@@ -615,10 +625,10 @@ public class Filter<T> implements Specification<T> {
 
         }
 
-        return concate(cb, concatExpressions);
+        return concateExpressions(cb, concatExpressions);
     }
 
-    private static Expression<String> concate(CriteriaBuilder cb, List<Expression<?>> expressions) {
+    private static Expression<String> concateExpressions(CriteriaBuilder cb, List<Expression<?>> expressions) {
         if (expressions == null || expressions.isEmpty()) {
             return cb.literal("");
         }
@@ -787,9 +797,14 @@ public class Filter<T> implements Specification<T> {
         return cb.notEqual(getFunctionPath(cb, selection, function), value);
     }
 
+    private Predicate parseContainsPredicate(CriteriaBuilder cb, Expression<?> selection, String stringValue) {
+        Expression<String> stringSelection = cb.lower(getTypedExpression(selection, String.class));
+        return cb.like(stringSelection, "%" + stringValue.toLowerCase() + "%");
+    }
+
     private Predicate parseLikePredicate(CriteriaBuilder cb, Expression<?> selection, String stringValue) {
         Expression<String> stringPath = getTypedExpression(selection, String.class);
-        return cb.like(stringPath, "%" + stringValue + "%");
+        return cb.like(stringPath, stringValue);
     }
 
     private void determineEntityType() {
@@ -873,6 +888,8 @@ public class Filter<T> implements Specification<T> {
         LIKE("like"),
         IS("is"),
         IN("in"),
+        CONTAINS("contains"),
+        NOT_CONTAINS("not_contains"),
         NOT_LIKE("not_like"),
         NOT_IN("not_in");
 
@@ -920,6 +937,14 @@ public class Filter<T> implements Specification<T> {
 
         public FilterUnit like(String field, String value) {
             return new BasicOperation(field, FilterOperation.LIKE, value);
+        }
+
+        public FilterUnit contains(String field, String value) {
+            return new BasicOperation(field, FilterOperation.CONTAINS, value);
+        }
+
+        public FilterUnit notContains(String field, String value) {
+            return new BasicOperation(field, FilterOperation.NOT_CONTAINS, value);
         }
 
         public FilterUnit in(String field, Object... values) {

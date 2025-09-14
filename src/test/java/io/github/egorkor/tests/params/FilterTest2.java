@@ -80,7 +80,7 @@ public class FilterTest2 {
     }
 
     @Test
-    void testToSQLFilter_likeCondition() {
+    void testToSQLFilter_containsCondition() {
         Filter<TestEntity> filter = new Filter<>(List.of("name:like:John"));
         String sql = filter.toSQLFilter();
         assertTrue(sql.contains("WHERE name LIKE ? ESCAPE '!'"));
@@ -139,7 +139,7 @@ public class FilterTest2 {
     }
 
     @Test
-    void testToPredicate_likeCondition() throws Exception {
+    void testToPredicate_containsCondition() throws Exception {
         when(root.get("name")).thenReturn(path);
         when(cb.like(any(), anyString())).thenReturn(predicate);
         when(cb.and(any())).thenReturn(predicate);
@@ -149,7 +149,7 @@ public class FilterTest2 {
 
         Predicate result = filter.toPredicate(root, cb);
         assertNotNull(result);
-        verify(cb).like(any(), contains("%John%"));
+        verify(cb).like(any(), contains("John"));
     }
 
     @Test
