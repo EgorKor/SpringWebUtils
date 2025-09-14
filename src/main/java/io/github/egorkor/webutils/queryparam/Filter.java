@@ -99,7 +99,6 @@ import java.util.regex.Pattern;
  */
 //TODO: добавить поддержку операций работы с JSON
 //TODO: добавить поддержку функций size() length() для SQL
-//TODO: добавить динамическое исключение физически выбираемых полей для hibernate
 //TODO: реализовать метод обновления по фильтру
 @Slf4j
 @Setter
@@ -113,6 +112,7 @@ public class Filter<T> implements Specification<T> {
             = Set.of("<", "<=", "=", ">=", ">", "<>");
     private static final String FUNCTION_REGEX = "(length\\(\\))|(size\\(\\))";
     public static final Pattern CONCAT_FUNCTION_PATTERN = Pattern.compile("concat\\((.*)\\)");
+    public static final Pattern TO_CHAR_FUNCTION_PATTERN = Pattern.compile("to_char\\((.*);'(.*)'\\)");
     protected List<String> filter;
     protected Class<?> entityType;
     protected List<Consumer<Root<T>>> queryConfigurers = new ArrayList<>();
@@ -585,20 +585,36 @@ public class Filter<T> implements Specification<T> {
         if (!field.startsWith("concat")) {
             return field.contains(".") ? getNestedPath(root, field) : root.get(field);
         }
-        Matcher matcher = CONCAT_FUNCTION_PATTERN.matcher(field);
-        if (!matcher.matches()) {
+        Matcher concatMatcher = CONCAT_FUNCTION_PATTERN.matcher(field);
+        if (!concatMatcher.matches()) {
             throw new IllegalArgumentException("Invalid concat function syntax: " + field);
         }
-        String[] concatValues = matcher.group(1).split(",");
+        String[] concatValues = concatMatcher.group(1).split(",");
         List<Expression<?>> concatExpressions = new ArrayList<>();
         for (String concatValue : concatValues) {
+
             String trimmedValue = concatValue.trim();
+            //string literal case
             if (concatValue.startsWith("'") && concatValue.endsWith("'")) {
                 String literalValue = trimmedValue.substring(1, trimmedValue.length() - 1);
                 concatExpressions.add(cb.literal(literalValue));
-            } else {
-                concatExpressions.add(getPath(root, concatValue, cb));
+                continue;
             }
+
+            Matcher toCharMatcher = TO_CHAR_FUNCTION_PATTERN.matcher(trimmedValue);
+            if (toCharMatcher.matches()) {
+                String path = toCharMatcher.group(1);
+                String format = toCharMatcher.group(2);
+                concatExpressions.add(cb.function(
+                        "TO_CHAR",
+                        String.class,
+                        getPath(root, path, cb),
+                        cb.literal(format)
+                ));
+            } else {
+                concatExpressions.add(getPath(root, trimmedValue, cb));
+            }
+
         }
 
         return concate(cb, concatExpressions);
