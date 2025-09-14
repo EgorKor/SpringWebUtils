@@ -625,19 +625,19 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                 case UPDATE -> update.set(path, pair.data());
                 case SUM -> {
                     if (pair.data() instanceof Number number) {
-                        Object sumExpr = cb.sum(Filter.getTypedPath(path, Number.class), number);
+                        Object sumExpr = cb.sum(Filter.getTypedExpression(path, Number.class), number);
                         update.set(path, sumExpr);
                     }
                 }
                 case MULTIPLY -> {
                     if (pair.data() instanceof Number number) {
-                        Object prodExpr = cb.prod(Filter.getTypedPath(path, Number.class), number);
+                        Object prodExpr = cb.prod(Filter.getTypedExpression(path, Number.class), number);
                         update.set(path, prodExpr);
                     }
                 }
                 case DIVIDE -> {
                     if (pair.data() instanceof Number number) {
-                        Object quotExpr = cb.quot(Filter.getTypedPath(path, Number.class), number);
+                        Object quotExpr = cb.quot(Filter.getTypedExpression(path, Number.class), number);
                         update.set(path, quotExpr);
                     }
                 }

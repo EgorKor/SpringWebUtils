@@ -110,7 +110,7 @@ public class Filter<T> implements Specification<T> {
             = Set.of("<", "<=", "=", ">=", ">");
     private static final Set<String> BASIC_OPERATORS
             = Set.of("<", "<=", "=", ">=", ">", "<>");
-    private static final String FUNCTION_REGEX = "(length\\(\\))|(size\\(\\))";
+    public static final Pattern FUNCTION_PATTERN = Pattern.compile("(.*)\\.(length\\(\\)|size\\(\\))");
     public static final Pattern CONCAT_FUNCTION_PATTERN = Pattern.compile("concat\\((.*)\\)");
     public static final Pattern TO_CHAR_FUNCTION_PATTERN = Pattern.compile("to_char\\((.*);'(.*)'\\)");
     protected List<String> filter;
@@ -158,7 +158,6 @@ public class Filter<T> implements Specification<T> {
         return softDeleteFilter(field.getName(), field.getType(), isDeleted);
     }
 
-
     public static <T extends Filter<?>> T softDeleteFilter(Field field, boolean isDeleted, Class<T> entityType) {
         T softDeleteFilter = softDeleteFilter(field.getName(), field.getType(), isDeleted);
         softDeleteFilter.setEntityType(entityType);
@@ -187,19 +186,19 @@ public class Filter<T> implements Specification<T> {
 
     private static Predicate getComparisonPredicate(CriteriaBuilder cb,
                                                     String operation,
-                                                    Expression<Comparable> comparablePath,
+                                                    Expression<Comparable> comparableSelection,
                                                     Comparable value) {
         return switch (operation) {
-            case ">" -> cb.greaterThan(comparablePath, value);
-            case "<" -> cb.lessThan(comparablePath, value);
-            case ">=" -> cb.greaterThanOrEqualTo(comparablePath, value);
-            case "<=" -> cb.lessThanOrEqualTo(comparablePath, value);
+            case ">" -> cb.greaterThan(comparableSelection, value);
+            case "<" -> cb.lessThan(comparableSelection, value);
+            case ">=" -> cb.greaterThanOrEqualTo(comparableSelection, value);
+            case "<=" -> cb.lessThanOrEqualTo(comparableSelection, value);
             default -> throw new IllegalArgumentException("Invalid comparison operation: " + operation);
         };
     }
 
-    public static <X> Expression<X> getTypedPath(Expression<?> path, Class<X> type) {
-        return (Expression<X>) path;
+    public static <X> Expression<X> getTypedExpression(Expression<?> expression, Class<X> type) {
+        return (Expression<X>) expression;
     }
 
     public boolean isFiltered() {
@@ -548,40 +547,39 @@ public class Filter<T> implements Specification<T> {
         String stringValue = parts[2];
 
         Function function = null;
-        if (field.contains(".") && !field.startsWith("concat")) {
-            String[] subFields = field.split("\\.");
-            String lastSubField = subFields[subFields.length - 1];
-            if (lastSubField.toLowerCase().matches(FUNCTION_REGEX)) {
-                function = Function.parseByOperation(lastSubField);
-                field = String.join(".", Arrays.copyOfRange(subFields, 0, subFields.length - 1));
-            }
+
+        Matcher functionMatcher = FUNCTION_PATTERN.matcher(field);
+        if(functionMatcher.matches()){
+            String functionStr = functionMatcher.group(2);
+            function = Function.parseByOperation(functionStr);
+            field = field.substring(0, field.lastIndexOf(functionStr) - 1);
         }
 
-        Expression<?> path = getPath(root, field, cb);
+        Expression<?> selection = getSelectExpression(root, field, cb);
         Field reflectionField = FieldTypeUtils.getField(entityType, field);
         Class<?> fieldType = reflectionField != null ? reflectionField.getType() : null;
 
         try {
             return switch (operation) {
-                case "is" -> parseIsPredicate(cb, path, stringValue);
-                case "=" -> parseEqualPredicate(cb, path, reflectionField, stringValue, function);
+                case "is" -> parseIsPredicate(cb, selection, stringValue);
+                case "=" -> parseEqualPredicate(cb, selection, reflectionField, stringValue, function);
                 case ">", "<", ">=", "<=" ->
-                        parseComparisonPredicate(cb, path, operation, reflectionField, stringValue, function);
-                case "!=" -> parseNotEqualPredicate(cb, path, fieldType, stringValue, function);
-                case "like" -> parseLikePredicate(cb, path, stringValue);
-                case "not_like" -> cb.not(parseLikePredicate(cb, path, stringValue));
-                case "in" -> parseInPredicate(cb, path, reflectionField, stringValue, function);
-                case "not_in" -> cb.not(parseInPredicate(cb, path, reflectionField, stringValue, function));
+                        parseComparisonPredicate(cb, selection, operation, reflectionField, stringValue, function);
+                case "!=" -> parseNotEqualPredicate(cb, selection, fieldType, stringValue, function);
+                case "like" -> parseLikePredicate(cb, selection, stringValue);
+                case "not_like" -> cb.not(parseLikePredicate(cb, selection, stringValue));
+                case "in" -> parseInPredicate(cb, selection, reflectionField, stringValue, function);
+                case "not_in" -> cb.not(parseInPredicate(cb, selection, reflectionField, stringValue, function));
                 default -> throw new IllegalArgumentException("Invalid filter operation: " + operation);
             };
         } catch (Exception e) {
             throw new IllegalArgumentException(
-                    String.format("Error processing filter '%s' for field '%s' (type %s): %s",
-                            filter, field, fieldType.getSimpleName(), e.getMessage()), e);
+                    String.format("Error processing filter '%s' for field '%s': %s",
+                            filter, field, e.getMessage()), e);
         }
     }
 
-    private static <T> Expression<?> getPath(Root<T> root, String field, CriteriaBuilder cb) {
+    private static <T> Expression<?> getSelectExpression(Root<T> root, String field, CriteriaBuilder cb) {
         if (!field.startsWith("concat")) {
             return field.contains(".") ? getNestedPath(root, field) : root.get(field);
         }
@@ -608,11 +606,11 @@ public class Filter<T> implements Specification<T> {
                 concatExpressions.add(cb.function(
                         "TO_CHAR",
                         String.class,
-                        getPath(root, path, cb),
+                        getSelectExpression(root, path, cb),
                         cb.literal(format)
                 ));
             } else {
-                concatExpressions.add(getPath(root, trimmedValue, cb));
+                concatExpressions.add(getSelectExpression(root, trimmedValue, cb));
             }
 
         }
@@ -647,7 +645,7 @@ public class Filter<T> implements Specification<T> {
     }
 
     private Predicate parseInPredicate(CriteriaBuilder cb,
-                                       Expression<?> path,
+                                       Expression<?> selection,
                                        Field reflectionField,
                                        String stringValue,
                                        Function function) {
@@ -655,28 +653,29 @@ public class Filter<T> implements Specification<T> {
 
         //Если есть функция size или length
 
-        if (Collection.class.isAssignableFrom(reflectionField.getType())) {
+        if (reflectionField != null && Collection.class.isAssignableFrom(reflectionField.getType())) {
             Class<?> elementType = getCollectionElementType(reflectionField);
             if (function != null) {
                 Object[] values = Arrays.stream(stringValues)
                         .map(v -> convertValue(v, elementType))
                         .toArray();
-                return getFunctionPath(cb, path, function).in(values);
+                return getFunctionPath(cb, selection, function).in(values);
             }
 
 
             List<Predicate> predicates = new ArrayList<>();
             for (String strVal : stringValues) {
                 Object val = convertValue(strVal, elementType);
-                predicates.add(cb.isMember(val, (Path<Collection>) path));
+                predicates.add(cb.isMember(val, (Path<Collection>) selection));
             }
             return cb.or(predicates.toArray(new Predicate[0]));
         }
         // Для обычных полей
+        Class<?> fieldType = reflectionField == null ? null : reflectionField.getType();
         Object[] values = Arrays.stream(stringValues)
-                .map(v -> convertValue(v, reflectionField.getType()))
+                .map(v -> convertValue(v, fieldType))
                 .toArray();
-        return path.in(values);
+        return selection.in(values);
     }
 
     public static Class<?> getCollectionElementType(Field field) {
@@ -711,28 +710,32 @@ public class Filter<T> implements Specification<T> {
         }
     }
 
-    private Predicate parseIsPredicate(CriteriaBuilder cb, Expression<?> path, String value) {
+    private Predicate parseIsPredicate(CriteriaBuilder cb, Expression<?> selection, String value) {
         return switch (value) {
-            case "true" -> cb.isTrue(getTypedPath(path, Boolean.class));
-            case "false" -> cb.isFalse(getTypedPath(path, Boolean.class));
-            case "null" -> cb.isNull(path);
-            case "not_null" -> cb.isNotNull(path);
+            case "true" -> cb.isTrue(getTypedExpression(selection, Boolean.class));
+            case "false" -> cb.isFalse(getTypedExpression(selection, Boolean.class));
+            case "null" -> cb.isNull(selection);
+            case "not_null" -> cb.isNotNull(selection);
             default -> throw new IllegalArgumentException("Invalid is-operation value: " + value);
         };
     }
 
-    private Predicate parseEqualPredicate(CriteriaBuilder cb, Expression<?> path, Field reflectionField, String stringValue, Function function) {
-        if (Collection.class.isAssignableFrom(reflectionField.getType())) {
+    private Predicate parseEqualPredicate(CriteriaBuilder cb,
+                                          Expression<?> selection,
+                                          Field reflectionField,
+                                          String stringValue,
+                                          Function function) {
+        if (reflectionField != null && Collection.class.isAssignableFrom(reflectionField.getType())) {
             Object convertedValue = convertValue(stringValue, getCollectionElementType(reflectionField));
             if (function != null) {
                 return switch (function) {
-                    case LENGTH, SIZE -> cb.equal(getFunctionPath(cb, path, function), convertedValue);
+                    case LENGTH, SIZE -> cb.equal(getFunctionPath(cb, selection, function), convertedValue);
                 };
             }
-            return cb.isMember(convertedValue, (Expression<Collection>) path);
+            return cb.isMember(convertedValue, (Expression<Collection>) selection);
         }
-        Object value = convertValue(stringValue, reflectionField.getType());
-        return cb.equal(getFunctionPath(cb, path, function), value);
+        Object value = convertValue(stringValue, reflectionField == null ? null : reflectionField.getType());
+        return cb.equal(getFunctionPath(cb, selection, function), value);
     }
 
     private Expression<?> getFunctionPath(CriteriaBuilder cb, Expression<?> current, Function function) {
@@ -740,32 +743,33 @@ public class Filter<T> implements Specification<T> {
             return current;
         }
         return switch (function) {
-            case LENGTH -> cb.length(getTypedPath(current, String.class));
-            case SIZE -> cb.size(getTypedPath(current, Collection.class));
+            case LENGTH -> cb.length(getTypedExpression(current, String.class));
+            case SIZE -> cb.size(getTypedExpression(current, Collection.class));
         };
 
     }
 
-    private Predicate parseComparisonPredicate(CriteriaBuilder cb, Expression<?> path, String operation,
+    private Predicate parseComparisonPredicate(CriteriaBuilder cb, Expression<?> selection, String operation,
                                                Field reflectionField, String stringValue, Function function) {
-        if (!Comparable.class.isAssignableFrom(reflectionField.getType())
+        if (reflectionField != null && !Comparable.class.isAssignableFrom(reflectionField.getType())
                 && function == null) {
-            throw new IllegalArgumentException("Field " + path + " is not comparable");
+            throw new IllegalArgumentException("Selection attribute " + selection + " is not comparable");
         }
 
-        Expression<Comparable> comparablePath = (Expression<Comparable>) getFunctionPath(cb, path, function);
+        Expression<Comparable> comparablePath = (Expression<Comparable>) getFunctionPath(cb, selection, function);
 
-        if (Collection.class.isAssignableFrom(reflectionField.getType())) {
+        if (reflectionField != null && Collection.class.isAssignableFrom(reflectionField.getType())) {
             Comparable<?> convertedValue = (Comparable<?>) convertValue(stringValue, getCollectionElementType(reflectionField));
             if (function != null) {
                 return switch (function) {
                     case LENGTH, SIZE -> getComparisonPredicate(cb, operation, comparablePath, convertedValue);
                 };
             }
-            return cb.isMember(convertedValue, (Path<Collection>) path);
+            return cb.isMember(convertedValue, (Path<Collection>) selection);
         }
 
-        Comparable<?> value = (Comparable<?>) convertValue(stringValue, reflectionField.getType());
+        Class<?> type = reflectionField == null ? null : reflectionField.getType();
+        Comparable<?> value = (Comparable<?>) convertValue(stringValue, type);
         return getComparisonPredicate(cb, operation, comparablePath, value);
     }
 
@@ -775,16 +779,16 @@ public class Filter<T> implements Specification<T> {
     //region Utility Methods
 
     private Predicate parseNotEqualPredicate(CriteriaBuilder cb,
-                                             Expression<?> path,
+                                             Expression<?> selection,
                                              Class<?> fieldType,
                                              String stringValue,
                                              Function function) {
         Object value = convertValue(stringValue, fieldType);
-        return cb.notEqual(getFunctionPath(cb, path, function), value);
+        return cb.notEqual(getFunctionPath(cb, selection, function), value);
     }
 
-    private Predicate parseLikePredicate(CriteriaBuilder cb, Expression<?> path, String stringValue) {
-        Expression<String> stringPath = getTypedPath(path, String.class);
+    private Predicate parseLikePredicate(CriteriaBuilder cb, Expression<?> selection, String stringValue) {
+        Expression<String> stringPath = getTypedExpression(selection, String.class);
         return cb.like(stringPath, "%" + stringValue + "%");
     }
 
