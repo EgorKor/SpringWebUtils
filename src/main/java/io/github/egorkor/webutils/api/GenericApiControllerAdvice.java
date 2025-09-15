@@ -5,6 +5,7 @@ import io.github.egorkor.webutils.dto.GenericErrorDto;
 import io.github.egorkor.webutils.exception.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -40,6 +41,14 @@ public class GenericApiControllerAdvice {
     }
 
 
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public GenericErrorDto<Void> handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
+        log.warn("HttpMessageNotReadableException: {}", e.getMessage());
+        return GenericErrorDto.<Void>builder()
+                .code(400)
+                .date(LocalDateTime.ofInstant(Instant.now(), ZoneId.of("UTC")).toString())
+                .build();
+    }
 
     @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
     @ExceptionHandler
