@@ -22,7 +22,7 @@ public class SearchRequest {
     static {
         FILTER_PREFIX_MAPPING = new HashMap<>();
         FILTER_PATTERN =
-                Pattern.compile("(like|not_like|gt|lt|ge|le|in|not_in|not_equals|is|is_not):(.*)");
+                Pattern.compile("(contains|not_contains|like|not_like|gt|lt|ge|le|in|not_in|not_equals|is|is_not):(.*)");
         SORT_PARAM = "sort";
         PAGE_PARAM = "page";
         PAGE_SIZE_PARAM = "pageSize";
