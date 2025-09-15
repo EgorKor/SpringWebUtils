@@ -60,4 +60,8 @@ public class DtoMapper {
         return modelMapper.map(dto, destination);
     }
 
+    public <M, D> List<M> toModel(List<D> dtoList, Class<M> destination) {
+        return dtoList.stream().map(o -> modelMapper.map(o, destination)).toList();
+    }
+
 }
