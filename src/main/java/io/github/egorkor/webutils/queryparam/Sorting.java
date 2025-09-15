@@ -56,18 +56,22 @@ public class Sorting {
                 List.of());
     }
 
-    public Sorting withDefault(String field, String order){
+    private <T extends Sorting> T _this(){
+        return (T) this;
+    }
+
+    public <T extends Sorting> T withDefault(String field, String order){
         if(isUnsorted()){
             sort.add("%s:%s".formatted(field, order));
         }
-        return this;
+        return _this();
     }
 
-    public Sorting withDefaultAsc(String field){
+    public <T extends Sorting> T withDefaultAsc(String field){
         return withDefault(field, ASC);
     }
 
-    public Sorting withDefaultDesc(String field){
+    public <T extends Sorting> T withDefaultDesc(String field){
         return withDefault(field, DESC);
     }
 
