@@ -6,6 +6,7 @@ import io.github.egorkor.webutils.exception.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -56,6 +57,17 @@ public class GenericApiControllerAdvice {
         log.warn("Wrong method for url: {}", e.getMessage(), e);
         return GenericErrorDto.<Void>builder()
                 .code(405)
+                .message(e.getMessage())
+                .date(LocalDateTime.ofInstant(Instant.now(), ZoneId.of("UTC")).toString())
+                .build();
+    }
+
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler
+    public GenericErrorDto<Void> handleResourceUniqueException(ResourceUniqueException e) {
+        log.warn("Resource not unique : {}", e.getMessage());
+        return GenericErrorDto.<Void>builder()
+                .code(400)
                 .message(e.getMessage())
                 .date(LocalDateTime.ofInstant(Instant.now(), ZoneId.of("UTC")).toString())
                 .build();
