@@ -412,7 +412,8 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
 
             T saved = transactionTemplate.execute(status -> {
                 try {
-                    return jpaRepository.save(model);
+                    entityManager.persist(model);
+                    return model;
                 } catch (DataAccessException e) {
                     throw new EntityProcessingException("Entity saving data access error",
                             e, entityType, EntityOperation.CREATE);
