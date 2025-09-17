@@ -1,5 +1,6 @@
 package io.github.egorkor.webutils.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Builder;
 import lombok.Data;
 
@@ -12,6 +13,7 @@ import lombok.Data;
 @Builder
 @Data
 public class GenericErrorDto<T> {
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private T error;
     private String message;
     private Integer code;

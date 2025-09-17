@@ -73,6 +73,28 @@ public class GenericApiControllerAdvice {
                 .build();
     }
 
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    @ExceptionHandler
+    public GenericErrorDto<Void> handleAuthenticationException(AuthenticationException e){
+        log.warn("Authentication exception: {}", e.getMessage());
+        return GenericErrorDto.<Void>builder()
+                .code(401)
+                .message(e.getMessage())
+                .date(LocalDateTime.ofInstant(Instant.now(), ZoneId.of("UTC")).toString())
+                .build();
+    }
+
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    @ExceptionHandler
+    public GenericErrorDto<Void> handleAccessDeniedException(AccessDeniedException e) {
+        log.warn("Access denied: {}", e.getMessage());
+        return GenericErrorDto.<Void>builder()
+                .code(403)
+                .message(e.getMessage())
+                .date(LocalDateTime.ofInstant(Instant.now(), ZoneId.of("UTC")).toString())
+                .build();
+    }
+
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler
     public GenericErrorDto<Void> handleInvalidParameterException(InvalidParameterException e) {
