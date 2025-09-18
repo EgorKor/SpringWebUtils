@@ -699,6 +699,7 @@ public class Filter<T> implements Specification<T> {
         return String.class;
     }
 
+    @SneakyThrows
     private Object convertValue(String stringValue, Class<?> targetType) {
         if (stringValue == null) return null;
 
@@ -710,6 +711,7 @@ public class Filter<T> implements Specification<T> {
             if (targetType == Double.class || targetType == double.class) return Double.parseDouble(stringValue);
             if (targetType == Float.class || targetType == float.class) return Float.parseFloat(stringValue);
             if (targetType == Boolean.class || targetType == boolean.class) return Boolean.parseBoolean(stringValue);
+            if (targetType == java.sql.Date.class) return java.sql.Date.valueOf(stringValue);
             if (targetType.isEnum()) return Enum.valueOf((Class<Enum>) targetType, stringValue);
 
             throw new IllegalArgumentException("Unsupported target type: " + targetType.getName());
