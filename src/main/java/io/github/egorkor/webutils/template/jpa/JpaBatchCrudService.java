@@ -74,7 +74,7 @@ public abstract class JpaBatchCrudService<T, ID>
                 try {
                     Set<ConstraintViolation<T>> violations = validator.validate(model);
                     if (!violations.isEmpty()) {
-                        throw new ValidationException(violations);
+                        throw new ValidationException("Entity " + entityType + " validation error",violations);
                     }
                     model = jpaRepository.save(model);
                     BatchResultWithDataImpl<T> result = BatchResultWithDataImpl
@@ -168,7 +168,7 @@ public abstract class JpaBatchCrudService<T, ID>
                 try {
                     Set<ConstraintViolation<T>> violations = validator.validate(model);
                     if (!violations.isEmpty()) {
-                        throw new ValidationException(violations);
+                        throw new ValidationException("Entity " + entityType + " validation error", violations);
                     }
                     model = jpaRepository.save(model);
                     results.add(model);

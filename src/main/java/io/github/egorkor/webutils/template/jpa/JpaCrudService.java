@@ -403,7 +403,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     public T create(@NonNull T model) throws EntityProcessingException {
         Set<ConstraintViolation<T>> violations = validator.validate(model);
         if (!violations.isEmpty()) {
-            throw new ValidationException(violations);
+            throw new ValidationException("Entity " + entityType + " validation error",violations);
         }
         try {
             if (eventPublisher != null) {
@@ -437,7 +437,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     public T fullUpdate(@NonNull T model) throws EntityProcessingException {
         Set<ConstraintViolation<T>> violations = validator.validate(model);
         if (!violations.isEmpty()) {
-            throw new ValidationException(violations);
+            throw new ValidationException("Entity " + entityType + " validation error",violations);
         }
         try {
             if (eventPublisher != null) {
@@ -470,7 +470,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                          @NonNull T model) throws EntityProcessingException {
         Set<ConstraintViolation<T>> violations = validator.validate(model);
         if (!violations.isEmpty()) {
-            throw new ValidationException(violations);
+            throw new ValidationException("Entity " + entityType + " validation error",violations);
         }
         try {
             T dbModel = getById(id);
