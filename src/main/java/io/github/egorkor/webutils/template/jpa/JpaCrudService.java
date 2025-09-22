@@ -433,8 +433,15 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
 
     }
 
+    @SneakyThrows
     @Override
     public T fullUpdate(@NonNull T model) throws EntityProcessingException {
+        ID id = (ID)idField.get(model);
+        if(id == null){
+            throw new EntityProcessingException("Entity" + entityManager + " id is null",
+                    null,
+                    entityType,EntityOperation.UPDATE);
+        }
         Set<ConstraintViolation<T>> violations = validator.validate(model);
         if (!violations.isEmpty()) {
             throw new ValidationException("Entity " + entityType + " validation error",violations);
@@ -445,10 +452,17 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
             }
             T updated = transactionTemplate.execute(status -> {
                 try {
+                    if(entityManager.contains(model)){
+                        return entityManager.merge(model);
+                    }
                     Session session = entityManager.unwrap(Session.class);
+                    T cachedModel = session.get(entityType, id);
+                    if(cachedModel != null){
+                        session.detach(cachedModel);
+                    }
                     session.update(model);
                     return model;
-                } catch (DataAccessException e) {
+                } catch (Exception e) {
                     throw new EntityProcessingException("Entity full updating data access error",
                             e, entityType, EntityOperation.CREATE);
                 }
