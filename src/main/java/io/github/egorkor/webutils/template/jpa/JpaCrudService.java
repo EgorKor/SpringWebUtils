@@ -788,4 +788,9 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
         }
     }
 
+    @Override
+    public T getReference(@NonNull ID id) {
+        return jpaRepository.getReferenceById(id);
+    }
+
 }

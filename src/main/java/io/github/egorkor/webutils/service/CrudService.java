@@ -309,4 +309,10 @@ public interface CrudService<T, ID> {
      * @throws SoftDeleteUnsupportedException если сущность не поддерживает мягкое удаление
      */
     void restoreByFilter(Filter<T> filter) throws SoftDeleteUnsupportedException, EntityProcessingException;
+
+    /**
+     * Получение ссылки на объект БД без загрузки объекта
+     * @param id идентификатор сущности
+     * */
+    T getReference(ID id);
 }
