@@ -211,7 +211,7 @@ public class Filter<T> implements Specification<T> {
         return filter.isEmpty();
     }
 
-    public <R> Filter<R> _and(Filter<R> filter) {
+    public <R extends Filter<?>> R _and(Filter<?> filter) {
         this.filter.addAll(filter.getFilter());
         this.fieldWhiteList.addAll(filter.getFilter()
                 .stream().map(
