@@ -6,7 +6,6 @@ import io.github.egorkor.webutils.exception.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
-import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -75,10 +74,21 @@ public class GenericApiControllerAdvice {
 
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     @ExceptionHandler
-    public GenericErrorDto<Void> handleAuthenticationException(AuthenticationException e){
+    public GenericErrorDto<Void> handleAuthenticationException(AuthenticationException e) {
         log.warn("Authentication exception: {}", e.getMessage());
         return GenericErrorDto.<Void>builder()
                 .code(401)
+                .message(e.getMessage())
+                .date(LocalDateTime.ofInstant(Instant.now(), ZoneId.of("UTC")).toString())
+                .build();
+    }
+
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    @ExceptionHandler
+    public GenericErrorDto<Void> handleTemplateProcessingException(TemplateProcessingException e) {
+        log.error("Template processing exception: {}", e.getMessage(), e);
+        return GenericErrorDto.<Void>builder()
+                .code(500)
                 .message(e.getMessage())
                 .date(LocalDateTime.ofInstant(Instant.now(), ZoneId.of("UTC")).toString())
                 .build();
