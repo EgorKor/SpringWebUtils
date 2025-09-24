@@ -35,9 +35,27 @@ public class JpaEntityPropertyPatcher {
         );
     }
 
+    @SneakyThrows
+    public static <T> void patchIncludeNulls(T source, T target) {
+        Class<?> type = source.getClass();
+        while (type != null && type != Object.class) {
+            for (Field field : getDeclaredFieldsCached(type)) {
+                if (shouldSkipField(field)) {
+                    continue;
+                }
+
+                field.setAccessible(true);
+                Object sourceValue = field.get(source);
+
+                field.set(unproxy(target), unproxy(sourceValue));
+
+            }
+            type = type.getSuperclass();
+        }
+    }
 
     @SneakyThrows
-    public static <T> void patch(T source, T target) {
+    public static <T> void patchIgnoreNulls(T source, T target) {
         Class<?> type = source.getClass();
         while (type != null && type != Object.class) {
             for (Field field : getDeclaredFieldsCached(type)) {

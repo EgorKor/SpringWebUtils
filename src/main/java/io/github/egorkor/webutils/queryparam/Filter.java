@@ -448,7 +448,7 @@ public class Filter<T> implements Specification<T> {
     protected void configureQuery(Root<T> root) {
     }
 
-    public <R> Filter<R> configureQuery(Consumer<Root<T>> queryConfigurer) {
+    public <R extends Filter<?>> R configureQuery(Consumer<Root<T>> queryConfigurer) {
         queryConfigurers.add(queryConfigurer);
         return _this();
     }

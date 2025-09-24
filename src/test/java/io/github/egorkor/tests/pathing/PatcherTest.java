@@ -55,7 +55,7 @@ public class PatcherTest {
         TestEntity source = new TestEntity("source", 10, true);
         TestEntity target = new TestEntity("target", 20, false);
 
-        JpaEntityPropertyPatcher.patch(source, target);
+        JpaEntityPropertyPatcher.patchIgnoreNulls(source, target);
 
         assertEquals("source", target.name);
         assertEquals(10, target.value);
@@ -67,7 +67,7 @@ public class PatcherTest {
         TestEntity source = new TestEntity(null, 0, false);
         TestEntity target = new TestEntity("target", 0, false);
 
-        JpaEntityPropertyPatcher.patch(source, target);
+        JpaEntityPropertyPatcher.patchIgnoreNulls(source, target);
 
         assertEquals("target", target.name); // name should not be updated to null
     }
@@ -77,7 +77,7 @@ public class PatcherTest {
         TestEntity source = new TestEntity("source", 0, false);
         TestEntity target = new TestEntity("target", 10, true);
 
-        JpaEntityPropertyPatcher.patch(source, target);
+        JpaEntityPropertyPatcher.patchIgnoreNulls(source, target);
 
         assertEquals(0, target.value); // primitive should be updated even if source is 0
     }
@@ -87,7 +87,7 @@ public class PatcherTest {
         ChildEntity source = new ChildEntity("child", 5, false, "childProp");
         ChildEntity target = new ChildEntity("parent", 10, true, "targetProp");
 
-        JpaEntityPropertyPatcher.patch(source, target);
+        JpaEntityPropertyPatcher.patchIgnoreNulls(source, target);
 
         assertEquals("child", target.name);
         assertEquals(5, target.value);
@@ -129,7 +129,7 @@ public class PatcherTest {
         TestEntity target = new TestEntity("target", 2, false);
         target.id = 200L;
 
-        JpaEntityPropertyPatcher.patch(source, target);
+        JpaEntityPropertyPatcher.patchIgnoreNulls(source, target);
 
         assertEquals(200L, target.id); // id should not be updated
     }
@@ -141,7 +141,7 @@ public class PatcherTest {
         TestEntity target = new TestEntity("target", 2, false);
         target.version = 200L;
 
-        JpaEntityPropertyPatcher.patch(source, target);
+        JpaEntityPropertyPatcher.patchIgnoreNulls(source, target);
 
         assertEquals(200L, target.version); // version should not be updated
     }
@@ -151,7 +151,7 @@ public class PatcherTest {
         // First call should populate cache
         TestEntity source = new TestEntity("source", 1, true);
         TestEntity target = new TestEntity("target", 2, false);
-        JpaEntityPropertyPatcher.patch(source, target);
+        JpaEntityPropertyPatcher.patchIgnoreNulls(source, target);
 
         // Verify cache was populated
         assertFalse(JpaEntityPropertyPatcher.getFieldCache().isEmpty());

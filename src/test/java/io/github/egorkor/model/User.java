@@ -37,7 +37,7 @@ public class User {
     private LocalDateTime updatedAt;
     @SoftDeleteFlag
     private LocalDateTime deletedAt;
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "user")
     private List<Order> orders = new ArrayList<>();
 
 

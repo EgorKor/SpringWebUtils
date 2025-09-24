@@ -452,14 +452,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
             }
             T updated = transactionTemplate.execute(status -> {
                 try {
-                    if(entityManager.contains(model)){
-                        return entityManager.merge(model);
-                    }
                     Session session = entityManager.unwrap(Session.class);
-                    T cachedModel = session.get(entityType, id);
-                    if(cachedModel != null){
-                        session.detach(cachedModel);
-                    }
                     session.update(model);
                     return model;
                 } catch (Exception e) {
@@ -491,7 +484,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
             if (eventPublisher != null) {
                 eventPublisher.publishEvent(new EntityUpdatingEvent<>(this, dbModel));
             }
-            JpaEntityPropertyPatcher.patch(model, dbModel);
+            JpaEntityPropertyPatcher.patchIgnoreNulls(model, dbModel);
             T updated = transactionTemplate.execute(status -> {
                 try {
                     return jpaRepository.save(dbModel);
