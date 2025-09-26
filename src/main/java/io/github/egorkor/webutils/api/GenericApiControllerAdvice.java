@@ -5,8 +5,8 @@ import io.github.egorkor.webutils.dto.GenericErrorDto;
 import io.github.egorkor.webutils.exception.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.converter.HttpMessageNotReadableException;
-import org.springframework.web.HttpRequestMethodNotSupportedException;
+//import org.springframework.http.converter.HttpMessageNotReadableException;
+//import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -40,17 +40,7 @@ public class GenericApiControllerAdvice {
                 .build();
     }
 
-
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public GenericErrorDto<Void> handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
-        log.warn("HttpMessageNotReadableException: {}", e.getMessage());
-        return GenericErrorDto.<Void>builder()
-                .code(400)
-                .date(LocalDateTime.ofInstant(Instant.now(), ZoneId.of("UTC")).toString())
-                .build();
-    }
-
-    @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
+    /*@ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
     @ExceptionHandler
     public GenericErrorDto<Void> handleHttpRequestMethodNotSupported(HttpRequestMethodNotSupportedException e) {
         log.warn("Wrong method for url: {}", e.getMessage(), e);
@@ -59,7 +49,7 @@ public class GenericApiControllerAdvice {
                 .message(e.getMessage())
                 .date(LocalDateTime.ofInstant(Instant.now(), ZoneId.of("UTC")).toString())
                 .build();
-    }
+    }*/
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler

@@ -18,6 +18,12 @@ public class ValidationException extends RuntimeException {
     private final Layer layer;
 
 
+    public ValidationException(String message) {
+        super(message);
+        this.errors = new HashMap<>();
+        this.layer = Layer.CONTROLLER;
+    }
+
     public ValidationException(String message, Map<String, List<String>> errors) {
         super(message);
         this.errors = errors;
