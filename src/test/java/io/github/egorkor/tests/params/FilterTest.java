@@ -54,7 +54,7 @@ public class FilterTest {
     @Test
     void testFilterJPA1() {
         Filter<TestEntity> filter = new Filter<>(TestEntity.class);
-        filter.setFilter(
+        filter.setOperations(
                 List.of(
                         "id:=:10", "name:like:some name", "isDeleted:is:true"
                 )
@@ -69,7 +69,7 @@ public class FilterTest {
     @Test
     void testFilterJPA2() {
         Filter<TestNestedEntity> filter = new Filter<>(TestNestedEntity.class);
-        filter.setFilter(
+        filter.setOperations(
                 List.of("parent.id:=:10")
         );
         CriteriaBuilder cb = em.getCriteriaBuilder();
@@ -90,7 +90,7 @@ public class FilterTest {
     @Test
     void testFilterSQL1() {
         Filter<TestEntity> filter = new Filter<>(TestEntity.class);
-        filter.setFilter(
+        filter.setOperations(
                 List.of(
                         "id:=:10", "name:like:%some name!%"
                 )
@@ -105,7 +105,7 @@ public class FilterTest {
     @Test
     void testFilterSQL2() {
         Filter<TestNestedEntity> filter = new Filter<>(TestNestedEntity.class);
-        filter.setFilter(
+        filter.setOperations(
                 List.of("id:!=:10", "id:is:not_null")
         );
         System.out.println(filter.toSQLFilter());
@@ -118,7 +118,7 @@ public class FilterTest {
     @Test
     void testFilterSQL3() {
         Filter<TestNestedEntity> filter = new Filter<>(TestNestedEntity.class);
-        filter.setFilter(
+        filter.setOperations(
                 List.of("id:IN:10;15;23")
         );
         System.out.println(filter.toSQLFilter());

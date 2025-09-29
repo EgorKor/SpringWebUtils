@@ -307,7 +307,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                                      @NonNull Sorting sorting,
                                      @NonNull Pagination pagination) {
         filter.setEntityType(entityType);
-        Filter<T> countFilter = new Filter<>(filter.getFilter());
+        Filter<T> countFilter = new Filter<>(filter.getOperations());
         return PageableResult.of(jpaSpecificationExecutor.findAll(getSoftDeleteSupportedFilter(filter),
                 getSoftDeleteSupportedFilter(countFilter),
                 pagination.toJpaPageable(sorting)));
@@ -322,7 +322,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                         + id
                         + " not found.");
         boolean isDeleted = false;
-        Filter<T> idFilter = fb.and(fb.equals(idField.getName(), id.toString())).build();
+        Filter<T> idFilter = fb.buildAnd(fb.equals(idField.getName(), id.toString())).build();
         idFilter.setEntityType(entityType);
         return !isSoftDeleteSupported ?
                 jpaRepository.findById(id)
@@ -340,7 +340,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                         + " with id = "
                         + id
                         + " not found.");
-        Filter<T> baseIdFilter = fb.and(fb.equals(idField.getName(), id.toString())).build();
+        Filter<T> baseIdFilter = fb.buildAnd(fb.equals(idField.getName(), id.toString())).build();
         Filter<T> resultIdFilter = getSoftDeleteSupportedFilter(baseIdFilter);
         Arrays.stream(fetchingProperties).forEach(resultIdFilter::withFetchJoin);
 
@@ -369,7 +369,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     @Override
     public T getByIdWithLock(@NonNull ID id,
                              @NonNull LockModeType lockType) throws ResourceNotFoundException {
-        Filter<T> idFilter = fb.and(fb.equals(idField.getName(), id.toString())).build();
+        Filter<T> idFilter = fb.buildAnd(fb.equals(idField.getName(), id.toString())).build();
         idFilter.setEntityType(entityType);
         return getByFilterWithLock(idFilter, lockType);
     }
@@ -571,7 +571,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     @Override
     public boolean existsById(@NonNull ID id) {
         return !isSoftDeleteSupported ? jpaRepository.existsById(id) :
-                existsByFilter(fb.and(fb.equals(idField.getName(), id.toString())).build());
+                existsByFilter(fb.buildAnd(fb.equals(idField.getName(), id.toString())).build());
     }
 
     @Override

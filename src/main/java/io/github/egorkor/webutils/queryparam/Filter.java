@@ -2,20 +2,29 @@ package io.github.egorkor.webutils.queryparam;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.github.egorkor.webutils.annotations.FieldParamMapping;
+import io.github.egorkor.webutils.queryparam.filterInternal.*;
 import io.github.egorkor.webutils.queryparam.utils.FieldTypeUtils;
-import io.github.egorkor.webutils.queryparam.utils.ParamValidationUtils;
 import jakarta.persistence.criteria.*;
-import lombok.*;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.SneakyThrows;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static io.github.egorkor.webutils.queryparam.filterInternal.FilterOperation.*;
 
 /**
  * Параметр запроса для фильтрации запрашиваемых ресурсов.
@@ -106,14 +115,17 @@ import java.util.regex.Pattern;
 @ToString
 public class Filter<T> implements Specification<T> {
     public final static FilterBuilder fb = new FilterBuilder();
-    private static final Set<String> NO_MAPPING_OPERATORS
-            = Set.of("<", "<=", "=", ">=", ">");
-    private static final Set<String> BASIC_OPERATORS
-            = Set.of("<", "<=", "=", ">=", ">", "<>");
+    private static final Set<FilterOperation> NO_MAPPING_OPERATORS
+            = Set.of(LS, LSE, EQUALS, GT, GTE);
+    private static final Set<FilterOperation> BASIC_OPERATORS
+            = Set.of(LS, LSE, EQUALS, GT, GTE, NOT_EQUALS);
     public static final Pattern FUNCTION_PATTERN = Pattern.compile("(.*)\\.(length\\(\\)|size\\(\\))");
     public static final Pattern CONCAT_FUNCTION_PATTERN = Pattern.compile("concat\\((.*)\\)");
     public static final Pattern TO_CHAR_FUNCTION_PATTERN = Pattern.compile("to_char\\((.*);'(.*)'\\)");
-    protected List<String> filter;
+    public static final DateTimeFormatter DATE_TIME_FORMATTER = new DateTimeFormatterBuilder()
+            .appendPattern("yyyy-MM-dd")
+            .toFormatter();
+    protected List<FilterBasicOperation> operations;
     protected Class<?> entityType;
     protected List<Consumer<Root<T>>> queryConfigurers = new ArrayList<>();
     @JsonIgnore
@@ -122,22 +134,22 @@ public class Filter<T> implements Specification<T> {
     private List<String> fetchingProperties = new ArrayList<>();
 
     public Filter() {
-        this.filter = new ArrayList<>();
+        this.operations = new ArrayList<>();
         determineEntityType();
     }
 
-    public Filter(List<String> filter) {
-        this.filter = new ArrayList<>(filter);
+    public Filter(List<FilterBasicOperation> operations) {
+        this.operations = new ArrayList<>(operations);
         determineEntityType();
     }
 
     public Filter(Class<T> entityType) {
         this.entityType = entityType;
-        this.filter = new ArrayList<>();
+        this.operations = new ArrayList<>();
     }
 
-    public Filter(List<String> filter, Class<?> entityType) {
-        this.filter = filter;
+    public Filter(List<FilterBasicOperation> operations, Class<?> entityType) {
+        this.operations = operations;
         this.entityType = entityType;
     }
 
@@ -166,13 +178,13 @@ public class Filter<T> implements Specification<T> {
 
     public static <T extends Filter<?>> T softDeleteFilter(String fieldName, Class<?> fieldType, boolean isDeleted) {
         T filter = (T) new Filter<>();
-        List<String> filterList = new ArrayList<>();
+        List<FilterBasicOperation> filterList = new ArrayList<>();
         if (fieldType.equals(Boolean.class) || fieldType.equals(boolean.class)) {
-            filterList.add("%s:is:%s".formatted(fieldName, isDeleted));
+            filterList.add(new FilterBasicOperation(fieldName, IS, isDeleted));
         } else {
-            filterList.add("%s:is:%s".formatted(fieldName, isDeleted ? "not_null" : "null"));
+            filterList.add(new FilterBasicOperation(fieldName, IS, isDeleted ? Is.NOT_NULL : Is.NULL));
         }
-        filter.setFilter(filterList);
+        filter.setOperations(filterList);
         return filter;
     }
 
@@ -185,14 +197,14 @@ public class Filter<T> implements Specification<T> {
     }
 
     private static Predicate getComparisonPredicate(CriteriaBuilder cb,
-                                                    String operation,
+                                                    FilterOperation operation,
                                                     Expression<Comparable> comparableSelection,
                                                     Comparable value) {
         return switch (operation) {
-            case ">" -> cb.greaterThan(comparableSelection, value);
-            case "<" -> cb.lessThan(comparableSelection, value);
-            case ">=" -> cb.greaterThanOrEqualTo(comparableSelection, value);
-            case "<=" -> cb.lessThanOrEqualTo(comparableSelection, value);
+            case GT -> cb.greaterThan(comparableSelection, value);
+            case LS -> cb.lessThan(comparableSelection, value);
+            case GTE -> cb.greaterThanOrEqualTo(comparableSelection, value);
+            case LSE -> cb.lessThanOrEqualTo(comparableSelection, value);
             default -> throw new IllegalArgumentException("Invalid comparison operation: " + operation);
         };
     }
@@ -202,21 +214,22 @@ public class Filter<T> implements Specification<T> {
     }
 
     public boolean isFiltered() {
-        return !filter.isEmpty();
+        return !operations.isEmpty();
     }
 
     //region SQL Native Mapping
 
     public boolean isUnfiltered() {
-        return filter.isEmpty();
+        return operations.isEmpty();
     }
 
     public <R extends Filter<?>> R _and(Filter<?> filter) {
-        this.filter.addAll(filter.getFilter());
-        this.fieldWhiteList.addAll(filter.getFilter()
-                .stream().map(
-                        s -> validateAndSplitFilter(s)[0]
-                ).toList());
+        this.operations.addAll(filter.getOperations());
+        this.fieldWhiteList.addAll(
+                filter.getOperations()
+                        .stream()
+                        .map(FilterBasicOperation::field)
+                        .toList());
         return _this();
     }
 
@@ -227,73 +240,37 @@ public class Filter<T> implements Specification<T> {
     public String toSQLFilter(String prefix) {
         checkAllowedFilterFields();
         mapFilterByAllies();
-        if (filter.isEmpty()) {
+        if (operations.isEmpty()) {
             return "";
         }
         StringBuilder sb = new StringBuilder();
-        for (int filterIndex = 0; filterIndex < filter.size() - 1; filterIndex++) {
+        for (int filterIndex = 0; filterIndex < operations.size() - 1; filterIndex++) {
             if (sb.isEmpty()) {
                 sb.append("WHERE ");
             }
-            String[] orFilters = filter.get(filterIndex).split(":or:");
-            for (int orFilterIndex = 0; orFilterIndex < orFilters.length; orFilterIndex++) {
-                sb.append(parseCondition(orFilters[orFilterIndex], prefix));
-                if (orFilterIndex < orFilters.length - 1) {
-                    sb.append(" OR ");
-                }
-            }
+            sb.append(parseCondition(operations.get(filterIndex), prefix));
             sb.append(" AND ");
         }
-        if (sb.isEmpty() && !filter.isEmpty()) {
+        if (sb.isEmpty() && !operations.isEmpty()) {
             sb.append("WHERE ");
-        }
-        String[] orFilters = filter.getLast().split(":or:");
-        for (int orFilterIndex = 0; orFilterIndex < orFilters.length; orFilterIndex++) {
-            sb.append(parseCondition(orFilters[orFilterIndex], prefix));
-            if (orFilterIndex < orFilters.length - 1) {
-                sb.append(" OR ");
-            }
+            sb.append(parseCondition(operations.getLast(), prefix));
         }
         return sb.toString().trim();
     }
 
-    private String parseCondition(String filter, String prefix) {
-        String[] parts = validateAndSplitFilter(filter);
-        String field = validateFieldName(parts[0]);
-        String operation = mapOperation(parts[1].toLowerCase());
-        String value = parts[2];
+    private String parseCondition(FilterBasicOperation op, String prefix) {
+        String field = op.field();
+        FilterOperation operation = op.operation();
+        Object value = op.value();
 
         return switch (operation) {
-            case "=", "<>", ">", "<", ">=", "<=" -> buildBasicCondition(prefix + field, operation);
-            case "IS" -> buildIsCondition(prefix + field, value);
-            case "LIKE" -> buildLikeCondition(prefix + field, false);
-            case "NOT LIKE" -> buildLikeCondition(prefix + field, true);
-            case "NOT IN" -> buildInCondition(prefix + field, value, true);
-            case "IN" -> buildInCondition(prefix + field, value, false);
-            default -> throw new IllegalArgumentException("Invalid operation: " + operation);
+            case EQUALS, NOT_EQUALS, GT, GTE, LS, LSE -> buildBasicCondition(prefix + field, operation);
+            case IS -> buildIsCondition(prefix + field, (Is) value);
+            case CONTAINS, NOT_LIKE -> buildLikeCondition(prefix + field, false);
+            case NOT_CONTAINS, LIKE -> buildLikeCondition(prefix + field, true);
+            case NOT_IN -> buildInCondition(prefix + field, (List<Object>) value, true);
+            case IN -> buildInCondition(prefix + field, (List<Object>) value, false);
         };
-    }
-
-    private String[] validateAndSplitFilter(String filter) {
-        String[] parts = filter.split(":");
-        if (parts.length == 3) {
-            return parts;
-        }
-        if (parts.length < 3) {
-            throw new IllegalArgumentException("Invalid filter format");
-        }
-        String[] newParts = new String[3];
-        newParts[0] = validateFieldName(parts[0]);
-        newParts[1] = parts[1];
-        newParts[2] = "";
-        for (int i = 2; i < parts.length; i++) {
-            newParts[2] += parts[i];
-            if (i != parts.length - 1) {
-                newParts[2] += ":";
-            }
-        }
-
-        return newParts;
     }
 
     private String validateFieldName(String field) {
@@ -303,7 +280,7 @@ public class Filter<T> implements Specification<T> {
         return field;
     }
 
-    private String buildBasicCondition(String field, String operator) {
+    private String buildBasicCondition(String field, FilterOperation operator) {
         if (!BASIC_OPERATORS.contains(operator)) {
             throw new IllegalArgumentException("Invalid operator");
         }
@@ -311,25 +288,17 @@ public class Filter<T> implements Specification<T> {
     }
     //endregion
 
-    private String buildIsCondition(String field, String value) {
+    private String buildIsCondition(String field, Is value) {
         return switch (value) {
-            case "true" -> field + " = true";
-            case "false" -> field + " = false";
-            case "null" -> field + " IS NULL";
-            case "not_null" -> field + " IS NOT NULL";
-            default -> throw new IllegalArgumentException("Invalid IS value");
+            case TRUE -> field + " = true";
+            case FALSE -> field + " = false";
+            case NULL -> field + " IS NULL";
+            case NOT_NULL -> field + " IS NOT NULL";
         };
     }
 
     private String buildLikeCondition(String field, boolean not) {
         return "%s %sLIKE ? ESCAPE '!'".formatted(field, not ? "NOT " : "");
-    }
-
-    private String escapeLikeValue(String value) {
-        return value.replace("!", "!!")
-                .replace("%", "!%")
-                .replace("_", "!_")
-                .replace("[", "![");
     }
 
     /**
@@ -339,24 +308,7 @@ public class Filter<T> implements Specification<T> {
     public Object[] getFilterValues() {
         List<Object> values = new ArrayList<>();
 
-        for (String filter : this.filter) {
-            String[] parts = validateAndSplitFilter(filter);
-            String operation = parts[1].toLowerCase();
-            String value = parts[2];
-
-            switch (operation) {
-                case "like", "not_like":
-                    values.add("%" + escapeLikeValue(value) + "%");
-                    break;
-                case "in", "not_in":
-                    Collections.addAll(values, parseInValues(value));
-                    break;
-                case "is":
-                    continue;
-                default:
-                    values.add(parseValue(value, operation));
-            }
-        }
+        //TODO
 
         return values.toArray();
     }
@@ -388,24 +340,23 @@ public class Filter<T> implements Specification<T> {
         };
     }
 
-    private String buildInCondition(String field, String value, boolean not) {
-        String[] values = value.split(";");
-        String placeholders = String.join(",", Collections.nCopies(values.length, "?"));
+    private String buildInCondition(String field, List<Object> values, boolean not) {
+        String placeholders = String.join(",", Collections.nCopies(values.size(), "?"));
         return String.format("%s %sIN (%s)", field, not ? "NOT " : "", placeholders);
     }
 
-    private String mapOperation(String operation) {
+    private String mapOperation(FilterOperation operation) {
         if (NO_MAPPING_OPERATORS.contains(operation)) {
-            return operation;
+            return operation.getOperation();
         }
-        return switch (operation.toLowerCase()) {
-            case "!=" -> "<>";
-            case "like" -> "LIKE";
-            case "not_like" -> "NOT LIKE";
-            case "in" -> "IN";
-            case "not_in" -> "NOT IN";
-            case "is" -> "IS";
-            default -> throw new IllegalArgumentException("Invalid filter operation: " + filter);
+        return switch (operation) {
+            case NOT_EQUALS -> "<>";
+            case LIKE, CONTAINS -> "LIKE";
+            case NOT_LIKE, NOT_CONTAINS -> "NOT LIKE";
+            case IN -> "IN";
+            case NOT_IN -> "NOT IN";
+            case IS -> "IS";
+            default -> operation.getOperation();
         };
     }
 
@@ -427,15 +378,12 @@ public class Filter<T> implements Specification<T> {
             queryConfigurers.forEach(c -> c.accept(root));
         }
         Map<String, List<Predicate>> predicates = new HashMap<>();
-        filter.forEach(f -> {
-            String[] filters = f.split(";or;");
-            for (String filter : filters) {
-                String field = validateAndSplitFilter(filter)[0];
-                if (predicates.containsKey(field)) {
-                    predicates.get(field).add(parsePredicate(filter, root, cb));
-                } else {
-                    predicates.put(field, new ArrayList<>(List.of(parsePredicate(filter, root, cb))));
-                }
+        operations.forEach(f -> {
+            Predicate predicate = parsePredicate(f, root, cb);
+            if (predicates.containsKey(f.field())) {
+                predicates.get(f.field()).add(predicate);
+            } else {
+                predicates.put(f.field(), new ArrayList<>(List.of(predicate)));
             }
         });
         return collectPredicates(cb, predicates);
@@ -486,55 +434,55 @@ public class Filter<T> implements Specification<T> {
     }
 
     public static <T> Filter<T> equals(String field, Object value) {
-        return fb.and(fb.equals(field, value)).build();
+        return fb.buildAnd(fb.equals(field, value));
     }
 
     public static <T> Filter<T> notEquals(String field, Object value) {
-        return fb.and(fb.notEquals(field, value)).build();
+        return fb.buildAnd(fb.notEquals(field, value));
     }
 
     public static <T> Filter<T> contains(String field, String value) {
-        return fb.and(fb.like(field, value)).build();
+        return fb.buildAnd(fb.like(field, value));
     }
 
     public static <T> Filter<T> notContains(String field, String value) {
-        return fb.and(fb.notLike(field, value)).build();
+        return fb.buildAnd(fb.notLike(field, value));
     }
 
-    public static <T> Filter<T> like(String field, String value){
-        return fb.and(fb.like(field, value)).build();
+    public static <T> Filter<T> like(String field, String value) {
+        return fb.buildAnd(fb.like(field, value));
     }
 
     public static <T> Filter<T> notLike(String field, String value) {
-        return fb.and(fb.notLike(field, value)).build();
+        return fb.buildAnd(fb.notLike(field, value));
     }
 
     public static <T> Filter<T> is(String field, Is value) {
-        return fb.and(fb.is(field, value)).build();
+        return fb.buildAnd(fb.is(field, value));
     }
 
     public static <T> Filter<T> in(String field, Object... values) {
-        return fb.and(fb.in(field, values)).build();
+        return fb.buildAnd(fb.in(field, values));
     }
 
     public static <T> Filter<T> notIn(String field, Object... values) {
-        return fb.and(fb.notIn(field, values)).build();
+        return fb.buildAnd(fb.notIn(field, values));
     }
 
     public static <T> Filter<T> greaterThan(String field, Comparable<?> value) {
-        return fb.and(fb.greater(field, value)).build();
+        return fb.buildAnd(fb.greater(field, value));
     }
 
     public static <T> Filter<T> greaterThanOrEqual(String field, Comparable<?> value) {
-        return fb.and(fb.greater(field, value)).build();
+        return fb.buildAnd(fb.greater(field, value));
     }
 
     public static <T> Filter<T> lessThan(String field, Comparable<?> value) {
-        return fb.and(fb.less(field, value)).build();
+        return fb.buildAnd(fb.less(field, value));
     }
 
     public static <T> Filter<T> lessThanOrEqual(String field, Comparable<?> value) {
-        return fb.and(fb.lessOrEquals(field, value)).build();
+        return fb.buildAnd(fb.lessOrEquals(field, value));
     }
 
 
@@ -545,19 +493,18 @@ public class Filter<T> implements Specification<T> {
                 .toList().toArray(new Predicate[0]));
     }
 
-    private Predicate parsePredicate(String filter,
+    private Predicate parsePredicate(FilterBasicOperation filter,
                                      Root<T> root,
                                      CriteriaBuilder cb) {
-        String[] parts = validateAndSplitFilter(filter);
 
-        String field = parts[0];
-        String operation = parts[1].toLowerCase();
-        String stringValue = parts[2];
+
+        String field = filter.field();
+        Object value = filter.value();
+        FilterOperation operation = filter.operation();
 
         Function function = null;
-
         Matcher functionMatcher = FUNCTION_PATTERN.matcher(field);
-        if(functionMatcher.matches()){
+        if (functionMatcher.matches()) {
             String functionStr = functionMatcher.group(2);
             function = Function.parseByOperation(functionStr);
             field = field.substring(0, field.lastIndexOf(functionStr) - 1);
@@ -568,19 +515,19 @@ public class Filter<T> implements Specification<T> {
         Class<?> fieldType = reflectionField != null ? reflectionField.getType() : null;
 
         try {
+
             return switch (operation) {
-                case "is" -> parseIsPredicate(cb, selection, stringValue);
-                case "=" -> parseEqualPredicate(cb, selection, reflectionField, stringValue, function);
-                case ">", "<", ">=", "<=" ->
-                        parseComparisonPredicate(cb, selection, operation, reflectionField, stringValue, function);
-                case "!=" -> parseNotEqualPredicate(cb, selection, fieldType, stringValue, function);
-                case "contains" -> parseContainsPredicate(cb, selection, stringValue);
-                case "not_contains" -> cb.not(parseContainsPredicate(cb, selection, stringValue));
-                case "like" -> parseLikePredicate(cb, selection, stringValue);
-                case "not_like" -> cb.not(parseLikePredicate(cb, selection, stringValue));
-                case "in" -> parseInPredicate(cb, selection, reflectionField, stringValue, function);
-                case "not_in" -> cb.not(parseInPredicate(cb, selection, reflectionField, stringValue, function));
-                default -> throw new IllegalArgumentException("Invalid filter operation: " + operation);
+                case IS -> parseIsPredicate(cb, selection, (Is) value);
+                case EQUALS -> parseEqualPredicate(cb, selection, reflectionField, value, function);
+                case GT, LS, GTE, LSE ->
+                        parseComparisonPredicate(cb, selection, operation, reflectionField, value, function);
+                case NOT_EQUALS -> parseNotEqualPredicate(cb, selection, fieldType, value, function);
+                case CONTAINS -> parseContainsPredicate(cb, selection, value.toString());
+                case NOT_CONTAINS -> cb.not(parseContainsPredicate(cb, selection, value.toString()));
+                case LIKE -> parseLikePredicate(cb, selection, value.toString());
+                case NOT_LIKE -> cb.not(parseLikePredicate(cb, selection, value.toString()));
+                case IN -> parseInPredicate(cb, selection, reflectionField, (List<Object>) value, function);
+                case NOT_IN -> cb.not(parseInPredicate(cb, selection, reflectionField, (List<Object>) value, function));
             };
         } catch (Exception e) {
             throw new IllegalArgumentException(
@@ -657,16 +604,16 @@ public class Filter<T> implements Specification<T> {
     private Predicate parseInPredicate(CriteriaBuilder cb,
                                        Expression<?> selection,
                                        Field reflectionField,
-                                       String stringValue,
+                                       List<Object> inValues,
                                        Function function) {
-        String[] stringValues = stringValue.split(";");
 
         //Если есть функция size или length
 
         if (reflectionField != null && Collection.class.isAssignableFrom(reflectionField.getType())) {
             Class<?> elementType = getCollectionElementType(reflectionField);
             if (function != null) {
-                Object[] values = Arrays.stream(stringValues)
+                Object[] values = inValues
+                        .stream()
                         .map(v -> convertValue(v, elementType))
                         .toArray();
                 return getFunctionPath(cb, selection, function).in(values);
@@ -674,15 +621,15 @@ public class Filter<T> implements Specification<T> {
 
 
             List<Predicate> predicates = new ArrayList<>();
-            for (String strVal : stringValues) {
-                Object val = convertValue(strVal, elementType);
+            for (Object inValue : inValues) {
+                Object val = convertValue(inValue, elementType);
                 predicates.add(cb.isMember(val, (Path<Collection>) selection));
             }
             return cb.or(predicates.toArray(new Predicate[0]));
         }
         // Для обычных полей
         Class<?> fieldType = reflectionField == null ? null : reflectionField.getType();
-        Object[] values = Arrays.stream(stringValues)
+        Object[] values = inValues.stream()
                 .map(v -> convertValue(v, fieldType))
                 .toArray();
         return selection.in(values);
@@ -700,18 +647,33 @@ public class Filter<T> implements Specification<T> {
     }
 
     @SneakyThrows
-    private Object convertValue(String stringValue, Class<?> targetType) {
-        if (stringValue == null) return null;
-
+    private Object convertValue(Object value, Class<?> targetType) {
+        if (value == null) return null;
+        if (value.getClass().equals(targetType)) {
+            return value;
+        }
+        if (value.getClass() != String.class) {
+            throw new IllegalArgumentException("Cannot map value due to value type %s and target type %s"
+                    .formatted(value.getClass().getSimpleName(), targetType.getSimpleName()));
+        }
+        String stringValue = value.toString();
         try {
-            if (targetType == null) return stringValue;
-            if (targetType == String.class) return stringValue;
+            if (targetType == null) return value;
             if (targetType == Integer.class || targetType == int.class) return Integer.parseInt(stringValue);
             if (targetType == Long.class || targetType == long.class) return Long.parseLong(stringValue);
             if (targetType == Double.class || targetType == double.class) return Double.parseDouble(stringValue);
             if (targetType == Float.class || targetType == float.class) return Float.parseFloat(stringValue);
             if (targetType == Boolean.class || targetType == boolean.class) return Boolean.parseBoolean(stringValue);
-            if (targetType == java.sql.Date.class) return java.sql.Date.valueOf(stringValue);
+            if (targetType == java.sql.Date.class)
+                return java.sql.Date.valueOf(LocalDate.parse(stringValue, DATE_TIME_FORMATTER));
+            if (targetType == LocalDate.class) return LocalDate.parse(stringValue, DATE_TIME_FORMATTER);
+            if (targetType == LocalDateTime.class) {
+                try {
+                    return LocalDateTime.parse(stringValue, DATE_TIME_FORMATTER);
+                } catch (Exception e) {
+                    return LocalDateTime.parse(stringValue);
+                }
+            }
             if (targetType.isEnum()) return Enum.valueOf((Class<Enum>) targetType, stringValue);
 
             throw new IllegalArgumentException("Unsupported target type: " + targetType.getName());
@@ -722,23 +684,22 @@ public class Filter<T> implements Specification<T> {
         }
     }
 
-    private Predicate parseIsPredicate(CriteriaBuilder cb, Expression<?> selection, String value) {
+    private Predicate parseIsPredicate(CriteriaBuilder cb, Expression<?> selection, Is value) {
         return switch (value) {
-            case "true" -> cb.isTrue(getTypedExpression(selection, Boolean.class));
-            case "false" -> cb.isFalse(getTypedExpression(selection, Boolean.class));
-            case "null" -> cb.isNull(selection);
-            case "not_null" -> cb.isNotNull(selection);
-            default -> throw new IllegalArgumentException("Invalid is-operation value: " + value);
+            case TRUE -> cb.isTrue(getTypedExpression(selection, Boolean.class));
+            case FALSE -> cb.isFalse(getTypedExpression(selection, Boolean.class));
+            case NULL -> cb.isNull(selection);
+            case NOT_NULL -> cb.isNotNull(selection);
         };
     }
 
     private Predicate parseEqualPredicate(CriteriaBuilder cb,
                                           Expression<?> selection,
                                           Field reflectionField,
-                                          String stringValue,
+                                          Object value,
                                           Function function) {
         if (reflectionField != null && Collection.class.isAssignableFrom(reflectionField.getType())) {
-            Object convertedValue = convertValue(stringValue, getCollectionElementType(reflectionField));
+            Object convertedValue = convertValue(value, getCollectionElementType(reflectionField));
             if (function != null) {
                 return switch (function) {
                     case LENGTH, SIZE -> cb.equal(getFunctionPath(cb, selection, function), convertedValue);
@@ -746,7 +707,7 @@ public class Filter<T> implements Specification<T> {
             }
             return cb.isMember(convertedValue, (Expression<Collection>) selection);
         }
-        Object value = convertValue(stringValue, reflectionField == null ? null : reflectionField.getType());
+        value = convertValue(value, reflectionField == null ? null : reflectionField.getType());
         return cb.equal(getFunctionPath(cb, selection, function), value);
     }
 
@@ -761,8 +722,12 @@ public class Filter<T> implements Specification<T> {
 
     }
 
-    private Predicate parseComparisonPredicate(CriteriaBuilder cb, Expression<?> selection, String operation,
-                                               Field reflectionField, String stringValue, Function function) {
+    private Predicate parseComparisonPredicate(CriteriaBuilder cb,
+                                               Expression<?> selection,
+                                               FilterOperation operation,
+                                               Field reflectionField,
+                                               Object value,
+                                               Function function) {
         if (reflectionField != null && !Comparable.class.isAssignableFrom(reflectionField.getType())
                 && function == null) {
             throw new IllegalArgumentException("Selection attribute " + selection + " is not comparable");
@@ -771,7 +736,7 @@ public class Filter<T> implements Specification<T> {
         Expression<Comparable> comparablePath = (Expression<Comparable>) getFunctionPath(cb, selection, function);
 
         if (reflectionField != null && Collection.class.isAssignableFrom(reflectionField.getType())) {
-            Comparable<?> convertedValue = (Comparable<?>) convertValue(stringValue, getCollectionElementType(reflectionField));
+            Comparable<?> convertedValue = (Comparable<?>) convertValue(value, getCollectionElementType(reflectionField));
             if (function != null) {
                 return switch (function) {
                     case LENGTH, SIZE -> getComparisonPredicate(cb, operation, comparablePath, convertedValue);
@@ -781,8 +746,8 @@ public class Filter<T> implements Specification<T> {
         }
 
         Class<?> type = reflectionField == null ? null : reflectionField.getType();
-        Comparable<?> value = (Comparable<?>) convertValue(stringValue, type);
-        return getComparisonPredicate(cb, operation, comparablePath, value);
+        Comparable<?> comparableValue = (Comparable<?>) convertValue(value, type);
+        return getComparisonPredicate(cb, operation, comparablePath, comparableValue);
     }
 
     //endregion
@@ -793,9 +758,9 @@ public class Filter<T> implements Specification<T> {
     private Predicate parseNotEqualPredicate(CriteriaBuilder cb,
                                              Expression<?> selection,
                                              Class<?> fieldType,
-                                             String stringValue,
+                                             Object value,
                                              Function function) {
-        Object value = convertValue(stringValue, fieldType);
+        value = convertValue(value, fieldType);
         return cb.notEqual(getFunctionPath(cb, selection, function), value);
     }
 
@@ -831,228 +796,22 @@ public class Filter<T> implements Specification<T> {
         if (this.getClass() == Filter.class) {
             return;
         }
-        ParamValidationUtils.mapParamsByFilter(filter, this.getClass(),
-                this::validateAndSplitFilter);
+        //TODO починить
+
+        //ParamValidationUtils.mapParamsByFilter(operations, this.getClass());
     }
 
     private void checkAllowedFilterFields() {
         if (this.getClass() == Filter.class) {
             return;
         }
-        ParamValidationUtils.validateAllowedParams(filter, this.getClass(),
-                ParamValidationUtils.ParamType.FILTER, this::validateAndSplitFilter, fieldWhiteList);
+        //TODO починить
+
+        /*ParamValidationUtils.validateAllowedParams(operations, this.getClass(),
+                ParamValidationUtils.ParamType.FILTER, fieldWhiteList);*/
     }
 
     //endregion
 
-
-    //region NestedTypes
-    @Getter
-    @AllArgsConstructor
-    public enum Function {
-        LENGTH("length()"),
-        SIZE("size()");
-
-
-        private final String function;
-
-        public static Function parseByOperation(String operation) {
-            for (Function func : values()) {
-                if (operation.equals(func.function)) {
-                    return func;
-                }
-            }
-            throw new IllegalArgumentException("Illegal operation: " + operation);
-        }
-    }
-
-    @Getter
-    @AllArgsConstructor
-    public enum Is {
-        TRUE("true"),
-        FALSE("false"),
-        NULL("null"),
-        NOT_NULL("not_null");
-
-        private final String value;
-    }
-
-
-    @Getter
-    @AllArgsConstructor
-    public enum FilterOperation {
-        EQUALS("="),
-        NOT_EQUALS("!="),
-        GT(">"),
-        GTE(">="),
-        LS("<"),
-        LSE("<="),
-        LIKE("like"),
-        IS("is"),
-        IN("in"),
-        CONTAINS("contains"),
-        NOT_CONTAINS("not_contains"),
-        NOT_LIKE("not_like"),
-        NOT_IN("not_in");
-
-
-        private final String operation;
-    }
-
-    public interface FilterUnit {
-        String toStringFilter();
-    }
-
-    public interface BuildableOperation {
-        <T> Filter<T> build();
-
-        <T> Filter<T> build(Class<?> entityType);
-
-        <R extends Filter> R buildDerived(Class<R> resultType);
-    }
-
-    public static class FilterBuilder {
-
-        public FilterUnit equals(String field, Object value) {
-            return new BasicOperation(field, FilterOperation.EQUALS, value);
-        }
-
-        public FilterUnit notEquals(String field, Object value) {
-            return new BasicOperation(field, FilterOperation.NOT_EQUALS, value);
-        }
-
-        public FilterUnit less(String field, Comparable<?> value) {
-            return new BasicOperation(field, FilterOperation.LS, value);
-        }
-
-        public FilterUnit lessOrEquals(String field, Comparable<?> value) {
-            return new BasicOperation(field, FilterOperation.LSE, value);
-        }
-
-        public FilterUnit greater(String field, Comparable<?> value) {
-            return new BasicOperation(field, FilterOperation.GT, value);
-        }
-
-        public FilterUnit greaterOrEquals(String field, Comparable<?> value) {
-            return new BasicOperation(field, FilterOperation.GTE, value);
-        }
-
-        public FilterUnit like(String field, String value) {
-            return new BasicOperation(field, FilterOperation.LIKE, value);
-        }
-
-        public FilterUnit contains(String field, String value) {
-            return new BasicOperation(field, FilterOperation.CONTAINS, value);
-        }
-
-        public FilterUnit notContains(String field, String value) {
-            return new BasicOperation(field, FilterOperation.NOT_CONTAINS, value);
-        }
-
-        public FilterUnit in(String field, Object... values) {
-            return new BasicOperation(field, FilterOperation.IN, String.join(";", Arrays.stream(values).map(Object::toString).toList()));
-        }
-
-        public FilterUnit in(String field, Collection<Object> values) {
-            return new BasicOperation(field, FilterOperation.IN, String.join(";", values.stream().map(Object::toString).toList()));
-        }
-
-        public FilterUnit is(String field, Is value) {
-            return new BasicOperation(field, FilterOperation.IS, value.getValue());
-        }
-
-        public FilterUnit notLike(String field, String value) {
-            return new BasicOperation(field, FilterOperation.NOT_LIKE, value);
-        }
-
-        public FilterUnit notIn(String field, Object... values) {
-            return new BasicOperation(field, FilterOperation.NOT_IN, String.join(";", Arrays.stream(values).map(Object::toString).toList()));
-        }
-
-        public BuildableOperation or(FilterUnit... units) {
-            return new OrOperation(Arrays.asList(units));
-        }
-
-        public BuildableOperation and(FilterUnit... units) {
-            return new AndOperation(Arrays.asList(units));
-        }
-
-    }
-
-    public abstract static class BuildableFilterOperation {
-        public <T> Filter<T> build() {
-            return build(null);
-        }
-
-        public <T> Filter<T> build(Class<?> entityType) {
-
-            return new Filter<>(
-                    new ArrayList<>(getFilters().stream()
-                            .map(FilterUnit::toStringFilter).toList()), entityType
-            );
-        }
-
-        @SneakyThrows
-        public <R extends Filter> R buildDerived(Class<R> resultType) {
-
-            R derivedFilter = resultType.getDeclaredConstructor().newInstance();
-            derivedFilter.setFilter(
-                    new ArrayList<>(getFilters().stream()
-                            .map(FilterUnit::toStringFilter).toList()));
-            return derivedFilter;
-        }
-
-        protected abstract List<FilterUnit> getFilters();
-    }
-
-    protected static class BasicOperation implements FilterUnit {
-        private final String field;
-        private final FilterOperation operation;
-        private final Object value;
-
-        public BasicOperation(String field, FilterOperation operation, Object value) {
-            this.field = field;
-            this.operation = operation;
-            this.value = value;
-        }
-
-        public String toStringFilter() {
-            return "%s:%s:%s".formatted(field, operation.getOperation(), value);
-        }
-    }
-
-    protected static class OrOperation extends BuildableFilterOperation implements BuildableOperation, FilterUnit {
-        private final List<FilterUnit> filterUnits;
-
-        public OrOperation(List<FilterUnit> filterUnits) {
-            this.filterUnits = filterUnits;
-        }
-
-        @Override
-        public String toStringFilter() {
-            return String.join(":or:", filterUnits.stream().map(FilterUnit::toStringFilter).toList());
-        }
-
-        @Override
-        protected List<FilterUnit> getFilters() {
-            return filterUnits;
-        }
-    }
-
-    protected static class AndOperation extends BuildableFilterOperation implements BuildableOperation {
-        private final List<FilterUnit> filterUnits;
-
-        public AndOperation(List<FilterUnit> filterUnits) {
-            this.filterUnits = filterUnits;
-        }
-
-        @Override
-        protected List<FilterUnit> getFilters() {
-            return filterUnits;
-        }
-    }
-
-
-    //endregion
 
 }

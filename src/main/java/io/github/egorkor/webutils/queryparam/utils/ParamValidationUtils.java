@@ -3,6 +3,7 @@ package io.github.egorkor.webutils.queryparam.utils;
 import io.github.egorkor.webutils.annotations.FieldParamMapping;
 import io.github.egorkor.webutils.annotations.ParamCountLimit;
 import io.github.egorkor.webutils.exception.InvalidParameterException;
+import io.github.egorkor.webutils.queryparam.filterInternal.FilterBasicOperation;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -36,10 +37,10 @@ public class ParamValidationUtils {
                 "Illegal filter params: " + set);
     }
 
-    public static void validateAllowedParams(List<String> params,
+    public static void validateAllowedParams(List<Object> params,
                                              Class<?> paramsClass,
                                              ParamType paramType,
-                                             Function<String, String[]> validationFunc,
+                                             Function<Object, String> paramNameExtractor,
                                              List<String> whiteList) {
         ParamCountLimit limit;
         if ((limit = paramsClass.getAnnotation(ParamCountLimit.class)) != null
@@ -48,16 +49,9 @@ public class ParamValidationUtils {
             throw new InvalidParameterException(LIMIT_ERRORS.get(paramType).apply(params.size(), params.size()));
         }
 
-        Set<String> paramsNames = params.stream().flatMap(
-                s -> {
-                    String[] orOperators = s.split(":or:");
-                    List<String> fields = new ArrayList<>();
-                    for (String orOperator : orOperators) {
-                        fields.add(validationFunc.apply(orOperator)[0]);
-                    }
-                    return fields.stream();
-                }
-        ).collect(Collectors.toSet());
+        Set<String> paramsNames = params.stream()
+                .map(paramNameExtractor)
+                .collect(Collectors.toSet());
 
         Set<String> allowedFields = Arrays.stream(paramsClass.getDeclaredFields())
                 .map(f -> {
@@ -79,9 +73,8 @@ public class ParamValidationUtils {
     }
 
     public static void mapParamsByFilter(
-            List<String> params,
-            Class<?> paramsClass,
-            Function<String, String[]> validationFunc) {
+            List<FilterBasicOperation> params,
+            Class<?> paramsClass) {
         Field[] fields = paramsClass.getDeclaredFields();
         for (Field field : fields) {
             FieldParamMapping fieldParamMapping = field.getAnnotation(FieldParamMapping.class);
@@ -95,14 +88,15 @@ public class ParamValidationUtils {
             String regexSafeFieldName = Pattern.quote(fieldName);
 
             for (int i = 0; i < params.size(); i++) {
-                String[] orOperators = params.get(i).split(":or:");
-                for (String orFieldName : orOperators) {
-                    String filterFieldName = validationFunc.apply(orFieldName)[0];
-                    if (fieldName.equals(filterFieldName)) {
-                        params.set(i, params.get(i)
-                                .replaceFirst(regexSafeFieldName, alliesName));
-                    }
+                FilterBasicOperation op = params.get(i);
+
+                if (fieldName.equals(op.field())) {
+                    params.set(i, new FilterBasicOperation(
+                            op.field().replaceFirst(regexSafeFieldName, alliesName),
+                            op.operation(),
+                            op.value()));
                 }
+
             }
         }
     }

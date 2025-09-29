@@ -14,18 +14,16 @@ import jakarta.persistence.EntityManagerFactory;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.transaction.BeforeTransaction;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static io.github.egorkor.webutils.queryparam.Filter.fb;
@@ -103,7 +101,7 @@ public class UserServiceTests {
     @Test
     public void softDeleteByFilter() {
         stats.setStatisticsEnabled(true);
-        userService.softDeleteByFilter(fb.and(fb.greater("id", "30"))
+        userService.softDeleteByFilter(fb.buildAnd(fb.greater("id", "30"))
                 .build());
         var res = userService.getPage(Filter.empty(), Sorting.unsorted(), Pagination.unpaged());
         assertEquals(2, stats.getPrepareStatementCount());
@@ -114,12 +112,12 @@ public class UserServiceTests {
     @Test
     public void recoverByFilter() {
         stats.setStatisticsEnabled(true);
-        userService.softDeleteByFilter(fb.and(
+        userService.softDeleteByFilter(fb.buildAnd(
                 fb.lessOrEquals("id", "10")
         ).build());
         var res = userService.getPage(Filter.empty(), Sorting.unsorted(), Pagination.unpaged());
         assertEquals(res.getData().size(), 40);
-        userService.restoreByFilter(fb.and(
+        userService.restoreByFilter(fb.buildAnd(
                 fb.lessOrEquals("id", "5")
         ).build());
         res = userService.getPage(Filter.empty(), Sorting.unsorted(), Pagination.unpaged());
@@ -143,6 +141,12 @@ public class UserServiceTests {
                 Sorting.unsorted(), Pagination.of(0, 10)).getData();
         stats.setStatisticsEnabled(false);
         assertEquals(1, stats.getPrepareStatementCount());
+    }
+
+    @Test
+    public void testFilterWithLocalDateTime(){
+        userService.getList(Filter.greaterThan("createdAt", "2025-09-28"));
+        userService.getList(Filter.greaterThan("updatedAt", LocalDateTime.now()));
     }
 
 //    @Transactional(propagation = Propagation.NEVER)

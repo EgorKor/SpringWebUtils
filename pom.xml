@@ -6,7 +6,7 @@
 
     <groupId>io.github.egorkor</groupId>
     <artifactId>webutils</artifactId>
-    <version>1.0.3-SNAPSHOT</version>
+    <version>1.0.4-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <properties>

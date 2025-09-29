@@ -42,7 +42,7 @@ public class FilterTest2 {
     void testConstructorWithFilterList() {
         List<String> filters = List.of("name:like:John", "age:>:30");
         Filter<TestEntity> filter = new Filter<>(filters);
-        assertEquals(2, filter.getFilter().size());
+        assertEquals(2, filter.getOperations().size());
     }
 
     @Test
@@ -63,7 +63,7 @@ public class FilterTest2 {
         Filter<TestEntity> filter2 = new Filter<>(List.of("age:>:30"));
 
         Filter<TestEntity> result = filter1._and(filter2);
-        assertEquals(2, result.getFilter().size());
+        assertEquals(2, result.getOperations().size());
     }
 
     @Test
@@ -191,8 +191,8 @@ public class FilterTest2 {
         Field field = getField(TestEntity.class, "active");
         Filter<TestEntity> filter = Filter.softDeleteFilter(field, true);
 
-        assertEquals(1, filter.getFilter().size());
-        assertTrue(filter.getFilter().get(0).contains("active:is:true"));
+        assertEquals(1, filter.getOperations().size());
+        assertTrue(filter.getOperations().get(0).contains("active:is:true"));
     }
 
     @Test
@@ -210,14 +210,14 @@ public class FilterTest2 {
 
     @Test
     void testFilterBuilder() {
-        Filter<TestEntity> filter = fb.and(
+        Filter<TestEntity> filter = fb.buildAnd(
                 fb.equals("name", "John"),
                 fb.greater("age", "30")
         ).build();
 
-        assertEquals(2, filter.getFilter().size());
-        assertTrue(filter.getFilter().get(0).contains("name:=:John"));
-        assertTrue(filter.getFilter().get(1).contains("age:>:30"));
+        assertEquals(2, filter.getOperations().size());
+        assertTrue(filter.getOperations().get(0).contains("name:=:John"));
+        assertTrue(filter.getOperations().get(1).contains("age:>:30"));
     }
 
     private Field getField(Class<?> clazz, String fieldName) {

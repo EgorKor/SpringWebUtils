@@ -81,7 +81,7 @@ public class SearchRequestTest {
                         "name.length():<=:10",
                         "name.length():!=:10"),
 
-                filter.getFilter());
+                filter.getOperations());
     }
 
     @Test
@@ -106,7 +106,7 @@ public class SearchRequestTest {
                 .build();
         FilterParams filterParams = searchRequest.getFilter();
         assertIterableEquals(List.of("name:=:Egor","value:like:Egor"),
-                filterParams.getFilter());
+                filterParams.getOperations());
         assertThrows(InvalidParameterException.class, () -> filterParams.toSQLFilter());
     }
 

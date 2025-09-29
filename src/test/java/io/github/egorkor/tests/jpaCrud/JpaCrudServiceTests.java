@@ -13,6 +13,7 @@ import io.github.egorkor.webutils.exception.ResourceNotFoundException;
 import io.github.egorkor.webutils.queryparam.Filter;
 import io.github.egorkor.webutils.queryparam.Pagination;
 import io.github.egorkor.webutils.queryparam.Sorting;
+import io.github.egorkor.webutils.queryparam.filterInternal.Is;
 import io.github.egorkor.webutils.service.PageableResult;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Assertions;
@@ -76,7 +77,7 @@ public class JpaCrudServiceTests {
 
     @Test
     public void shouldThrowExceedLimitParametersCountExceptionForFilter() {
-        UserFilter filter = fb.and(
+        UserFilter filter = fb.buildAnd(
                         fb.equals("id", "1"),
                         fb.equals("orders_name", "name"))
                 .buildDerived(UserFilter.class);
@@ -105,7 +106,7 @@ public class JpaCrudServiceTests {
     public void shouldCorrectMapIsTrue() {
         Assertions.assertEquals(1, testEntityService
                 .countByFilter(
-                        fb.and(fb.is("flag", Filter.Is.TRUE)).build()
+                        fb.buildAnd(fb.is("flag", Is.TRUE))
                 ));
     }
 
@@ -113,7 +114,7 @@ public class JpaCrudServiceTests {
     public void shouldCorrectMapIsFalse() {
         Assertions.assertEquals(1, testEntityService
                 .countByFilter(
-                        fb.and(fb.is("flag", Filter.Is.FALSE)).build()
+                        fb.buildAnd(fb.is("flag", Is.FALSE))
                 ));
     }
 
@@ -121,9 +122,9 @@ public class JpaCrudServiceTests {
     public void shouldCorrectMapIsNull() {
         Assertions.assertEquals(1, testEntityService
                 .countByFilter(
-                        fb.and(
-                                fb.is("nullableProperty", Filter.Is.NULL)
-                        ).build()
+                        fb.buildAnd(
+                                fb.is("nullableProperty", Is.NULL)
+                        )
                 ));
     }
 
@@ -131,9 +132,9 @@ public class JpaCrudServiceTests {
     public void shouldCorrectMapIsNotNull() {
         Assertions.assertEquals(1, testEntityService
                 .countByFilter(
-                        fb.and(
-                                fb.is("nullableProperty", Filter.Is.NOT_NULL)
-                        ).build()
+                        fb.buildAnd(
+                                fb.is("nullableProperty", Is.NOT_NULL)
+                        )
                 ));
     }
 
@@ -142,9 +143,9 @@ public class JpaCrudServiceTests {
     public void shouldCorrectMapInOperationWithList() {
         Assertions.assertEquals(
                 1, testEntityService.countByFilter(
-                        fb.and(
+                        fb.buildAnd(
                                 fb.in("tags", "tag1")
-                        ).build())
+                        ))
         );
     }
 
@@ -152,9 +153,9 @@ public class JpaCrudServiceTests {
     public void shouldCorrectMapInOperationWithEnumList() {
         Assertions.assertEquals(
                 2, testEntityService.countByFilter(
-                        fb.and(
+                        fb.buildAnd(
                                 fb.in("enumTags", "TAG1")
-                        ).build()
+                        )
                 )
         );
     }
@@ -163,9 +164,9 @@ public class JpaCrudServiceTests {
     public void shouldCorrectMapInOperationWithIntegerList() {
         Assertions.assertEquals(
                 2, testEntityService.countByFilter(
-                        fb.and(
+                        fb.buildAnd(
                                 fb.in("nums", "1", "2")
-                        ).build()
+                        )
                 )
         );
     }
@@ -196,7 +197,7 @@ public class JpaCrudServiceTests {
 
     @Test
     public void shouldNotFoundAfterSoftDeleteWithFilter() {
-        Filter filter = fb.and(
+        Filter filter = fb.buildAnd(
                 fb.equals("name", "some name")
         ).build();
         testEntityService.deleteByFilter(filter);
@@ -215,7 +216,7 @@ public class JpaCrudServiceTests {
     public void shouldParseSizeFunctionForEquals() {
         Assertions.assertEquals(
                 testEntityService.countByFilter(
-                        fb.and(
+                        fb.buildAnd(
                                 fb.equals("nums.size()", "2")
                         ).build()
                 ), 1
@@ -226,7 +227,7 @@ public class JpaCrudServiceTests {
     public void shouldParseSizeFunctionForCompare() {
         Assertions.assertEquals(
                 testEntityService.countByFilter(
-                        fb.and(fb.greaterOrEquals("nums.size()", "2"))
+                        fb.buildAnd(fb.greaterOrEquals("nums.size()", "2"))
                                 .build()
                 ), 2
         );
@@ -236,7 +237,7 @@ public class JpaCrudServiceTests {
     public void shouldParseLengthFunctionForEquals() {
         Assertions.assertEquals(
                 testEntityService.countByFilter(
-                        fb.and(fb.equals("name.length()", "4"))
+                        fb.buildAnd(fb.equals("name.length()", "4"))
                                 .build()), 1
         );
     }
@@ -245,7 +246,7 @@ public class JpaCrudServiceTests {
     public void shouldParseLengthFunctionForCompare() {
         Assertions.assertEquals(
                 testEntityService.countByFilter(
-                        fb.and(fb.greaterOrEquals("name.length()", "5"))
+                        fb.buildAnd(fb.greaterOrEquals("name.length()", "5"))
                                 .build()), 1
         );
     }

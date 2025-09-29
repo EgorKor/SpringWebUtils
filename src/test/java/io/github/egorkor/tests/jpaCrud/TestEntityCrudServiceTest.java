@@ -295,7 +295,7 @@ public class TestEntityCrudServiceTest {
     @Test
     @Sql(scripts = "/insert-test-data.sql")
     void getByFilterWithLock_shouldReturnEntity() throws ResourceNotFoundException {
-        Filter<TestEntity> filter = fb.and(
+        Filter<TestEntity> filter = fb.buildAnd(
                         fb.equals("id", "1"))
                 .build();
         TestEntity result = crudService.getByFilterWithLock(filter, LockModeType.PESSIMISTIC_WRITE);
@@ -403,7 +403,7 @@ public class TestEntityCrudServiceTest {
     @Sql(scripts = "/insert-test-data.sql")
     void getByFilter_shouldReturnEntityWithMatchingName() throws ResourceNotFoundException, NonUniqueResultException {
         Filter<TestEntity> filter =
-                fb.and(fb.like("name", "Test Entity")).build();
+                fb.buildAnd(fb.like("name", "Test Entity")).build();
 
         TestEntity result = crudService.getByFilter(filter);
 

@@ -57,7 +57,7 @@ public class SqlMappingTest {
         List<String> filters = new ArrayList<>();
         filters.add("id:=:1");
         filters.add("name:like:some name");
-        filter.setFilter(filters);
+        filter.setOperations(filters);
         filter._and(Filter.softDeleteFilter("is_deleted", Boolean.class, false));
 
         Sorting sorting = new Sorting();

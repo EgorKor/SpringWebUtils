@@ -1,5 +1,6 @@
 package io.github.egorkor.webutils.queryparam;
 
+import io.github.egorkor.webutils.queryparam.filterInternal.FilterBasicOperation;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.SneakyThrows;
@@ -86,7 +87,7 @@ public class SearchRequest {
     @SneakyThrows
     private <F extends Filter> F parseFilter(MultiValueMap<String, String> params, Class<F> filterClass) {
         F filterObject = filterClass.getDeclaredConstructor().newInstance();
-        List<String> filters = new ArrayList<>();
+        List<FilterBasicOperation> filters = new ArrayList<>();
         for (var entry : params.entrySet()) {
             if (NON_FILTER_KEYS.contains(entry.getKey())) {
                 continue;
@@ -95,12 +96,12 @@ public class SearchRequest {
                 filters.add(parseFilter(entry.getKey(), value));
             }
         }
-        filterObject.setFilter(filters);
+        filterObject.setOperations(filters);
         return filterObject;
     }
 
 
-    private String parseFilter(String param, String value) {
+    private FilterBasicOperation parseFilter(String param, String value) {
         String operation = "=";
         String pureValue = value;
 
