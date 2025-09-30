@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import static io.github.egorkor.webutils.queryparam.Filter.fb;
+import static io.github.egorkor.webutils.service.UpdateSpecification.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DataJpaTest
@@ -72,9 +73,10 @@ public class TestEntityCrudServiceTest {
                 .build();
         testEntityManager.persist(entity);
 
-        UpdateSpecification spec = new UpdateSpecification.UpdateSpecificationBuilder()
+        UpdateSpecification spec = /*new UpdateSpecification.UpdateSpecificationBuilder()
                 .updateValue("name", "New Name")
-                .build();
+                .update();*/
+                updateValue("name", "New Name");
 
         // Act
         int updatedCount = crudService.updateByFilter(spec, Filter.empty());
@@ -96,9 +98,7 @@ public class TestEntityCrudServiceTest {
                 .build();
         testEntityManager.persist(entity);
 
-        UpdateSpecification spec = new UpdateSpecification.UpdateSpecificationBuilder()
-                .plus("nullableProperty", 10)
-                .build();
+        UpdateSpecification spec = plus("nullableProperty", 10);
 
         // Act
         int updatedCount = crudService.updateByFilter(spec, Filter.empty());
@@ -120,9 +120,10 @@ public class TestEntityCrudServiceTest {
                 .build();
         testEntityManager.persist(entity);
 
-        UpdateSpecification spec = new UpdateSpecification.UpdateSpecificationBuilder()
+        UpdateSpecification spec = /*new UpdateSpecification.UpdateSpecificationBuilder()
                 .concat("name", "_Suffix")
-                .build();
+                .update();*/
+                concat("name", "_Suffix");
 
         // Act
         int updatedCount = crudService.updateByFilter(spec, Filter.empty());
@@ -144,9 +145,11 @@ public class TestEntityCrudServiceTest {
                 .build();
         testEntityManager.persist(entity);
 
-        UpdateSpecification spec = new UpdateSpecification.UpdateSpecificationBuilder()
-                .upperCase("name")
-                .build();
+        UpdateSpecification spec = /*new UpdateSpecification.UpdateSpecificationBuilder()
+                .toUpperCase("name")
+                .update();*/
+                toUpperCase("name");
+
         // Act
         int updatedCount = crudService.updateByFilter(spec, Filter.empty());
         testEntityManager.flush();
@@ -168,9 +171,10 @@ public class TestEntityCrudServiceTest {
                 .build();
         testEntityManager.persist(entity);
 
-        UpdateSpecification spec = new UpdateSpecification.UpdateSpecificationBuilder()
+        UpdateSpecification spec = /*new UpdateSpecification.UpdateSpecificationBuilder()
                 .copyValue("name", "copyField")
-                .build();
+                .update();*/
+                copyValue("name", "copyField");
 
         // Act
         int updatedCount = crudService.updateByFilter(spec, Filter.empty());
@@ -195,11 +199,11 @@ public class TestEntityCrudServiceTest {
                 .build();
         testEntityManager.persist(entity);
 
-        UpdateSpecification spec = new UpdateSpecification.UpdateSpecificationBuilder()
-                .updateValue("flag", true)
-                .plus("nullableProperty", 5)
-                .concat("name", "_updated")
-                .build();
+        UpdateSpecification spec = ub.update(
+                ub.updateValue("flag", true),
+                ub.plus("nullableProperty", 5),
+                ub.concat("name", "_updated"));
+
 
         // Act
         int updatedCount = crudService.updateByFilter(spec, Filter.empty());
@@ -224,9 +228,10 @@ public class TestEntityCrudServiceTest {
                 .build();
         testEntityManager.persist(entity);
 
-        UpdateSpecification spec = new UpdateSpecification.UpdateSpecificationBuilder()
+        UpdateSpecification spec = /*new UpdateSpecification.UpdateSpecificationBuilder()
                 .updateValue("isDeleted", true)
-                .build();
+                .update();*/
+                updateValue("isDeleted", true);
 
         // Act
         int updatedCount = crudService.updateByFilter(spec, Filter.empty());
@@ -296,7 +301,7 @@ public class TestEntityCrudServiceTest {
     @Sql(scripts = "/insert-test-data.sql")
     void getByFilterWithLock_shouldReturnEntity() throws ResourceNotFoundException {
         Filter<TestEntity> filter = fb.and(
-                        fb.equals("id", "1"));
+                fb.equals("id", "1"));
         TestEntity result = crudService.getByFilterWithLock(filter, LockModeType.PESSIMISTIC_WRITE);
         assertNotNull(result);
     }

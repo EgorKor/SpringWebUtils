@@ -4,15 +4,17 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
 public class UpdateSpecification {
-    private Map<String, UpdatePair> updates = new HashMap<>();
-
+    private Map<String, UpdateUnit> updates = new HashMap<>();
+    public static UpdateSpecificationBuilder ub = new UpdateSpecificationBuilder();
 
     public enum Action {
         UPDATE,
@@ -29,226 +31,173 @@ public class UpdateSpecification {
 
 
     public static UpdateSpecification updateValue(String field, Object value) {
-        return UpdateSpecification.builder()
-                .updateValue(field, value)
-                .build();
+        return ub.update(ub.updateValue(field, value));
     }
 
     public static UpdateSpecification setNull(String field) {
-        return UpdateSpecification.builder()
-                .setNull(field)
-                .build();
+        return ub.update(ub.setNull(field));
     }
 
     public static UpdateSpecification plus(String field, Byte value) {
-        return UpdateSpecification.builder()
-                .plus(field, value)
-                .build();
+        return ub.update(ub.plus(field, value));
     }
 
     public static UpdateSpecification plus(String field, Short value) {
-        return UpdateSpecification.builder()
-                .plus(field, value)
-                .build();
+        return ub.update(ub.plus(field, value));
     }
 
     public static UpdateSpecification plus(String field, Integer value) {
-        return UpdateSpecification.builder()
-                .plus(field, value)
-                .build();
+        return ub.update(ub.plus(field, value));
     }
 
     public static UpdateSpecification plus(String field, Long value) {
-        return UpdateSpecification.builder()
-                .plus(field, value)
-                .build();
+        return ub.update(ub.plus(field, value));
     }
 
     public static UpdateSpecification plus(String field, Float value) {
-        return UpdateSpecification.builder()
-                .plus(field, value)
-                .build();
+        return ub.update(ub.plus(field, value));
     }
 
     public static UpdateSpecification plus(String field, Double value) {
-        return UpdateSpecification.builder()
-                .plus(field, value)
-                .build();
+        return ub.update(ub.plus(field, value));
     }
 
     public static UpdateSpecification minus(String field, Byte value) {
-        return UpdateSpecification.builder()
-                .minus(field, value)
-                .build();
+        return ub.update(ub.minus(field, value));
     }
 
     public static UpdateSpecification minus(String field, Short value) {
-        return UpdateSpecification.builder()
-                .minus(field, value)
-                .build();
+        return ub.update(ub.minus(field, value));
     }
 
     public static UpdateSpecification minus(String field, Integer value) {
-        return UpdateSpecification.builder()
-                .minus(field, value)
-                .build();
+        return ub.update(ub.minus(field, value));
     }
 
     public static UpdateSpecification minus(String field, Long value) {
-        return UpdateSpecification.builder()
-                .minus(field, value)
-                .build();
+        return ub.update(ub.minus(field, value));
     }
 
     public static UpdateSpecification minus(String field, Float value) {
-        return UpdateSpecification.builder()
-                .minus(field, value)
-                .build();
+        return ub.update(ub.minus(field, value));
     }
 
     public static UpdateSpecification minus(String field, Double value) {
-        return UpdateSpecification.builder()
-                .minus(field, value)
-                .build();
+        return ub.update(ub.minus(field, value));
     }
 
-    public static UpdateSpecification concat(String field, String value){
-        return UpdateSpecification.builder()
-                .concat(field, value)
-                .build();
+    public static UpdateSpecification concat(String field, String value) {
+        return ub.update(ub.concat(field, value));
     }
 
-    public static UpdateSpecification truncateTime(String field){
-        return UpdateSpecification.builder()
-                .truncateTime(field)
-                .build();
+    public static UpdateSpecification truncateTime(String field) {
+        return ub.update(ub.truncateTime(field));
     }
 
-    public static UpdateSpecification addDays(String field, Integer days){
-        return UpdateSpecification.builder()
-                .addDays(field, days)
-                .build();
+    public static UpdateSpecification addDays(String field, Integer days) {
+        return ub.update(ub.addDays(field, days));
     }
 
-    public static UpdateSpecification toUpperCase(String field){
-        return UpdateSpecification.builder()
-                .upperCase(field)
-                .build();
+    public static UpdateSpecification toUpperCase(String field) {
+        return ub.update(ub.toUpperCase(field));
     }
 
-    public static UpdateSpecification toLowerCase(String field){
-        return UpdateSpecification.builder()
-                .lowerCase(field)
-                .build();
+    public static UpdateSpecification toLowerCase(String field) {
+        return ub.update(ub.toLowerCase(field));
+    }
+
+    public static UpdateSpecification copyValue(String from, String to) {
+        return ub.update(ub.copyValue(from, to));
     }
 
 
-
-    public record UpdatePair(Action action, Object data) {
+    public record UpdateUnit(String field, Action action, Object data) {
     }
 
-    public static UpdateSpecificationBuilder builder() {
-        return new UpdateSpecificationBuilder();
-    }
 
     public static class UpdateSpecificationBuilder {
-        private final Map<String, UpdatePair> updates = new HashMap<>();
 
-        public UpdateSpecificationBuilder setNull(String field) {
-            updates.put(field, new UpdatePair(Action.UPDATE, null));
-            return this;
+        public UpdateUnit setNull(String field) {
+            return new UpdateUnit(field, Action.UPDATE, null);
         }
 
-        public UpdateSpecificationBuilder updateValue(String field, Object value) {
-            updates.put(field, new UpdatePair(Action.UPDATE, value));
-            return this;
+        public UpdateUnit updateValue(String field, Object value) {
+            return new UpdateUnit(field, Action.UPDATE, value);
         }
 
-        public UpdateSpecificationBuilder multiply(String field, Number value) {
-            updates.put(field, new UpdatePair(Action.MULTIPLY, value));
-            return this;
+        public UpdateUnit multiply(String field, Number value) {
+            return new UpdateUnit(field, Action.MULTIPLY, value);
         }
 
-        public UpdateSpecificationBuilder divide(String field, Number value) {
-            updates.put(field, new UpdatePair(Action.DIVIDE, value));
-            return this;
+        public UpdateUnit divide(String field, Number value) {
+            return new UpdateUnit(field, Action.DIVIDE, value);
         }
 
-        public UpdateSpecificationBuilder increment(String field) {
+        public UpdateUnit increment(String field) {
             return plus(field, 1);
         }
 
-        public UpdateSpecificationBuilder decrement(String field) {
+        public UpdateUnit decrement(String field) {
             return minus(field, 1);
         }
 
-        public UpdateSpecificationBuilder copyValue(String fromField, String toField) {
-            updates.put(toField, new UpdatePair(Action.COPY, fromField));
-            return this;
+        public UpdateUnit copyValue(String fromField, String toField) {
+            return new UpdateUnit(toField, Action.COPY, fromField);
         }
 
-        public UpdateSpecificationBuilder plus(String field, Number value) {
-            updates.put(field, new UpdatePair(Action.SUM, value));
-            return this;
+        public UpdateUnit plus(String field, Number value) {
+            return new UpdateUnit(field, Action.SUM, value);
         }
 
-        public UpdateSpecificationBuilder minus(String field, Float value) {
-            updates.put(field, new UpdatePair(Action.SUM, -value));
-            return this;
+        public UpdateUnit minus(String field, Float value) {
+            return new UpdateUnit(field, Action.SUM, -value);
         }
 
-        public UpdateSpecificationBuilder minus(String field, Double value) {
-            updates.put(field, new UpdatePair(Action.SUM, -value));
-            return this;
+        public UpdateUnit minus(String field, Double value) {
+            return new UpdateUnit(field, Action.SUM, -value);
         }
 
-        public UpdateSpecificationBuilder minus(String field, Byte value) {
-            updates.put(field, new UpdatePair(Action.SUM, -value));
-            return this;
+        public UpdateUnit minus(String field, Byte value) {
+            return new UpdateUnit(field, Action.SUM, -value);
         }
 
-        public UpdateSpecificationBuilder minus(String field, Short value) {
-            updates.put(field, new UpdatePair(Action.SUM, -value));
-            return this;
+        public UpdateUnit minus(String field, Short value) {
+            return new UpdateUnit(field, Action.SUM, -value);
         }
 
-        public UpdateSpecificationBuilder minus(String field, Integer value) {
-            updates.put(field, new UpdatePair(Action.SUM, -value));
-            return this;
+        public UpdateUnit minus(String field, Integer value) {
+            return new UpdateUnit(field, Action.SUM, -value);
         }
 
-        public UpdateSpecificationBuilder minus(String field, Long value) {
-            updates.put(field, new UpdatePair(Action.SUM, -value));
-            return this;
+        public UpdateUnit minus(String field, Long value) {
+            return new UpdateUnit(field, Action.SUM, -value);
         }
 
-        public UpdateSpecificationBuilder addDays(String field, int days) {
-            updates.put(field, new UpdatePair(Action.ADD_DAYS, days));
-            return this;
+        public UpdateUnit addDays(String field, int days) {
+            return new UpdateUnit(field, Action.ADD_DAYS, days);
         }
 
-        public UpdateSpecificationBuilder truncateTime(String field) {
-            updates.put(field, new UpdatePair(Action.TRUNCATE_TIME, null));
-            return this;
+        public UpdateUnit truncateTime(String field) {
+            return new UpdateUnit(field, Action.TRUNCATE_TIME, null);
         }
 
-        public UpdateSpecificationBuilder concat(String field, String value) {
-            updates.put(field, new UpdatePair(Action.CONCAT, value));
-            return this;
+        public UpdateUnit concat(String field, String value) {
+            return new UpdateUnit(field, Action.CONCAT, value);
         }
 
-        public UpdateSpecificationBuilder upperCase(String field) {
-            updates.put(field, new UpdatePair(Action.UPPER_CASE, null));
-            return this;
+        public UpdateUnit toUpperCase(String field) {
+            return new UpdateUnit(field, Action.UPPER_CASE, null);
         }
 
-        public UpdateSpecificationBuilder lowerCase(String field) {
-            updates.put(field, new UpdatePair(Action.LOWER_CASE, null));
-            return this;
+        public UpdateUnit toLowerCase(String field) {
+            return new UpdateUnit(field, Action.LOWER_CASE, null);
         }
 
-        public UpdateSpecification build() {
-            return new UpdateSpecification(updates);
+        public UpdateSpecification update(UpdateUnit... updates) {
+            Map<String, UpdateUnit> updateMap = Arrays.stream(updates).collect(Collectors.toMap(
+                    UpdateUnit::field, o -> o
+            ));
+            return new UpdateSpecification(updateMap);
         }
     }
 

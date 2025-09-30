@@ -36,6 +36,7 @@ import java.util.stream.Stream;
 
 import static io.github.egorkor.webutils.queryparam.Filter.equal;
 import static io.github.egorkor.webutils.queryparam.Filter.softDeleteFilter;
+import static io.github.egorkor.webutils.service.UpdateSpecification.updateValue;
 
 
 /**
@@ -522,7 +523,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
             Object updateValue = SOFT_DELETE_FLAG_MAPPING.get(softDeleteField.getType()).get();
             transactionTemplate.executeWithoutResult(status -> {
                 if (updateByFilter(
-                        UpdateSpecification.updateValue(softDeleteField.getName(), updateValue),
+                        updateValue(softDeleteField.getName(), updateValue),
                         equal(idField.getName(), id)) != 1) {
                     throw new ResourceNotFoundException("Сущность"
                             + getEntityTypeName()
@@ -551,11 +552,11 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
         CriteriaUpdate<T> update = cb.createCriteriaUpdate(entityType);
         Root<T> root = update.from(entityType);
 
-        for (Map.Entry<String, UpdateSpecification.UpdatePair> entry :
+        for (Map.Entry<String, UpdateSpecification.UpdateUnit> entry :
                 specification.getUpdates().entrySet()) {
 
             String field = entry.getKey();
-            UpdateSpecification.UpdatePair pair = entry.getValue();
+            UpdateSpecification.UpdateUnit pair = entry.getValue();
             Path<Object> path = root.get(field);
 
             switch (pair.action()) {
@@ -665,7 +666,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
         checkSoftDeleteAvailability();
         Object updateValue = RESTORE_FLAG_MAPPING.get(softDeleteField.getType()).get();
         int updatedCount = updateByFilter(
-                UpdateSpecification.updateValue(softDeleteField.getName(), updateValue),
+                updateValue(softDeleteField.getName(), updateValue),
                 equal(idField.getName(), id)
         );
         if (updatedCount != 1) {
