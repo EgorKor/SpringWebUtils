@@ -47,38 +47,5 @@ public class SqlMappingTest {
         repo.flush();
     }
 
-    @Test
-    public void test() {
-        Pagination pagination = new Pagination();
-        pagination.setPage(2);
-        pagination.setSize(15);
-
-        TestEntityFilter filter = new TestEntityFilter();
-        List<String> filters = new ArrayList<>();
-        filters.add("id:=:1");
-        filters.add("name:like:some name");
-        filter.setOperations(filters);
-        filter._and(Filter.softDeleteFilter("is_deleted", Boolean.class, false));
-
-        Sorting sorting = new Sorting();
-        sorting.setSort(List.of("id:asc"));
-
-        String sql = "SELECT * FROM test_entity %s %s %s"
-                .formatted(
-                        filter.toSQLFilter().trim(),
-                        sorting.toSQLSort().trim(),
-                        pagination.toSqlPageable().trim()
-                );
-        System.out.println(Arrays.toString(filter.getFilterValues()));
-        Assertions.assertEquals(
-                "SELECT * FROM test_entity "
-                        + "WHERE id = ? AND _name LIKE ? ESCAPE '!' AND is_deleted = false "
-                        + "ORDER BY id ASC "
-                        + "LIMIT 15 OFFSET 30", sql
-
-        );
-        jdbcTemplate.query(sql, (rs) -> {
-        }, filter.getFilterValues());
-    }
 
 }

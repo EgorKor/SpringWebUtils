@@ -73,7 +73,7 @@ public class JpaCatalogEntityMetaAnalyzer {
                                                       @NonNull ApplicationContext context) {
         CatalogMeta catalogMeta;
         if ((catalogMeta = entityType.getJavaType().getAnnotation(CatalogMeta.class)) == null) {
-            throw new IllegalStateException("Entity should be annotated with @CatalogMeta to get ModelMeta");
+            throw new IllegalStateException("Сущность должна быть аннотирована @CatalogMeta чтобы извлечь метамодель");
         }
         String verboseName = catalogMeta.verboseName() != null ? catalogMeta.verboseName() : entityType.getJavaType().getSimpleName();
         List<ModelAttributeMeta> modelAttributeMetaList = new ArrayList<>();
@@ -226,7 +226,7 @@ public class JpaCatalogEntityMetaAnalyzer {
                                                                     @NonNull ApplicationContext applicationContext,
                                                                     @NonNull String type) {
         if (!field.isAnnotationPresent(Choices.class)) {
-            throw new IllegalStateException("Field should be annotated with @Choices to get Choices");
+            throw new IllegalStateException("Поле должно быть аннотировано @Choices чтобы получить Choices");
         }
 
         switch (type) {
@@ -251,7 +251,7 @@ public class JpaCatalogEntityMetaAnalyzer {
                                 }
                                 return (Object) new EnumChoice(constant.name(), verboseName);
                             } catch (IllegalAccessException e) {
-                                throw new RuntimeException("Cannot access ENUM field 'verboseName' in class " + enumType.getSimpleName(), e);
+                                throw new RuntimeException("Невозможно получить ENUM поле 'verboseName' в классе " + enumType.getSimpleName(), e);
                             }
                         })
                         .toList());
@@ -261,10 +261,10 @@ public class JpaCatalogEntityMetaAnalyzer {
                 if (choiceSupplierBean instanceof ChoicesSupplier supplier) {
                     return supplier::getChoices;
                 } else {
-                    throw new IllegalStateException("@Choices class should implements ChoicesSupplier interface or be an Enum type - " + choiceSupplierBean);
+                    throw new IllegalStateException("@Choices класс должен реализовывать ChoicesSupplier интерфейс или быть Enum - " + choiceSupplierBean);
                 }
             }
-            default -> throw new IllegalStateException("Cannot define ChoiceSupplier for field type " + type);
+            default -> throw new IllegalStateException("Невозможно определить ChoiceSupplier для поля типа " + type);
 
         }
     }

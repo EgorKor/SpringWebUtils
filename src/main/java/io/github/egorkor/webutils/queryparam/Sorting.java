@@ -1,15 +1,24 @@
 package io.github.egorkor.webutils.queryparam;
 
-import io.github.egorkor.webutils.queryparam.utils.ParamValidationUtils;
+import io.github.egorkor.webutils.annotations.FieldParamMapping;
+import io.github.egorkor.webutils.annotations.ParamCountLimit;
+import io.github.egorkor.webutils.exception.InvalidParameterException;
+import io.github.egorkor.webutils.queryparam.sortingInternal.SortingBuilder;
+import io.github.egorkor.webutils.queryparam.sortingInternal.SortingUnit;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Root;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.NonNull;
 import org.springframework.data.domain.Sort;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.lang.reflect.Field;
+import java.util.*;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static io.github.egorkor.webutils.queryparam.Filter.getNestedPath;
 
@@ -35,9 +44,10 @@ import static io.github.egorkor.webutils.queryparam.Filter.getNestedPath;
 @AllArgsConstructor
 @NoArgsConstructor
 public class Sorting {
+    public static SortingBuilder sb = new SortingBuilder();
     public static final String DESC = "desc";
     public static final String ASC = "asc";
-    private List<String> sort = new ArrayList<>();
+    private List<SortingUnit> sort = new ArrayList<>();
 
     public static Sorting unsorted() {
         return new Sorting();
@@ -51,27 +61,53 @@ public class Sorting {
         if (isMethodCallByParentClass()) {
             return;
         }
-        ParamValidationUtils.validateAllowedParams(sort, this.getClass(),
-                ParamValidationUtils.ParamType.SORT, this::validateAndSplitSort,
-                List.of());
+        //TODO починить
+        ParamCountLimit limit;
+        if ((limit = this.getClass().getAnnotation(ParamCountLimit.class)) != null
+                && limit.value() != ParamCountLimit.UNLIMITED
+                && sort.size() > limit.value()) {
+            throw new InvalidParameterException("Недопустимое кол-во параметров сортировки: " + sort.size());
+        }
+
+        Set<String> paramsNames = sort.stream()
+                .map(SortingUnit::field)
+                .collect(Collectors.toSet());
+
+        Set<String> allowedFields = Arrays.stream(this.getClass().getDeclaredFields())
+                .map(f -> {
+                    FieldParamMapping allies;
+                    if ((allies = f.getAnnotation(FieldParamMapping.class)) != null
+                            && !Objects.equals(allies.requestParamMapping(), FieldParamMapping.NO_MAPPING)) {
+                        return allies.requestParamMapping();
+                    } else {
+                        return f.getName();
+                    }
+                })
+                .collect(Collectors.toSet());
+
+        paramsNames.removeAll(allowedFields);
+        //whiteList.forEach(paramsNames::remove);
+        if (!paramsNames.isEmpty()) {
+            throw new InvalidParameterException("Недопустимые параметры сортировки: " + paramsNames);
+        }
     }
 
-    private <T extends Sorting> T _this(){
+    private <T extends Sorting> T _this() {
         return (T) this;
     }
 
-    public <T extends Sorting> T withDefault(String field, String order){
-        if(isUnsorted()){
-            sort.add("%s:%s".formatted(field, order));
+    public <T extends Sorting> T withDefault(String field, String order) {
+        if (isUnsorted()) {
+            sort.add(new SortingUnit(field, order));
         }
         return _this();
     }
 
-    public <T extends Sorting> T withDefaultAsc(String field){
+    public <T extends Sorting> T withDefaultAsc(String field) {
         return withDefault(field, ASC);
     }
 
-    public <T extends Sorting> T withDefaultDesc(String field){
+    public <T extends Sorting> T withDefaultDesc(String field) {
         return withDefault(field, DESC);
     }
 
@@ -79,7 +115,30 @@ public class Sorting {
         if (isMethodCallByParentClass()) {
             return;
         }
-        ParamValidationUtils.mapParamsByFilter(sort, this.getClass(), this::validateAndSplitSort);
+        //TODO починить
+        Field[] fields = this.getClass().getDeclaredFields();
+        for (Field field : fields) {
+            FieldParamMapping fieldParamMapping = field.getAnnotation(FieldParamMapping.class);
+            if (fieldParamMapping == null
+                    || fieldParamMapping.sqlMapping().equals(FieldParamMapping.NO_MAPPING)) {
+                continue;
+            }
+            String alliesName = fieldParamMapping.sqlMapping();
+            String fieldName = Objects.equals(fieldParamMapping.requestParamMapping(), FieldParamMapping.NO_MAPPING)
+                    ? field.getName() : fieldParamMapping.requestParamMapping();
+            String regexSafeFieldName = Pattern.quote(fieldName);
+
+            for (int i = 0; i < sort.size(); i++) {
+                SortingUnit op = sort.get(i);
+
+                if (fieldName.equals(op.field())) {
+                    sort.set(i, new SortingUnit(
+                            op.field().replaceFirst(regexSafeFieldName, alliesName),
+                            op.order()));
+                }
+
+            }
+        }
     }
 
     private boolean isMethodCallByParentClass() {
@@ -94,44 +153,14 @@ public class Sorting {
         return sort.isEmpty();
     }
 
-    public String toSQLSort() {
-        return toSQLSort("");
-    }
-
-    public String toSQLSort(@NonNull String prefix) {
-        checkAllowedSortFields();
-        StringBuilder sb = new StringBuilder();
-        for (String s : sort) {
-            if (sb.isEmpty()) {
-                sb.append("ORDER BY ");
-            }
-            String[] sortParts = validateAndSplitSort(s);
-            String field = sortParts[0];
-            String order = sortParts[1];
-            sb.append(prefix)
-                    .append(field)
-                    .append(" ")
-                    .append(order.toUpperCase())
-                    .append(", ");
-        }
-        if (!sb.isEmpty()) {
-            sb.deleteCharAt(sb.length() - 2);
-        }
-        return sb.toString();
-    }
-
     public <T> List<Order> toCriteriaOrderList(@NonNull Root<T> root,
                                                @NonNull CriteriaBuilder cb) {
-        checkAllowedSortFields();
         List<Order> orderList = new ArrayList<>();
-        for (String s : sort) {
-            String[] sortParts = validateAndSplitSort(s);
-            String field = sortParts[0];
-            String order = sortParts[1];
-            Path<T> path = field.contains(".") ? getNestedPath(root, field) : root.get(field);
-            if (order.equalsIgnoreCase("asc")) {
+        for (SortingUnit s : sort) {
+            Path<T> path = s.field().contains(".") ? getNestedPath(root, s.field()) : root.get(s.field());
+            if (s.order().equalsIgnoreCase("asc")) {
                 orderList.add(cb.asc(path));
-            } else if (order.equalsIgnoreCase("desc")) {
+            } else if (s.order().equalsIgnoreCase("desc")) {
                 orderList.add(cb.desc(path));
             }
         }
@@ -144,70 +173,21 @@ public class Sorting {
         }
         checkAllowedSortFields();
         List<Sort.Order> orders = sort.stream()
-                .map(this::validateAndSplitSort)
                 .map(param -> new Sort.Order(
-                        Sort.Direction.fromString(param[1].toLowerCase()),
-                        param[0].toLowerCase()
+                        Sort.Direction.fromString(param.order().toLowerCase()),
+                        param.field()
                 ))
                 .toList();
         return Sort.by(orders);
     }
 
-    private String[] validateAndSplitSort(@NonNull String sort) {
-        String[] split = sort.split(":");
-        if (split.length != 2) {
-            throw new IllegalArgumentException("Sort param should have only two parts " +
-                    "with current template 'field:order': " + sort);
-        }
-        validateField(split[0]);
-        validateOrder(split[1]);
-        return split;
+    public static Sorting asc(String field) {
+        return new Sorting(List.of(new SortingUnit(field, "asc")));
     }
 
-    private void validateField(@NonNull String field) {
-        if (!field.matches("[._\\-a-zA-Z]+")) {
-            throw new IllegalArgumentException("Invalid sort field name: " + field);
-        }
+    public static Sorting desc(String field) {
+        return new Sorting(List.of(new SortingUnit(field, "desc")));
     }
 
-    private void validateOrder(@NonNull String order) {
-        if (!(order.equalsIgnoreCase("asc") || order.equalsIgnoreCase("desc"))) {
-            throw new IllegalArgumentException("Invalid sort order param: " + order +
-                    ". Allowed params - 'asc' 'desc'");
-        }
-    }
-
-    public static class SortingBuilder {
-        private final List<SortingUnit> sorting = new ArrayList<>();
-
-        public SortingBuilder asc(String field) {
-            sorting.add(new SortingUnit(field, ASC));
-            return this;
-        }
-
-        public SortingBuilder desc(String field) {
-            sorting.add(new SortingUnit(field, DESC));
-            return this;
-        }
-
-        public Sorting build() {
-            return new Sorting(new ArrayList<>(sorting.stream()
-                    .map(s -> "%s:%s".formatted(s.field(), s.order())).toList()));
-        }
-
-        @SneakyThrows
-        public <R extends Sorting> R buildDerived(Class<R> derivedClass) {
-            R derivedSort = derivedClass.getDeclaredConstructor().newInstance();
-            derivedSort.setSort(
-                    new ArrayList<>(sorting.stream().map(
-                            (o) -> "%s:%s".formatted(o.field(), o.order())
-                    ).toList()
-                    ));
-            return derivedSort;
-        }
-    }
-
-    public record SortingUnit(String field, String order) {
-    }
 
 }

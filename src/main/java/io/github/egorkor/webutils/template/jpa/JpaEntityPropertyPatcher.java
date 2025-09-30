@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 
 /**
  * @author EgorKor
- * @version 1.0
+ * @version 1.0.4
  * @since 2025
  */
 
@@ -100,7 +100,7 @@ public class JpaEntityPropertyPatcher {
         if (field.getType().isPrimitive()) {
             return !Objects.equals(sourceValue, targetValue);
         }
-        return sourceValue != null && !sourceValue.equals(targetValue);
+        return !sourceValue.equals(targetValue);
     }
 
 }

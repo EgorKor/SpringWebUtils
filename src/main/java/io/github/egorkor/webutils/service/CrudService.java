@@ -181,6 +181,13 @@ public interface CrudService<T, ID> {
     T create(T model) throws EntityProcessingException;
 
     /**
+     * Создание (POST) списка сущностей в БД
+     *
+     * @return список объектов сущностей после сохранение в БД - новый
+     * */
+    List<T> createAll(List<T> models) throws EntityProcessingException;
+
+    /**
      * Полное (PUT) обновление сущности на основе переданной модели, переписывает все поля оригинальной сущности
      *
      * @param model объект сущности

@@ -1,5 +1,6 @@
 package io.github.egorkor.webutils.queryparam.filterInternal;
 
+import io.github.egorkor.webutils.exception.InvalidParameterException;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -18,6 +19,6 @@ public enum Function {
                 return func;
             }
         }
-        throw new IllegalArgumentException("Illegal operation: " + operation);
+        throw new InvalidParameterException("Недопустимая функция: " + operation);
     }
 }

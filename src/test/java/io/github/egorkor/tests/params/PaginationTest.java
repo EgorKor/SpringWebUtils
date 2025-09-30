@@ -2,15 +2,12 @@ package io.github.egorkor.tests.params;
 
 import io.github.egorkor.webutils.queryparam.Pagination;
 import io.github.egorkor.webutils.queryparam.Sorting;
-import io.github.egorkor.webutils.queryparam.utils.DatabaseType;
+import io.github.egorkor.webutils.queryparam.sortingInternal.SortingUnit;
 import io.github.egorkor.webutils.service.PageableResult;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-
-import java.util.Arrays;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -95,76 +92,22 @@ public class PaginationTest {
     void testToJpaPageableWithSorting_whenUnpaged() {
         Pagination pagination = Pagination.unpaged();
         Sorting sorting = new Sorting();
-        sorting.getSort().add("name:asc");
+        sorting.getSort().add(
+                new SortingUnit("name","asc")
+                //"name:asc"
+        );
         Pageable pageable = pagination.toJpaPageable(sorting);
         assertTrue(pageable.isUnpaged());
-    }
-
-    @Test
-    void testToSqlPageable_whenUnpaged() {
-        Pagination pagination = Pagination.unpaged();
-        assertEquals("", pagination.toSqlPageable());
-    }
-
-    @Test
-    void testToSqlPageable_forLimitOffsetDatabases() {
-        List<DatabaseType> types = Arrays.asList(
-                DatabaseType.POSTGRESQL,
-                DatabaseType.H2,
-                DatabaseType.SQLITE,
-                DatabaseType.MYSQL,
-                DatabaseType.MARIADB
-        );
-
-        for (DatabaseType dbType : types) {
-            Pagination pagination = new Pagination(2, 10);
-            String expected = "LIMIT 10 OFFSET 20";
-            assertEquals(expected, pagination.toSqlPageable(dbType),
-                    "Failed for " + dbType);
-        }
-    }
-
-    @Test
-    void testToSqlPageable_forOracleAndSqlServer() {
-        List<DatabaseType> types = Arrays.asList(
-                DatabaseType.ORACLE,
-                DatabaseType.SQL_SERVER
-        );
-
-        for (DatabaseType dbType : types) {
-            Pagination pagination = new Pagination(2, 10);
-            String expected = "OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY";
-            assertEquals(expected, pagination.toSqlPageable(dbType),
-                    "Failed for " + dbType);
-        }
-    }
-
-    @Test
-    void testToSqlPageable_forDB2() {
-        Pagination pagination = new Pagination(2, 10);
-        String expected = "OFFSET 20 ROWS FETCH FIRST 10 ROWS ONLY";
-        assertEquals(expected, pagination.toSqlPageable(DatabaseType.DB2));
-    }
-
-    @Test
-    void testToSqlPageable_withDefaultDatabaseType() {
-        Pagination pagination = new Pagination(2, 10);
-        assertNotNull(pagination.toSqlPageable());
-    }
-
-    @Test
-    void testToSqlPageable_withUnsupportedDatabaseType() {
-        Pagination pagination = new Pagination(2, 10);
-        assertThrows(UnsupportedOperationException.class, () -> {
-            pagination.toSqlPageable(DatabaseType.OTHER);
-        });
     }
 
     @Test
     void testToJpaPageableWithSorting_whenPaged() {
         Pagination pagination = new Pagination(1, 15);
         Sorting sorting = new Sorting();
-        sorting.getSort().add("name:asc");
+        sorting.getSort().add(
+                new SortingUnit("name","asc")
+                //"name:asc"
+        );
         Pageable pageable = pagination.toJpaPageable(sorting);
         assertFalse(pageable.isUnpaged());
         assertEquals(15, pageable.getPageSize());
@@ -179,20 +122,6 @@ public class PaginationTest {
         pagination.setSize(10);
         Assertions.assertEquals(0, pagination.toJpaPageable().getPageNumber());
         Assertions.assertEquals(10, pagination.toJpaPageable().getPageSize());
-    }
-
-    @Test
-    public void testSQLPagination() {
-        Pagination pagination = new Pagination();
-        pagination.setPage(3);
-        pagination.setSize(15);
-        Assertions.assertEquals("LIMIT 15 OFFSET 45", pagination.toSqlPageable());
-    }
-
-    @Test
-    public void testEmptySQLPagination() {
-        Pagination pagination = Pagination.unpaged();
-        Assertions.assertEquals("", pagination.toSqlPageable());
     }
 
     @Test

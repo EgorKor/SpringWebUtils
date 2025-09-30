@@ -10,7 +10,7 @@ import lombok.ToString;
 
 /**
  * @author EgorKor
- * @version 1.0
+ * @version 1.0.4
  * @since 2025
  */
 @ToString

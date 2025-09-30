@@ -1,5 +1,6 @@
 package io.github.egorkor.tests.utils;
 
+import io.github.egorkor.webutils.exception.InvalidParameterException;
 import io.github.egorkor.webutils.queryparam.utils.FieldTypeUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
@@ -107,13 +108,13 @@ class FieldTypeUtilsTest {
     @Test
     void shouldThrowWhenEmptyFieldPath() {
         Executable action = () -> FieldTypeUtils.getField(TestClass.class, "");
-        assertThrows(IllegalArgumentException.class, action);
+        assertThrows(InvalidParameterException.class, action);
     }
 
     @Test
     void shouldThrowWhenEmptyFieldNameInPath() {
         Executable action = () -> FieldTypeUtils.getField(TestClass.class, "nested..field");
-        assertThrows(IllegalArgumentException.class, action);
+        assertThrows(InvalidParameterException.class, action);
     }
 
     @Test

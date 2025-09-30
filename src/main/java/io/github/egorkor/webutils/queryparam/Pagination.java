@@ -1,8 +1,7 @@
 package io.github.egorkor.webutils.queryparam;
 
 
-import io.github.egorkor.webutils.queryparam.utils.DatabaseType;
-import io.github.egorkor.webutils.queryparam.utils.DriverUtils;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -35,7 +34,6 @@ public class Pagination {
     public static final int ALL_CONTENT_SIZE = -1;
     public static final int DEFAULT_PAGE = 0;
     public static final int DEFAULT_PAGE_SIZE = 10;
-    private static DatabaseType dbType = DriverUtils.getActiveDatabaseType();
 
     private int page = DEFAULT_PAGE;
     private int size = DEFAULT_PAGE_SIZE;
@@ -90,23 +88,6 @@ public class Pagination {
         return PageRequest.of(page, size, sorting.toJpaSort());
     }
 
-
-    public String toSqlPageable() {
-        return toSqlPageable(dbType);
-    }
-
-    public String toSqlPageable(DatabaseType dbType) {
-        if (size == ALL_CONTENT_SIZE) return "";
-
-        long offset = (long) page * size;
-
-        return switch (dbType) {
-            case POSTGRESQL, H2, SQLITE, MYSQL, MARIADB -> "LIMIT %d OFFSET %d".formatted(size, offset);
-            case ORACLE, SQL_SERVER -> "OFFSET %d ROWS FETCH NEXT %d ROWS ONLY".formatted(offset, size);
-            case DB2 -> "OFFSET %d ROWS FETCH FIRST %d ROWS ONLY".formatted(offset, size);
-            default -> throw new UnsupportedOperationException("Unsupported database type");
-        };
-    }
 
 
 }

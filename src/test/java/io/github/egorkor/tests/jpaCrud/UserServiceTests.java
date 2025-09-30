@@ -4,6 +4,7 @@ import io.github.egorkor.model.User;
 import io.github.egorkor.repository.UserRepository;
 import io.github.egorkor.service.UserService;
 import io.github.egorkor.service.impl.UserServiceImpl;
+import io.github.egorkor.webutils.annotations.FieldParamMapping;
 import io.github.egorkor.webutils.exception.ResourceNotFoundException;
 import io.github.egorkor.webutils.queryparam.Filter;
 import io.github.egorkor.webutils.queryparam.Pagination;
@@ -101,8 +102,7 @@ public class UserServiceTests {
     @Test
     public void softDeleteByFilter() {
         stats.setStatisticsEnabled(true);
-        userService.softDeleteByFilter(fb.buildAnd(fb.greater("id", "30"))
-                .build());
+        userService.softDeleteByFilter(fb.and(fb.greater("id", "30")));
         var res = userService.getPage(Filter.empty(), Sorting.unsorted(), Pagination.unpaged());
         assertEquals(2, stats.getPrepareStatementCount());
         assertEquals(30, res.getData().size());
@@ -112,14 +112,14 @@ public class UserServiceTests {
     @Test
     public void recoverByFilter() {
         stats.setStatisticsEnabled(true);
-        userService.softDeleteByFilter(fb.buildAnd(
+        userService.softDeleteByFilter(fb.and(
                 fb.lessOrEquals("id", "10")
-        ).build());
+        ));
         var res = userService.getPage(Filter.empty(), Sorting.unsorted(), Pagination.unpaged());
         assertEquals(res.getData().size(), 40);
-        userService.restoreByFilter(fb.buildAnd(
+        userService.restoreByFilter(fb.and(
                 fb.lessOrEquals("id", "5")
-        ).build());
+        ));
         res = userService.getPage(Filter.empty(), Sorting.unsorted(), Pagination.unpaged());
         assertEquals(res.getData().size(), 45);
         assertEquals(4, stats.getPrepareStatementCount());
@@ -147,6 +147,20 @@ public class UserServiceTests {
     public void testFilterWithLocalDateTime(){
         userService.getList(Filter.greaterThan("createdAt", "2025-09-28"));
         userService.getList(Filter.greaterThan("updatedAt", LocalDateTime.now()));
+    }
+
+    @Test
+    public void testFilterWithPagination(){
+        TestFilter testFilter = new TestFilter();
+        testFilter.getOperations().add(fb.contains("nameAlias",""));
+        testFilter.checkAllowedFilterFields();
+        testFilter.mapFilterByAllies();
+        userService.getPage(testFilter, Sorting.unsorted(), Pagination.of(1, 10));
+    }
+
+    public static class TestFilter extends Filter<User>{
+        @FieldParamMapping(sqlMapping = "email")
+        private String nameAlias;
     }
 
 //    @Transactional(propagation = Propagation.NEVER)

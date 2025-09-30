@@ -1,6 +1,8 @@
 package io.github.egorkor.webutils.queryparam;
 
 import io.github.egorkor.webutils.queryparam.filterInternal.FilterBasicOperation;
+import io.github.egorkor.webutils.queryparam.filterInternal.FilterOperation;
+import io.github.egorkor.webutils.queryparam.sortingInternal.SortingUnit;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.SneakyThrows;
@@ -9,6 +11,8 @@ import org.springframework.util.MultiValueMap;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static io.github.egorkor.webutils.queryparam.Sorting.ASC;
 
 @AllArgsConstructor
 public class SearchRequest {
@@ -44,19 +48,22 @@ public class SearchRequest {
         this(params, Filter.class, Sorting.class);
     }
 
-    public <F extends Filter<?>, S extends Sorting>
-    SearchRequest(MultiValueMap<String, String> params,
+    public <F extends Filter<?>, S extends Sorting> SearchRequest(MultiValueMap<String, String> params,
                   Class<F> filterClass, Class<S> sortingClass) {
         if (filterClass == null) {
             Class<? extends Filter> fClass = Filter.class;
-            filterClass = (Class<F>)fClass;
+            filterClass = (Class<F>) fClass;
         }
         if (sortingClass == null) {
             sortingClass = (Class<S>) Sorting.class;
         }
         this.pagination = parsePagination(params);
         this.filter = parseFilter(params, filterClass);
+        this.filter.checkAllowedFilterFields();
+        this.filter.mapFilterByAllies();
         this.sorting = parseSorting(params, sortingClass);
+        this.sorting.checkAllowedSortFields();
+        this.sorting.mapSortByAllies();
     }
 
     public static SearchRequestBuilder builder() {
@@ -65,7 +72,7 @@ public class SearchRequest {
 
     @SneakyThrows
     private <S extends Sorting> S parseSorting(MultiValueMap<String, String> params, Class<S> sortingClass) {
-        List<String> sorts = new ArrayList<>();
+        List<SortingUnit> sorts = new ArrayList<>();
         S sortingObject = sortingClass.getDeclaredConstructor().newInstance();
         sortingObject.setSort(sorts);
         if (!params.containsKey(SORT_PARAM)) {
@@ -77,11 +84,14 @@ public class SearchRequest {
         return sortingObject;
     }
 
-    private String parseSort(String param) {
+    private SortingUnit parseSort(String param) {
         if (!param.endsWith(":asc") && !param.endsWith(":desc")) {
             param += ":asc";
         }
-        return param;
+        String[] parts = param.split(":",2);
+        String field = parts[0];
+        String order = parts[1].toLowerCase();
+        return new SortingUnit(field, order);
     }
 
     @SneakyThrows
@@ -115,7 +125,16 @@ public class SearchRequest {
             }
         }
 
-        return String.format("%s:%s:%s", param, operation, pureValue);
+        FilterOperation filterOperation = FilterOperation.parse(operation);
+        Object convertedValue = convertValueByOperation(filterOperation, pureValue);
+        return new FilterBasicOperation(param, filterOperation, pureValue);
+    }
+
+    private Object convertValueByOperation(FilterOperation filterOperation, String stringValue) {
+        return switch (filterOperation) {
+            case IN, NOT_IN -> new ArrayList<>(Arrays.asList(stringValue.split(";")));
+            default -> stringValue;
+        };
     }
 
     private Pagination parsePagination(MultiValueMap<String, String> params) {
@@ -136,7 +155,7 @@ public class SearchRequest {
     }
 
 
-    public static class SearchRequestBuilder<F extends Filter<?>,S extends Sorting> {
+    public static class SearchRequestBuilder<F extends Filter<?>, S extends Sorting> {
         private MultiValueMap<String, String> params;
         private Class<F> filterClass;
         private Class<S> sortingClass;

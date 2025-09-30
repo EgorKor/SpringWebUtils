@@ -1,7 +1,10 @@
 package io.github.egorkor.webutils.queryparam.filterInternal;
 
+import io.github.egorkor.webutils.exception.InvalidParameterException;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+
+import java.util.Arrays;
 
 @Getter
 @AllArgsConstructor
@@ -14,6 +17,7 @@ public enum FilterOperation {
     LSE("<="),
     LIKE("like"),
     IS("is"),
+    IS_NOT("is_not"),
     IN("in"),
     CONTAINS("contains"),
     NOT_CONTAINS("not_contains"),
@@ -24,11 +28,13 @@ public enum FilterOperation {
     private final String operation;
 
     public static FilterOperation parse(String operation){
-        for(var filter: values()){
+        FilterOperation[] values = values();
+        for(var filter: values){
             if(operation.equals(filter.getOperation())){
                 return filter;
             }
         }
-        throw new IllegalArgumentException("Invalid operation: " + operation);
+        throw new InvalidParameterException("Недопустимая операция: " + operation + ". Допустимые значения метода parse() - " +
+                Arrays.stream(values).map(FilterOperation::getOperation).toList());
     }
 }

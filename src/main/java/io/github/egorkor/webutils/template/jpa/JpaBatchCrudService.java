@@ -1,6 +1,5 @@
 package io.github.egorkor.webutils.template.jpa;
 
-import io.github.egorkor.webutils.event.batching.*;
 import io.github.egorkor.webutils.exception.BatchOperationException;
 import io.github.egorkor.webutils.exception.ResourceNotFoundException;
 import io.github.egorkor.webutils.exception.ValidationException;
@@ -33,12 +32,20 @@ public abstract class JpaBatchCrudService<T, ID>
     private static final int DEFAULT_BATCH_SIZE = 100;
 
 
+    @Deprecated(since = "1.0.3")
     public JpaBatchCrudService(JpaRepository<T, ID> jpaRepository,
                                JpaSpecificationExecutor<T> jpaSpecificationExecutor,
                                ApplicationEventPublisher eventPublisher,
                                TransactionTemplate transactionTemplate,
                                Validator validator) {
         super(jpaRepository, jpaSpecificationExecutor, eventPublisher, transactionTemplate, validator);
+    }
+
+    public JpaBatchCrudService(JpaRepository<T, ID> jpaRepository,
+                               JpaSpecificationExecutor<T> jpaSpecificationExecutor,
+                               TransactionTemplate transactionTemplate,
+                               Validator validator) {
+        super(jpaRepository, jpaSpecificationExecutor, transactionTemplate, validator);
     }
 
 
@@ -64,17 +71,14 @@ public abstract class JpaBatchCrudService<T, ID>
 
     @Override
     public List<BatchResultWithData<T>> batchCreate(List<T> models, int batchSize) {
-        if (eventPublisher != null) {
-            eventPublisher.publishEvent(new BatchCreatingEvent<>(this, models));
-        }
-        var batchResult = transactionTemplate.execute(status -> {
+        return transactionTemplate.execute(status -> {
             List<BatchResultWithData<T>> results = new ArrayList<>();
             int counter = 0;
             for (T model : models) {
                 try {
                     Set<ConstraintViolation<T>> violations = validator.validate(model);
                     if (!violations.isEmpty()) {
-                        throw new ValidationException("Entity " + entityType + " validation error",violations);
+                        throw new ValidationException("Ошибка валидации сущности " + getEntityTypeName(),violations);
                     }
                     model = jpaRepository.save(model);
                     BatchResultWithDataImpl<T> result = BatchResultWithDataImpl
@@ -103,26 +107,18 @@ public abstract class JpaBatchCrudService<T, ID>
             entityManager.clear();
             return results;
         });
-
-        if (eventPublisher != null) {
-            eventPublisher.publishEvent(new BatchCreatedEvent<>(this, batchResult));
-        }
-        return batchResult;
     }
 
 
     @Override
     public List<BatchResultWithData<ID>> batchDelete(List<ID> ids, int batchSize) {
-        if (eventPublisher != null) {
-            eventPublisher.publishEvent(new BatchDeletingEvent<>(this, ids, entityType));
-        }
-        var batchResult = transactionTemplate.execute(status -> {
+        return transactionTemplate.execute(status -> {
             List<BatchResultWithData<ID>> results = new ArrayList<>();
             int counter = 0;
             for (ID id : ids) {
                 try {
                     if (!existsById(id)) {
-                        throw new ResourceNotFoundException("Entity " + getEntityTypeName() + " with id = " + id + " not found.");
+                        throw new ResourceNotFoundException("Сущность  " + getEntityTypeName() + " с id = " + id + " не найдена.");
                     }
                     jpaRepository.deleteById(id);
                     entityManager.flush();
@@ -149,26 +145,18 @@ public abstract class JpaBatchCrudService<T, ID>
             entityManager.clear();
             return results;
         });
-
-        if (eventPublisher != null) {
-            eventPublisher.publishEvent(new BatchDeletedEvent<>(this, batchResult, entityType));
-        }
-        return batchResult;
     }
 
     @Override
     public List<T> batchCreateAtomic(List<T> models, int batchSize) {
-        if (eventPublisher != null) {
-            eventPublisher.publishEvent(new BatchCreatingEvent<>(this, models));
-        }
-        var batchResults = transactionTemplate.execute((status) -> {
+        return transactionTemplate.execute((status) -> {
             List<T> results = new ArrayList<>();
             int counter = 0;
             for (T model : models) {
                 try {
                     Set<ConstraintViolation<T>> violations = validator.validate(model);
                     if (!violations.isEmpty()) {
-                        throw new ValidationException("Entity " + entityType + " validation error", violations);
+                        throw new ValidationException("Ошибка валидации сущности " + getEntityTypeName(), violations);
                     }
                     model = jpaRepository.save(model);
                     results.add(model);
@@ -186,23 +174,16 @@ public abstract class JpaBatchCrudService<T, ID>
             entityManager.clear();
             return results;
         });
-        if (eventPublisher != null) {
-            eventPublisher.publishEvent(new BatchCreatedAtomicEvent<>(this, batchResults));
-        }
-        return batchResults;
     }
 
     @Override
     public void batchDeleteAtomic(List<ID> ids, int batchSize) {
-        if (eventPublisher != null) {
-            eventPublisher.publishEvent(new BatchDeletingEvent<>(this, ids, entityType));
-        }
         transactionTemplate.executeWithoutResult(status -> {
             int counter = 0;
             for (ID id : ids) {
                 try {
                     if (!existsById(id)) {
-                        throw new ResourceNotFoundException("Entity " + getEntityTypeName() + " with id = " + id + " not found.");
+                        throw new ResourceNotFoundException("Сущность " + getEntityTypeName() + " с id = " + id + " не найдена.");
                     }
                     jpaRepository.deleteById(id);
                 } catch (Exception e) {
@@ -221,9 +202,6 @@ public abstract class JpaBatchCrudService<T, ID>
             entityManager.flush();
             entityManager.clear();
         });
-        if (eventPublisher != null) {
-            eventPublisher.publishEvent(new BatchDeletedAtomicEvent<>(this, ids, entityType));
-        }
     }
 
 }

@@ -6,6 +6,8 @@ import io.github.egorkor.webutils.queryparam.Filter;
 import io.github.egorkor.webutils.queryparam.Pagination;
 import io.github.egorkor.webutils.queryparam.SearchRequest;
 import io.github.egorkor.webutils.queryparam.Sorting;
+import io.github.egorkor.webutils.queryparam.filterInternal.FilterBasicOperation;
+import io.github.egorkor.webutils.queryparam.sortingInternal.SortingUnit;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.junit.jupiter.api.Assertions;
@@ -16,6 +18,7 @@ import org.springframework.util.MultiValueMap;
 import java.util.List;
 
 import static io.github.egorkor.webutils.queryparam.SearchRequest.*;
+import static io.github.egorkor.webutils.queryparam.filterInternal.FilterOperation.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class SearchRequestTest {
@@ -41,7 +44,9 @@ public class SearchRequestTest {
         params.add(SORT_PARAM, "name:desc");
         SearchRequest searchRequest = new SearchRequest(params);
         Sorting sorting = searchRequest.getSorting();
-        assertIterableEquals(List.of("id:asc", "name:desc"), sorting.getSort());
+        assertIterableEquals(List.of(
+                new SortingUnit("id","asc"),
+                new SortingUnit("name","desc")), sorting.getSort());
     }
 
     @Test
@@ -64,23 +69,22 @@ public class SearchRequestTest {
         params.add("name.length()", "not_equals:10");
         SearchRequest searchRequest = new SearchRequest(params);
         Filter filter = searchRequest.getFilter();
-        Assertions.assertIterableEquals(List.of(
-                        "name:=:Egor",
-                        "name:like:Egor",
-                        "name:not_like:Egor",
-                        "name:is:null",
-                        "name:is_not:null",
-                        "name:in:Eg;or;ic",
-                        "name:is:true",
-                        "name:is_not:true",
-                        "name:is:false",
-                        "name:is_not:false",
-                        "name.length():>:10",
-                        "name.length():>=:10",
-                        "name.length():<:10",
-                        "name.length():<=:10",
-                        "name.length():!=:10"),
-
+        assertIterableEquals(List.of(
+                        new FilterBasicOperation("name", EQUALS, "Egor"),
+                        new FilterBasicOperation("name", LIKE, "Egor"),
+                        new FilterBasicOperation("name", NOT_LIKE, "Egor"),
+                        new FilterBasicOperation("name", IS, "null"),
+                        new FilterBasicOperation("name", IS_NOT, "null"),
+                        new FilterBasicOperation("name", IN, "Eg;or;ic"),
+                        new FilterBasicOperation("name", IS, "true"),
+                        new FilterBasicOperation("name", IS_NOT, "true"),
+                        new FilterBasicOperation("name", IS, "false"),
+                        new FilterBasicOperation("name", IS_NOT, "false"),
+                        new FilterBasicOperation("name.length()", GT, "10"),
+                        new FilterBasicOperation("name.length()", GTE, "10"),
+                        new FilterBasicOperation("name.length()", LS, "10"),
+                        new FilterBasicOperation("name.length()", LSE, "10"),
+                        new FilterBasicOperation("name.length()", NOT_EQUALS, "10")),
                 filter.getOperations());
     }
 
@@ -89,10 +93,9 @@ public class SearchRequestTest {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add(SORT_PARAM, "id");
         params.add(SORT_PARAM, "name:desc");
-        SearchRequest searchRequest = new SearchRequest(params, Filter.class, SortParams.class);
-        SortParams sorting = searchRequest.getSorting();
-        assertIterableEquals(List.of("id:asc", "name:desc"), sorting.getSort());
-        assertThrows(InvalidParameterException.class, () -> sorting.toSQLSort());
+        assertThrows(InvalidParameterException.class,() -> {
+            new SearchRequest(params, Filter.class, SortParams.class);
+        });
     }
 
     @Test
@@ -100,14 +103,12 @@ public class SearchRequestTest {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("name", "Egor");
         params.add("value", "like:Egor");
-        SearchRequest searchRequest = SearchRequest.builder()
-                .params(params)
-                .filterClass(FilterParams.class)
-                .build();
-        FilterParams filterParams = searchRequest.getFilter();
-        assertIterableEquals(List.of("name:=:Egor","value:like:Egor"),
-                filterParams.getOperations());
-        assertThrows(InvalidParameterException.class, () -> filterParams.toSQLFilter());
+        assertThrows(InvalidParameterException.class, () -> {
+            SearchRequest searchRequest = SearchRequest.builder()
+                    .params(params)
+                    .filterClass(FilterParams.class)
+                    .build();
+        });
     }
 
 

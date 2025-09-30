@@ -1,6 +1,7 @@
 package io.github.egorkor.webutils.queryparam.filterInternal;
 
 import io.github.egorkor.webutils.queryparam.Filter;
+import lombok.SneakyThrows;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -46,11 +47,11 @@ public class FilterBuilder {
     }
 
     public FilterBasicOperation in(String field, Object... values) {
-        return new FilterBasicOperation(field, IN, String.join(";", Arrays.stream(values).map(Object::toString).toList()));
+        return new FilterBasicOperation(field, IN, Arrays.asList(values));
     }
 
-    public FilterBasicOperation in(String field, Collection<Object> values) {
-        return new FilterBasicOperation(field, IN, String.join(";", values.stream().map(Object::toString).toList()));
+    public FilterBasicOperation inCollection(String field, Collection<?> values) {
+        return new FilterBasicOperation(field, IN, values);
     }
 
     public FilterBasicOperation is(String field, Is value) {
@@ -62,11 +63,22 @@ public class FilterBuilder {
     }
 
     public FilterBasicOperation notIn(String field, Object... values) {
-        return new FilterBasicOperation(field, NOT_IN, String.join(";", Arrays.stream(values).map(Object::toString).toList()));
+        return new FilterBasicOperation(field, NOT_IN, Arrays.asList(values));
     }
 
-    public Filter buildAnd(FilterBasicOperation... units) {
-        return new Filter(Arrays.asList(units));
+    public FilterBasicOperation notInCollection(String field, Collection<?> values) {
+        return new FilterBasicOperation(field, NOT_IN, values);
+    }
+
+    public <T> Filter<T> and(FilterBasicOperation... operations) {
+        return new Filter<>(Arrays.asList(operations));
+    }
+
+    @SneakyThrows
+    public <T extends Filter<?>> T and(Class<T> derivedType, FilterBasicOperation... operations) {
+        T derivedFilter = derivedType.getDeclaredConstructor().newInstance();
+        derivedFilter.setOperations(Arrays.asList(operations));
+        return derivedFilter;
     }
 
 }

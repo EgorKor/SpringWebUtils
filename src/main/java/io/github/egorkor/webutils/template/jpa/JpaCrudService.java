@@ -1,7 +1,6 @@
 package io.github.egorkor.webutils.template.jpa;
 
 import io.github.egorkor.webutils.annotations.SoftDeleteFlag;
-import io.github.egorkor.webutils.event.crud.*;
 import io.github.egorkor.webutils.exception.*;
 import io.github.egorkor.webutils.queryparam.Filter;
 import io.github.egorkor.webutils.queryparam.Pagination;
@@ -35,7 +34,8 @@ import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
-import static io.github.egorkor.webutils.queryparam.Filter.fb;
+import static io.github.egorkor.webutils.queryparam.Filter.equal;
+import static io.github.egorkor.webutils.queryparam.Filter.softDeleteFilter;
 
 
 /**
@@ -55,40 +55,9 @@ import static io.github.egorkor.webutils.queryparam.Filter.fb;
  *
  * </ul>
  * <p>
- * При выполнении операций происходит генерация событий
- * на которые можно подписаться стандартным для Spring способом, используя
- * аннотацию {@link org.springframework.context.event.EventListener}
- * <br>
- * Список генерируемых событий:
- * <table border="1">
- *     <tr>
- *         <th>Метод</th>
- *         <th>События</th>
- *     </tr>
- *     <tr>
- *         <td>{@link #create(Object)}</td>
- *         <td>{@link EntityCreatingEvent} {@link EntityCreatedEvent}</td>
- *     </tr>
- *     <tr>
- *         <td>{@link #patchUpdate(Object, Object)}</td>
- *         <td>{@link EntityUpdatingEvent} {@link EntityUpdatedEvent}</td>
- *     </tr>
- *     <tr>
- *         <td>{@link #fullUpdate(Object)}</td>
- *         <td>{@link EntityUpdatingEvent} {@link EntityUpdatedEvent}</td>
- *     </tr>
- *     <tr>
- *         <td>{@link #deleteById(Object)}</td>
- *         <td>{@link EntityDeletingEvent} {@link EntityDeletedEvent}</td>
- *     </tr>
- *     <tr>
- *         <td>{@link #softDeleteById(Object)}</td>
- *         <td>{@link EntitySoftDeletingEvent} {@link EntitySoftDeletedEvent}</td>
- *     </tr>
- * </table>
  *
  * @author EgorKor
- * @version 1.0
+ * @version 1.0.4
  * @implSpec Обязательно реализовать метод
  * {@link #getPersistenceAnnotatedEntityManager()}
  * предварительно помеченный аннотацией @PersistenceContext в классе наследнике.
@@ -113,7 +82,6 @@ import static io.github.egorkor.webutils.queryparam.Filter.fb;
  * </pre>
  * @see jakarta.persistence.PersistenceContext
  * @see io.github.egorkor.webutils.annotations.SoftDeleteFlag
- * @see io.github.egorkor.webutils.event.crud
  * @see org.springframework.context.event.EventListener
  * @since 2025
  */
@@ -152,7 +120,6 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
 
     protected final JpaRepository<T, ID> jpaRepository;
     protected final JpaSpecificationExecutor<T> jpaSpecificationExecutor;
-    protected final ApplicationEventPublisher eventPublisher;
     protected final TransactionTemplate transactionTemplate;
     protected final Validator validator;
     protected final Class<T> entityType;
@@ -162,14 +129,22 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     protected Field softDeleteField;
     protected Field idField;
 
+
+    @Deprecated(since = "1.0.3")
     public JpaCrudService(JpaRepository<T, ID> jpaRepository,
                           JpaSpecificationExecutor<T> jpaSpecificationExecutor,
                           ApplicationEventPublisher eventPublisher,
                           TransactionTemplate transactionTemplate,
                           Validator validator) {
+        this(jpaRepository, jpaSpecificationExecutor, transactionTemplate, validator);
+    }
+
+    public JpaCrudService(JpaRepository<T, ID> jpaRepository,
+                          JpaSpecificationExecutor<T> jpaSpecificationExecutor,
+                          TransactionTemplate transactionTemplate,
+                          Validator validator) {
         this.jpaRepository = jpaRepository;
         this.jpaSpecificationExecutor = jpaSpecificationExecutor;
-        this.eventPublisher = eventPublisher;
         this.transactionTemplate = transactionTemplate;
         this.validator = validator;
 
@@ -183,6 +158,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
         defineSoftDeleteSupport();
         defineIdField();
     }
+
 
     @Override
     public List<T> getList() {
@@ -225,9 +201,8 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
         CriteriaQuery<T> criteriaQuery = cb.createQuery(entityType);
         Root<T> root = criteriaQuery.from(entityType);
         criteriaQuery.select(root);
-        criteriaQuery
-                .where(getSoftDeleteSupportedFilter(filter)
-                        .toPredicate(root, cb));
+        criteriaQuery.where(getSoftDeleteSupportedFilter(filter)
+                .toPredicate(root, cb));
         criteriaQuery.orderBy(sorting.toCriteriaOrderList(root, cb));
         TypedQuery<T> typedQuery = entityManager.createQuery(criteriaQuery);
         return typedQuery
@@ -253,7 +228,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                 .peek(field -> {
                     if (!SUPPORTED_SOFT_DELETE_TYPES.contains(field.getType())) {
                         throw new IllegalStateException(String.format(
-                                "%s - field '%s' has unsupported type %s for soft-delete flag",
+                                "%s - поле '%s' имеет неподдерживаемый тип %s для флага мягкого удаления",
                                 entityType.getName(),
                                 field.getName(),
                                 field.getType().getSimpleName()
@@ -264,7 +239,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
 
         if (softDeleteFields.size() > 1) {
             throw new IllegalStateException(String.format(
-                    "%s - only one soft-delete flag is supported, found %d",
+                    "%s - поддерживается только один флаг мягкого удаления, обнаружено %d",
                     entityType.getName(),
                     softDeleteFields.size()
             ));
@@ -282,7 +257,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                 .filter((f) -> f.isAnnotationPresent(Id.class)
                         || f.isAnnotationPresent(org.springframework.data.annotation.Id.class))
                 .findAny().orElseThrow(
-                        () -> new IllegalStateException("Entity " + entityType.getName() + " has no @Id field")
+                        () -> new IllegalStateException("Сущность " + getEntityTypeName() + " не имеет поля с аннотацией @Id")
                 );
         this.idField.setAccessible(true);
     }
@@ -292,8 +267,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
             return filter;
         }
         boolean isDeleted = false;
-        Filter<T> softDeleteFilter = Filter.softDeleteFilter(softDeleteField, isDeleted);
-        Filter<T> concantinatedFilter = filter._and(softDeleteFilter);
+        Filter<T> concantinatedFilter = filter._and(softDeleteFilter(softDeleteField, isDeleted));
         concantinatedFilter.setEntityType(entityType);
         return concantinatedFilter;
     }
@@ -307,22 +281,21 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                                      @NonNull Sorting sorting,
                                      @NonNull Pagination pagination) {
         filter.setEntityType(entityType);
-        Filter<T> countFilter = new Filter<>(filter.getOperations());
         return PageableResult.of(jpaSpecificationExecutor.findAll(getSoftDeleteSupportedFilter(filter),
-                getSoftDeleteSupportedFilter(countFilter),
+                getSoftDeleteSupportedFilter(filter.copy()),
                 pagination.toJpaPageable(sorting)));
     }
 
     @Override
     public T getById(@NonNull ID id) throws ResourceNotFoundException {
         Supplier<ResourceNotFoundException> exceptionSupplier = () ->
-                new ResourceNotFoundException("Entity "
+                new ResourceNotFoundException("Сущность "
                         + getEntityTypeName()
-                        + " with id = "
+                        + " с id = "
                         + id
-                        + " not found.");
+                        + " не найдена.");
         boolean isDeleted = false;
-        Filter<T> idFilter = fb.buildAnd(fb.equals(idField.getName(), id.toString())).build();
+        Filter<T> idFilter = equal(idField.getName(), id.toString());
         idFilter.setEntityType(entityType);
         return !isSoftDeleteSupported ?
                 jpaRepository.findById(id)
@@ -335,12 +308,12 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     public T getById(@NonNull ID id,
                      @NonNull String... fetchingProperties) throws ResourceNotFoundException {
         Supplier<ResourceNotFoundException> exceptionSupplier = () ->
-                new ResourceNotFoundException("Entity "
+                new ResourceNotFoundException("Сущность "
                         + getEntityTypeName()
-                        + " with id = "
+                        + " с id = "
                         + id
-                        + " not found.");
-        Filter<T> baseIdFilter = fb.buildAnd(fb.equals(idField.getName(), id.toString())).build();
+                        + " не найдена.");
+        Filter<T> baseIdFilter = equal(idField.getName(), id);
         Filter<T> resultIdFilter = getSoftDeleteSupportedFilter(baseIdFilter);
         Arrays.stream(fetchingProperties).forEach(resultIdFilter::withFetchJoin);
 
@@ -352,11 +325,11 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     @Override
     public T getByFilter(@NonNull Filter<T> filter) throws ResourceNotFoundException, NonUniqueResultException {
         Supplier<ResourceNotFoundException> exceptionSupplier = () ->
-                new ResourceNotFoundException("Entity "
+                new ResourceNotFoundException("Сущность "
                         + getEntityTypeName()
-                        + " with condition: "
-                        + filter.toSQLFilter().replace("WHERE", "").trim()
-                        + " not found.");
+                        + " с условием: "
+                        + filter.getOperations()
+                        + " не найдена.");
         filter.setEntityType(entityType);
         boolean isDeleted = false;
         return !isSoftDeleteSupported ?
@@ -369,7 +342,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     @Override
     public T getByIdWithLock(@NonNull ID id,
                              @NonNull LockModeType lockType) throws ResourceNotFoundException {
-        Filter<T> idFilter = fb.buildAnd(fb.equals(idField.getName(), id.toString())).build();
+        Filter<T> idFilter = equal(idField.getName(), id);
         idFilter.setEntityType(entityType);
         return getByFilterWithLock(idFilter, lockType);
     }
@@ -389,11 +362,11 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
             try {
                 return typedQuery.getSingleResult();
             } catch (NoResultException e) {
-                throw new ResourceNotFoundException("Entity "
+                throw new ResourceNotFoundException("Сущность "
                         + getEntityTypeName()
-                        + " with condition: "
-                        + filter.toSQLFilter().replace("WHERE", "").trim()
-                        + " not found.");
+                        + " с условием: "
+                        + filter.getOperations()
+                        + " не найдена.");
             }
         });
     }
@@ -403,73 +376,57 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     public T create(@NonNull T model) throws EntityProcessingException {
         Set<ConstraintViolation<T>> violations = validator.validate(model);
         if (!violations.isEmpty()) {
-            throw new ValidationException("Entity " + entityType + " validation error",violations);
+            throw new ValidationException("Ошибка валидации сущности " + entityType, violations);
         }
+        return transactionTemplate.execute(status -> {
+            try {
+                entityManager.persist(model);
+                return model;
+            } catch (Exception e) {
+                throw new EntityProcessingException("Ошибка сохранения сущности",
+                        e, entityType, EntityOperation.CREATE);
+            }
+        });
+    }
+
+    @Override
+    public List<T> createAll(List<T> models) throws EntityProcessingException {
         try {
-            if (eventPublisher != null) {
-                eventPublisher.publishEvent(new EntityCreatingEvent<>(this, model));
-            }
-
-            T saved = transactionTemplate.execute(status -> {
-                try {
+            return transactionTemplate.execute(status -> {
+                List<T> result = new ArrayList<>();
+                models.forEach(model -> {
                     entityManager.persist(model);
-                    return model;
-                } catch (DataAccessException e) {
-                    throw new EntityProcessingException("Entity saving data access error",
-                            e, entityType, EntityOperation.CREATE);
-                }
+                    result.add(model);
+                });
+                return result;
             });
-
-            if (eventPublisher != null) {
-                eventPublisher.publishEvent(new EntityCreatedEvent<>(this, saved));
-            }
-            return saved;
-        } catch (EntityProcessingException e) {
-            throw e;
         } catch (Exception e) {
-            throw new EntityProcessingException("Unexpected saving entity error",
-                    e, entityType, EntityOperation.CREATE);
+            throw new EntityProcessingException("Ошибка создания списка сущностей", e, entityType, EntityOperation.CREATE);
         }
-
     }
 
     @SneakyThrows
     @Override
     public T fullUpdate(@NonNull T model) throws EntityProcessingException {
-        ID id = (ID)idField.get(model);
-        if(id == null){
-            throw new EntityProcessingException("Entity" + entityManager + " id is null",
+        ID id = (ID) idField.get(model);
+        if (id == null) {
+            throw new EntityProcessingException("Ошибка обновления сущности " + entityManager + ", id = null",
                     null,
-                    entityType,EntityOperation.UPDATE);
+                    entityType, EntityOperation.UPDATE);
         }
         Set<ConstraintViolation<T>> violations = validator.validate(model);
         if (!violations.isEmpty()) {
-            throw new ValidationException("Entity " + entityType + " validation error",violations);
+            throw new ValidationException("Ошибка валидации сущности при обновлении " + entityType.getSimpleName(), violations);
         }
-        try {
-            if (eventPublisher != null) {
-                eventPublisher.publishEvent(new EntityUpdatingEvent<>(this, model));
+        return transactionTemplate.execute(status -> {
+            try {
+                entityManager.unwrap(Session.class).update(model);
+                return model;
+            } catch (Exception e) {
+                throw new EntityProcessingException("Ошибка обновления сущности с id = " + id,
+                        e, entityType, EntityOperation.CREATE);
             }
-            T updated = transactionTemplate.execute(status -> {
-                try {
-                    Session session = entityManager.unwrap(Session.class);
-                    session.update(model);
-                    return model;
-                } catch (Exception e) {
-                    throw new EntityProcessingException("Entity full updating data access error",
-                            e, entityType, EntityOperation.CREATE);
-                }
-            });
-            if (eventPublisher != null) {
-                eventPublisher.publishEvent(new EntityUpdatedEvent<>(this, updated));
-            }
-            return updated;
-        } catch (EntityProcessingException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new EntityProcessingException("Unexpected full updating entity error",
-                    e, entityType, EntityOperation.CREATE);
-        }
+        });
     }
 
     @Override
@@ -477,64 +434,35 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                          @NonNull T model) throws EntityProcessingException {
         Set<ConstraintViolation<T>> violations = validator.validate(model);
         if (!violations.isEmpty()) {
-            throw new ValidationException("Entity " + entityType + " validation error",violations);
+            throw new ValidationException("Ошибка валидации сущности " + getEntityTypeName(), violations);
         }
-        try {
-            T dbModel = getById(id);
-            if (eventPublisher != null) {
-                eventPublisher.publishEvent(new EntityUpdatingEvent<>(this, dbModel));
+        T dbModel = getById(id);
+        JpaEntityPropertyPatcher.patchIgnoreNulls(model, dbModel);
+        return transactionTemplate.execute(status -> {
+            try {
+                return jpaRepository.save(dbModel);
+            } catch (DataAccessException e) {
+                throw new EntityProcessingException("Ошибка обновления сущнсти с id = " + id,
+                        e, entityType, EntityOperation.CREATE);
             }
-            JpaEntityPropertyPatcher.patchIgnoreNulls(model, dbModel);
-            T updated = transactionTemplate.execute(status -> {
-                try {
-                    return jpaRepository.save(dbModel);
-                } catch (DataAccessException e) {
-                    throw new EntityProcessingException("Entity patch updating data access error",
-                            e, entityType, EntityOperation.CREATE);
-                }
-            });
-            if (eventPublisher != null) {
-                eventPublisher.publishEvent(new EntityUpdatedEvent<>(this, updated));
-            }
-            return updated;
-        } catch (EntityProcessingException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new EntityProcessingException("Unexpected patch updating entity error",
-                    e, entityType, EntityOperation.CREATE);
-        }
+        });
     }
 
     @Override
     public void deleteById(@NonNull ID id) throws ResourceNotFoundException, EntityProcessingException {
-        try {
-
-            if (eventPublisher != null) {
-                eventPublisher.publishEvent(new EntityDeletingEvent<>(this, id));
-            }
-            transactionTemplate.executeWithoutResult(status -> {
-                try {
-                    if (deleteByFilter(Filter.equals(idField.getName(), id)) != 1) {
-                        throw new ResourceNotFoundException("Entity "
-                                + getEntityTypeName()
-                                + " with id = "
-                                + id
-                                + " not found.");
-                    }
-                } catch (DataAccessException e) {
-                    throw new EntityProcessingException("Entity delete by id data access error: " + id, e, entityType, EntityOperation.DELETE);
+        transactionTemplate.executeWithoutResult(status -> {
+            try {
+                if (deleteByFilter(equal(idField.getName(), id)) != 1) {
+                    throw new ResourceNotFoundException("Сущность "
+                            + getEntityTypeName()
+                            + " с id = "
+                            + id
+                            + " не найдена.");
                 }
-            });
-            if (eventPublisher != null) {
-                eventPublisher.publishEvent(new EntityDeletedEvent<>(this, id, entityType));
+            } catch (DataAccessException e) {
+                throw new EntityProcessingException("Ошибка удаления сущности с id : " + id, e, entityType, EntityOperation.DELETE);
             }
-        } catch (EntityProcessingException | ResourceNotFoundException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new EntityProcessingException("Unexpected delete by id entity error: " + id,
-                    e, entityType, EntityOperation.DELETE);
-        }
-
+        });
     }
 
     @Override
@@ -542,7 +470,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
         try {
             return deleteByFilter(Filter.empty(entityType));
         } catch (Exception e) {
-            throw new EntityProcessingException("Unexpected delete all entities error", e, entityType, EntityOperation.DELETE);
+            throw new EntityProcessingException("Ошибка удаления всех сущностей " + getEntityTypeName(), e, entityType, EntityOperation.DELETE);
         }
     }
 
@@ -552,7 +480,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
             filter.setEntityType(entityType);
             return jpaSpecificationExecutor.delete(filter);
         } catch (Exception e) {
-            throw new EntityProcessingException("Unexpected delete by filter entities error: " + filter, e, entityType, EntityOperation.DELETE);
+            throw new EntityProcessingException("Ошибка удаления сущностей по фильтру: " + filter, e, entityType, EntityOperation.DELETE);
         }
     }
 
@@ -571,7 +499,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     @Override
     public boolean existsById(@NonNull ID id) {
         return !isSoftDeleteSupported ? jpaRepository.existsById(id) :
-                existsByFilter(fb.buildAnd(fb.equals(idField.getName(), id.toString())).build());
+                existsByFilter(equal(idField.getName(), id));
     }
 
     @Override
@@ -595,18 +523,19 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
             transactionTemplate.executeWithoutResult(status -> {
                 if (updateByFilter(
                         UpdateSpecification.updateValue(softDeleteField.getName(), updateValue),
-                        Filter.equals(idField.getName(), id)) != 1) {
-                    throw new ResourceNotFoundException("Entity "
+                        equal(idField.getName(), id)) != 1) {
+                    throw new ResourceNotFoundException("Сущность"
                             + getEntityTypeName()
-                            + " with id = "
+                            + " с id = "
                             + id
-                            + " not found.");
+                            + " не найдена.");
                 }
             });
         } catch (ResourceNotFoundException e) {
             throw e;
         } catch (Exception e) {
-            throw new EntityProcessingException("Unexpected soft delete entity by id error: " + id, e, entityType, EntityOperation.UPDATE);
+            throw new EntityProcessingException("Ошибка мягкого удаления " + getEntityTypeName() + " по id: " + id,
+                    e, entityType, EntityOperation.UPDATE);
         }
     }
 
@@ -722,7 +651,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
             return transactionTemplate.execute(status -> entityManager.createQuery(update).executeUpdate());
         } catch (Exception e) {
             throw new EntityProcessingException(
-                    "Unexpected soft delete entities by filter error: " + filter,
+                    "Неожиданная ошибка мягкого удаления сущности по фильтру: " + filter,
                     e,
                     entityType,
                     EntityOperation.UPDATE
@@ -735,18 +664,12 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     public void restoreById(@NonNull ID id) throws ResourceNotFoundException, SoftDeleteUnsupportedException, EntityProcessingException {
         checkSoftDeleteAvailability();
         Object updateValue = RESTORE_FLAG_MAPPING.get(softDeleteField.getType()).get();
-        try {
-            int updatedCount = updateByFilter(
-                    UpdateSpecification.updateValue(softDeleteField.getName(), updateValue),
-                    Filter.equals(idField.getName(), id)
-            );
-            if (updatedCount != 1) {
-                throw new ResourceNotFoundException("Entity not found: " + id);
-            }
-        } catch (ResourceNotFoundException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new EntityProcessingException("Unexpected restore entity by id error: " + id, e, entityType, EntityOperation.UPDATE);
+        int updatedCount = updateByFilter(
+                UpdateSpecification.updateValue(softDeleteField.getName(), updateValue),
+                equal(idField.getName(), id)
+        );
+        if (updatedCount != 1) {
+            throw new ResourceNotFoundException("Сущность " + getEntityTypeName() + " с id = " + id + " не найдена");
         }
     }
 
@@ -773,7 +696,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
             });
         } catch (Exception e) {
             throw new EntityProcessingException(
-                    "Unexpected restore entity by filter error: " + filter,
+                    "Неожиданная ошибка восстановления по фильтру: " + filter,
                     e,
                     entityType,
                     EntityOperation.UPDATE

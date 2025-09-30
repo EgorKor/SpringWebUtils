@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.concurrent.CompletableFuture;
@@ -24,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 public abstract class JpaAsyncCrudService<T, ID> extends JpaCrudService<T, ID> implements AsyncCrudService<T, ID> {
     protected final ThreadPoolTaskExecutor executor;
 
+    @Deprecated(since = "1.0.3")
     public JpaAsyncCrudService(JpaRepository<T, ID> jpaRepository,
                                JpaSpecificationExecutor<T> jpaSpecificationExecutor,
                                ApplicationEventPublisher eventPublisher,
@@ -31,7 +33,16 @@ public abstract class JpaAsyncCrudService<T, ID> extends JpaCrudService<T, ID> i
                                ThreadPoolTaskExecutor executor,
                                Validator validator
     ) {
-        super(jpaRepository, jpaSpecificationExecutor, eventPublisher, transactionTemplate, validator);
+        this(jpaRepository, jpaSpecificationExecutor, transactionTemplate, executor, validator);
+    }
+
+    public JpaAsyncCrudService(JpaRepository<T, ID> jpaRepository,
+                               JpaSpecificationExecutor<T> jpaSpecificationExecutor,
+                               TransactionTemplate transactionTemplate,
+                               ThreadPoolTaskExecutor executor,
+                               Validator validator
+    ) {
+        super(jpaRepository, jpaSpecificationExecutor, transactionTemplate, validator);
         this.executor = executor;
     }
 

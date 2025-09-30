@@ -1,6 +1,8 @@
 package io.github.egorkor.tests.params;
 
+import io.github.egorkor.webutils.exception.InvalidParameterException;
 import io.github.egorkor.webutils.queryparam.Sorting;
+import io.github.egorkor.webutils.queryparam.sortingInternal.SortingUnit;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Path;
@@ -34,25 +36,6 @@ public class SortingTest {
     @Mock
     private Order descOrder;
 
-    @Test
-    public void testSQLSortEmpty() {
-        Sorting sorting = Sorting.unsorted();
-        Assertions.assertEquals("", sorting.toSQLSort());
-    }
-
-    @Test
-    public void testSQLSort1() {
-        Sorting sorting = new Sorting();
-        sorting.setSort(List.of("id:asc", "name:desc"));
-        Assertions.assertEquals("ORDER BY id ASC, name DESC", sorting.toSQLSort().trim());
-    }
-
-    @Test
-    public void testSQLSort2() {
-        Sorting sorting = new Sorting();
-        sorting.setSort(List.of("id:asc", "name:desc"));
-        Assertions.assertEquals("ORDER BY t.id ASC, t.name DESC", sorting.toSQLSort("t.").trim());
-    }
 
     @Test
     public void testJpaTestEmpty() {
@@ -63,7 +46,12 @@ public class SortingTest {
     @Test
     public void testJpaSort2() {
         Sorting sorting = new Sorting();
-        sorting.setSort(List.of("id:asc", "name:desc"));
+        sorting.setSort(List.of(
+                new SortingUnit("id", "asc"),
+                new SortingUnit("name", "desc")
+                //        "id:asc",
+                //        "name:desc"
+        ));
         Sort sort = sorting.toJpaSort();
 
         Assertions.assertTrue(Objects.requireNonNull(sort.getOrderFor("id")).getDirection().isAscending());
@@ -81,7 +69,10 @@ public class SortingTest {
     void toCriteriaOrderList_shouldCreateAscOrderForSingleField() {
         // Setup
         Sorting sorting = new Sorting();
-        sorting.getSort().add("name:asc");
+        sorting.getSort().add(
+                new SortingUnit("name", "asc")
+                //        "name:asc"
+        );
 
         when(root.get("name")).thenReturn(path);
         when(cb.asc(path)).thenReturn(ascOrder);
@@ -91,7 +82,7 @@ public class SortingTest {
 
         // Verify
         assertEquals(1, result.size());
-        assertSame(ascOrder, result.get(0));
+        assertSame(ascOrder, result.getFirst());
         verify(root).get("name");
         verify(cb).asc(path);
     }
@@ -100,7 +91,10 @@ public class SortingTest {
     void toCriteriaOrderList_shouldCreateDescOrderForSingleField() {
         // Setup
         Sorting sorting = new Sorting();
-        sorting.getSort().add("age:desc");
+        sorting.getSort().add(
+                new SortingUnit("age", "desc")
+                //        "age:desc"
+        );
 
         when(root.get("age")).thenReturn(path);
         when(cb.desc(path)).thenReturn(descOrder);
@@ -119,8 +113,14 @@ public class SortingTest {
     void toCriteriaOrderList_shouldHandleMultipleSortFields() {
         // Setup
         Sorting sorting = new Sorting();
-        sorting.getSort().add("name:asc");
-        sorting.getSort().add("age:desc");
+        sorting.getSort().add(
+                new SortingUnit("name", "asc")
+                //        "name:asc"
+        );
+        sorting.getSort().add(
+                new SortingUnit("age", "desc")
+                //        "age:desc"
+        );
 
         when(root.get("name")).thenReturn(path);
         when(root.get("age")).thenReturn(path);
@@ -140,7 +140,10 @@ public class SortingTest {
     void toCriteriaOrderList_shouldHandleNestedProperties() {
         // Setup
         Sorting sorting = new Sorting();
-        sorting.getSort().add("nested.property:asc");
+        sorting.getSort().add(
+                new SortingUnit("nested.property", "asc")
+                //        "nested.property:asc"
+        );
 
         when(root.get("nested")).thenReturn(path);
         when(path.get("property")).thenReturn(nestedPath);
@@ -159,50 +162,33 @@ public class SortingTest {
 
     @Test
     void toCriteriaOrderList_shouldThrowForInvalidSortFormat() {
-        // Setup
-        Sorting sorting = new Sorting();
-        sorting.getSort().add("invalid_format");
-
         // Test & Verify
-        assertThrows(IllegalArgumentException.class, () -> {
-            sorting.toCriteriaOrderList(root, cb);
+        assertThrows(InvalidParameterException.class, () -> {
+            new SortingUnit("name!-", "asc");
         });
     }
 
     @Test
     void toCriteriaOrderList_shouldThrowForInvalidDirection() {
-        // Setup
-        Sorting sorting = new Sorting();
-        sorting.getSort().add("name:invalid");
-
-        // Test & Verify
-        assertThrows(IllegalArgumentException.class, () -> {
-            sorting.toCriteriaOrderList(root, cb);
+        assertThrows(InvalidParameterException.class, () -> {
+            new SortingUnit("name", "asc1");
         });
     }
 
-    @Test
-    void toCriteriaOrderList_shouldCallCheckAllowedFields() {
-        // Setup
-        Sorting sorting = spy(new Sorting());
-        sorting.getSort().add("name:asc");
 
-        when(root.get("name")).thenReturn(path);
-        when(cb.asc(path)).thenReturn(ascOrder);
-
-        // Test
-        sorting.toCriteriaOrderList(root, cb);
-
-        // Verify
-        verify(sorting).checkAllowedSortFields();
-    }
 
     @Test
     void toCriteriaOrderList_shouldIgnoreCaseForDirection() {
         // Setup
         Sorting sorting = new Sorting();
-        sorting.getSort().add("name:ASC");
-        sorting.getSort().add("age:DESC");
+        sorting.getSort().add(
+        new SortingUnit("name","ASC")
+                //        "name:ASC"
+        );
+        sorting.getSort().add(
+            new SortingUnit("age","DESC")
+                //"age:DESC"
+        );
 
         when(root.get("name")).thenReturn(path);
         when(root.get("age")).thenReturn(path);

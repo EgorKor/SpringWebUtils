@@ -27,17 +27,26 @@ public abstract class JpaAsyncBatchService<T, ID> extends JpaAsyncCrudService<T,
 
     private final JpaBatchCrudService batchCrudService;
 
+    @Deprecated(since = "1.0.3")
     public JpaAsyncBatchService(JpaRepository<T, ID> jpaRepository,
                                 JpaSpecificationExecutor<T> jpaSpecificationExecutor,
                                 ApplicationEventPublisher eventPublisher,
                                 TransactionTemplate transactionTemplate,
                                 ThreadPoolTaskExecutor executor,
                                 Validator validator) {
-        super(jpaRepository, jpaSpecificationExecutor, eventPublisher, transactionTemplate, executor, validator);
+        this(jpaRepository, jpaSpecificationExecutor, transactionTemplate, executor, validator);
+    }
+
+
+    public JpaAsyncBatchService(JpaRepository<T, ID> jpaRepository,
+                                JpaSpecificationExecutor<T> jpaSpecificationExecutor,
+                                TransactionTemplate transactionTemplate,
+                                ThreadPoolTaskExecutor executor,
+                                Validator validator) {
+        super(jpaRepository, jpaSpecificationExecutor, transactionTemplate, executor, validator);
         Supplier<EntityManager> entityManagerSupplier = this::getPersistenceAnnotatedEntityManager;
         this.batchCrudService = new JpaBatchCrudService(jpaRepository,
                 jpaSpecificationExecutor,
-                eventPublisher,
                 transactionTemplate,
                 validator) {
             @Override
@@ -46,6 +55,7 @@ public abstract class JpaAsyncBatchService<T, ID> extends JpaAsyncCrudService<T,
             }
         };
     }
+
 
 
     @Async

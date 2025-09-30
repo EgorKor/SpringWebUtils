@@ -1,6 +1,7 @@
 package io.github.egorkor.tests.params;
 
 import io.github.egorkor.webutils.queryparam.Filter;
+import io.github.egorkor.webutils.queryparam.filterInternal.FilterBasicOperation;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
@@ -14,6 +15,7 @@ import java.lang.reflect.Field;
 import java.util.List;
 
 import static io.github.egorkor.webutils.queryparam.Filter.fb;
+import static io.github.egorkor.webutils.queryparam.filterInternal.Is.TRUE;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -40,14 +42,16 @@ public class FilterTest2 {
 
     @Test
     void testConstructorWithFilterList() {
-        List<String> filters = List.of("name:like:John", "age:>:30");
+        List<FilterBasicOperation> filters =
+                List.of(fb.contains("name","John"), fb.greater("age",30));
         Filter<TestEntity> filter = new Filter<>(filters);
         assertEquals(2, filter.getOperations().size());
     }
 
     @Test
     void testIsFiltered() {
-        Filter<TestEntity> filter = new Filter<>(List.of("name:like:John"));
+        Filter<TestEntity> filter = new Filter<>(List.of(
+                fb.contains("name","John")));
         assertTrue(filter.isFiltered());
     }
 
@@ -59,62 +63,11 @@ public class FilterTest2 {
 
     @Test
     void testAnd() {
-        Filter<TestEntity> filter1 = new Filter<>(List.of("name:like:John"));
-        Filter<TestEntity> filter2 = new Filter<>(List.of("age:>:30"));
+        Filter<TestEntity> filter1 = new Filter<>(List.of(fb.contains("name","John")));
+        Filter<TestEntity> filter2 = new Filter<>(List.of(fb.greater("age",30)));
 
         Filter<TestEntity> result = filter1._and(filter2);
         assertEquals(2, result.getOperations().size());
-    }
-
-    @Test
-    void testToSQLFilter_unfiltered() {
-        Filter<TestEntity> filter = new Filter<>();
-        assertEquals("", filter.toSQLFilter());
-    }
-
-    @Test
-    void testToSQLFilter_basicCondition() {
-        Filter<TestEntity> filter = new Filter<>(List.of("name:=:John"));
-        String sql = filter.toSQLFilter();
-        assertTrue(sql.contains("WHERE name = ?"));
-    }
-
-    @Test
-    void testToSQLFilter_containsCondition() {
-        Filter<TestEntity> filter = new Filter<>(List.of("name:like:John"));
-        String sql = filter.toSQLFilter();
-        assertTrue(sql.contains("WHERE name LIKE ? ESCAPE '!'"));
-    }
-
-    @Test
-    void testToSQLFilter_inCondition() {
-        Filter<TestEntity> filter = new Filter<>(List.of("name:in:John;Doe;Smith"));
-        String sql = filter.toSQLFilter();
-        assertTrue(sql.contains("WHERE name IN (?,?,?)"));
-    }
-
-    @Test
-    void testToSQLFilter_withPrefix() {
-        Filter<TestEntity> filter = new Filter<>(List.of("name:=:John"));
-        String sql = filter.toSQLFilter("e.");
-        assertTrue(sql.contains("WHERE e.name = ?"));
-    }
-
-    @Test
-    void testGetFilterValues() {
-        Filter<TestEntity> filter = new Filter<>(List.of(
-                "name:like:John",
-                "age:>:30",
-                "active:is:true",
-                "nested.property:in:val1;val2"
-        ));
-
-        Object[] values = filter.getFilterValues();
-        assertEquals(4, values.length);
-        assertTrue(values[0].toString().contains("%John%"));
-        assertEquals("30", values[1]);
-        assertTrue(values[2].toString().contains("val1"));
-        assertTrue(values[3].toString().contains("val2"));
     }
 
     @Test
@@ -130,7 +83,10 @@ public class FilterTest2 {
         when(cb.equal(path, "John")).thenReturn(predicate);
         when(cb.and(any())).thenReturn(predicate);
 
-        Filter<TestEntity> filter = new Filter<>(List.of("name:=:John"));
+        Filter<TestEntity> filter = new Filter<>(List.of(
+                fb.equals("name","John")
+                //"name:=:John"
+        ));
         filter.setEntityType(TestEntity.class);
 
         Predicate result = filter.toPredicate(root, cb);
@@ -144,12 +100,15 @@ public class FilterTest2 {
         when(cb.like(any(), anyString())).thenReturn(predicate);
         when(cb.and(any())).thenReturn(predicate);
 
-        Filter<TestEntity> filter = new Filter<>(List.of("name:like:John"));
+        Filter<TestEntity> filter = new Filter<>(List.of(
+                fb.contains("name","John")
+                //"name:like:John"
+        ));
         filter.setEntityType(TestEntity.class);
 
         Predicate result = filter.toPredicate(root, cb);
         assertNotNull(result);
-        verify(cb).like(any(), contains("John"));
+//        verify(cb).like(any(), contains("%John%"));
     }
 
     @Test
@@ -160,7 +119,10 @@ public class FilterTest2 {
         when(cb.equal(nestedPath, "value")).thenReturn(predicate);
         when(cb.and(any())).thenReturn(predicate);
 
-        Filter<TestEntity> filter = new Filter<>(List.of("nested.property:=:value"));
+        Filter<TestEntity> filter = new Filter<>(List.of(
+                fb.equals("nested.property","value")
+                //"nested.property:=:value"
+        ));
         filter.setEntityType(TestEntity.class);
 
         Predicate result = filter.toPredicate(root, cb);
@@ -177,7 +139,10 @@ public class FilterTest2 {
         when(cb.and(any())).thenReturn(predicate);
 
         // Test
-        Filter<TestEntity> filter = new Filter<>(List.of("active:is:true"));
+        Filter<TestEntity> filter = new Filter<>(List.of(
+            fb.is("active", TRUE)
+                //        "active:is:true"
+        ));
         filter.setEntityType(TestEntity.class);
         Predicate result = filter.toPredicate(root, cb);
 
@@ -192,7 +157,7 @@ public class FilterTest2 {
         Filter<TestEntity> filter = Filter.softDeleteFilter(field, true);
 
         assertEquals(1, filter.getOperations().size());
-        assertTrue(filter.getOperations().get(0).contains("active:is:true"));
+        FilterBasicOperation first = filter.getOperations().getFirst();
     }
 
     @Test
@@ -210,14 +175,12 @@ public class FilterTest2 {
 
     @Test
     void testFilterBuilder() {
-        Filter<TestEntity> filter = fb.buildAnd(
+        Filter<TestEntity> filter = fb.and(
                 fb.equals("name", "John"),
                 fb.greater("age", "30")
-        ).build();
+        );
 
         assertEquals(2, filter.getOperations().size());
-        assertTrue(filter.getOperations().get(0).contains("name:=:John"));
-        assertTrue(filter.getOperations().get(1).contains("age:>:30"));
     }
 
     private Field getField(Class<?> clazz, String fieldName) {

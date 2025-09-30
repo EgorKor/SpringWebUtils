@@ -1,6 +1,8 @@
 package io.github.egorkor.webutils.queryparam.utils;
 
+import io.github.egorkor.webutils.exception.InvalidParameterException;
 import io.github.egorkor.webutils.queryparam.Filter;
+import lombok.NonNull;
 import lombok.SneakyThrows;
 
 import java.lang.reflect.Field;
@@ -23,21 +25,18 @@ public class FieldTypeUtils {
      * @param targetType the starting class to inspect
      * @param fieldPath  the field name or path (e.g. "persons.address.street")
      * @return the Field object representing the field
-     * @throws IllegalArgumentException if arguments are invalid
+     * @throws InvalidParameterException if arguments are invalid
      * @throws SecurityException        if field access is denied by security manager
      */
     @SneakyThrows
-    public static Field getField(Class<?> targetType, String fieldPath) {
+    public static Field getField(@NonNull Class<?> targetType,
+                                 @NonNull String fieldPath) {
         if (fieldPath.matches("concat\\(.*\\)")) {
             return null;
         }
 
-        // Input validation
-        Objects.requireNonNull(targetType, "Target type cannot be null");
-        Objects.requireNonNull(fieldPath, "Field path cannot be null");
-
         if (fieldPath.isEmpty()) {
-            throw new IllegalArgumentException("Field path cannot be empty");
+            throw new InvalidParameterException("Путь до поля не может быть пустым");
         }
 
         String[] fields = fieldPath.split("\\.");
@@ -48,7 +47,7 @@ public class FieldTypeUtils {
             String fieldName = fields[i];
 
             if (fieldName.isEmpty()) {
-                throw new IllegalArgumentException("Field name cannot be empty in path: " + fieldPath);
+                throw new InvalidParameterException("Путь до поля не может быть пустым: " + fieldPath);
             }
 
             currentField = getFieldTypeInternal(currentType, fieldName);
@@ -173,8 +172,8 @@ public class FieldTypeUtils {
                     currentType = currentType.getSuperclass();
                 }
             }
-            throw new NoSuchFieldException("Field '" + fieldName +
-                    "' not found in class " + type.getName() + " or its superclasses");
+            throw new NoSuchFieldException("Поле '" + fieldName +
+                    "' не найдено в классе " + type.getName() + " или его родителях");
         }
     }
 
