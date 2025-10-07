@@ -118,7 +118,7 @@ public abstract class JpaBatchCrudService<T, ID>
             for (ID id : ids) {
                 try {
                     if (!existsById(id)) {
-                        throw new ResourceNotFoundException("Сущность  " + getEntityTypeName() + " с id = " + id + " не найдена.");
+                        throw new ResourceNotFoundException(getResourceNotFoundMessage(id));
                     }
                     jpaRepository.deleteById(id);
                     entityManager.flush();
@@ -183,7 +183,7 @@ public abstract class JpaBatchCrudService<T, ID>
             for (ID id : ids) {
                 try {
                     if (!existsById(id)) {
-                        throw new ResourceNotFoundException("Сущность " + getEntityTypeName() + " с id = " + id + " не найдена.");
+                        throw new ResourceNotFoundException(getResourceNotFoundMessage(id));
                     }
                     jpaRepository.deleteById(id);
                 } catch (Exception e) {

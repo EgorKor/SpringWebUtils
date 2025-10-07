@@ -126,7 +126,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     protected final Class<T> entityType;
     @Setter
     protected EntityManager entityManager;
-    protected boolean isSoftDeleteSupported = false;
+    protected boolean isSoftDeleteSupported;
     protected Field softDeleteField;
     protected Field idField;
 
@@ -240,9 +240,10 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
 
         if (softDeleteFields.size() > 1) {
             throw new IllegalStateException(String.format(
-                    "%s - поддерживается только один флаг мягкого удаления, обнаружено %d",
+                    "%s - поддерживается только один флаг мягкого удаления, обнаружено %d : %s",
                     entityType.getName(),
-                    softDeleteFields.size()
+                    softDeleteFields.size(),
+                    softDeleteFields
             ));
         }
 
@@ -255,10 +256,9 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
 
     private void defineIdField() {
         this.idField = Arrays.stream(entityType.getDeclaredFields())
-                .filter((f) -> f.isAnnotationPresent(Id.class)
-                        || f.isAnnotationPresent(org.springframework.data.annotation.Id.class))
+                .filter((f) -> f.isAnnotationPresent(Id.class))
                 .findAny().orElseThrow(
-                        () -> new IllegalStateException("Сущность " + getEntityTypeName() + " не имеет поля с аннотацией @Id")
+                        () -> new IllegalStateException("Сущность " + getEntityTypeName() + " не имеет поля с аннотацией jakarta.persistence.@Id")
                 );
         this.idField.setAccessible(true);
     }
@@ -290,11 +290,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     @Override
     public T getById(@NonNull ID id) throws ResourceNotFoundException {
         Supplier<ResourceNotFoundException> exceptionSupplier = () ->
-                new ResourceNotFoundException("Сущность "
-                        + getEntityTypeName()
-                        + " с id = "
-                        + id
-                        + " не найдена.");
+                new ResourceNotFoundException(getResourceNotFoundMessage(id));
         boolean isDeleted = false;
         Filter<T> idFilter = equal(idField.getName(), id.toString());
         idFilter.setEntityType(entityType);
@@ -309,11 +305,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     public T getById(@NonNull ID id,
                      @NonNull String... fetchingProperties) throws ResourceNotFoundException {
         Supplier<ResourceNotFoundException> exceptionSupplier = () ->
-                new ResourceNotFoundException("Сущность "
-                        + getEntityTypeName()
-                        + " с id = "
-                        + id
-                        + " не найдена.");
+                new ResourceNotFoundException(getResourceNotFoundMessage(id));
         Filter<T> baseIdFilter = equal(idField.getName(), id);
         Filter<T> resultIdFilter = getSoftDeleteSupportedFilter(baseIdFilter);
         Arrays.stream(fetchingProperties).forEach(resultIdFilter::withFetchJoin);
@@ -326,11 +318,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     @Override
     public T getByFilter(@NonNull Filter<T> filter) throws ResourceNotFoundException, NonUniqueResultException {
         Supplier<ResourceNotFoundException> exceptionSupplier = () ->
-                new ResourceNotFoundException("Сущность "
-                        + getEntityTypeName()
-                        + " с условием: "
-                        + filter.getOperations()
-                        + " не найдена.");
+                new ResourceNotFoundException(getResourceNotFoundMessage(filter));
         filter.setEntityType(entityType);
         boolean isDeleted = false;
         return !isSoftDeleteSupported ?
@@ -363,11 +351,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
             try {
                 return typedQuery.getSingleResult();
             } catch (NoResultException e) {
-                throw new ResourceNotFoundException("Сущность "
-                        + getEntityTypeName()
-                        + " с условием: "
-                        + filter.getOperations()
-                        + " не найдена.");
+                throw new ResourceNotFoundException(getResourceNotFoundMessage(filter));
             }
         });
     }
@@ -443,7 +427,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
             try {
                 return jpaRepository.save(dbModel);
             } catch (DataAccessException e) {
-                throw new EntityProcessingException("Ошибка обновления сущнсти с id = " + id,
+                throw new EntityProcessingException("Ошибка обновления сущности с id = " + id,
                         e, entityType, EntityOperation.CREATE);
             }
         });
@@ -454,11 +438,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
         transactionTemplate.executeWithoutResult(status -> {
             try {
                 if (deleteByFilter(equal(idField.getName(), id)) != 1) {
-                    throw new ResourceNotFoundException("Сущность "
-                            + getEntityTypeName()
-                            + " с id = "
-                            + id
-                            + " не найдена.");
+                    throw new ResourceNotFoundException(getResourceNotFoundMessage(id));
                 }
             } catch (DataAccessException e) {
                 throw new EntityProcessingException("Ошибка удаления сущности с id : " + id, e, entityType, EntityOperation.DELETE);
@@ -511,7 +491,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
 
     private void checkSoftDeleteAvailability() {
         if (!isSoftDeleteSupported) {
-            throw new SoftDeleteUnsupportedException("Soft operation delete is not supported");
+            throw new SoftDeleteUnsupportedException("Операция мягкого удаления не поддерживается");
         }
     }
 
@@ -525,11 +505,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                 if (updateByFilter(
                         updateValue(softDeleteField.getName(), updateValue),
                         equal(idField.getName(), id)) != 1) {
-                    throw new ResourceNotFoundException("Сущность"
-                            + getEntityTypeName()
-                            + " с id = "
-                            + id
-                            + " не найдена.");
+                    throw new ResourceNotFoundException(getResourceNotFoundMessage(id));
                 }
             });
         } catch (ResourceNotFoundException e) {
@@ -670,7 +646,7 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
                 equal(idField.getName(), id)
         );
         if (updatedCount != 1) {
-            throw new ResourceNotFoundException("Сущность " + getEntityTypeName() + " с id = " + id + " не найдена");
+            throw new ResourceNotFoundException(getResourceNotFoundMessage(id));
         }
     }
 
@@ -708,6 +684,22 @@ public abstract class JpaCrudService<T, ID> implements CrudService<T, ID>, Initi
     @Override
     public T getReference(@NonNull ID id) {
         return jpaRepository.getReferenceById(id);
+    }
+
+    protected String getResourceNotFoundMessage(ID id) {
+        return "Сущность "
+                + getEntityTypeName()
+                + " с id = "
+                + id
+                + " не найдена.";
+    }
+
+    protected String getResourceNotFoundMessage(Filter<T> filter) {
+        return "Сущность "
+                + getEntityTypeName()
+                + " с условием: "
+                + filter.getOperations()
+                + " не найдена.";
     }
 
 }

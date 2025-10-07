@@ -1,5 +1,6 @@
 package io.github.egorkor.webutils.queryparam;
 
+import io.github.egorkor.webutils.annotations.AllowedOperations;
 import io.github.egorkor.webutils.annotations.FieldParamMapping;
 import io.github.egorkor.webutils.annotations.ParamCountLimit;
 import io.github.egorkor.webutils.exception.InvalidParameterException;
@@ -9,7 +10,6 @@ import jakarta.persistence.criteria.*;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
-import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -28,13 +28,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static io.github.egorkor.webutils.annotations.FieldParamMapping.NO_MAPPING;
 import static io.github.egorkor.webutils.queryparam.filterInternal.FilterOperation.IS;
 
 /**
  * Параметр запроса для фильтрации запрашиваемых ресурсов.
  *
  * @author EgorKor
- * @version 1.0
+ * @version 1.0.4
  * @since 2025
  */
 //TODO: добавить поддержку операций работы с JSON
@@ -78,8 +79,8 @@ public class Filter<T> implements Specification<T> {
     }
 
     @SneakyThrows
-    public <R extends Filter<?>> R copy(){
-        R copiedFilter = (R)this.getClass().getDeclaredConstructor().newInstance();
+    public <R extends Filter<?>> R copy() {
+        R copiedFilter = (R) this.getClass().getDeclaredConstructor().newInstance();
         copiedFilter.setEntityType(entityType);
         copiedFilter.setFieldWhiteList(fieldWhiteList);
         copiedFilter.setOperations(operations);
@@ -195,12 +196,24 @@ public class Filter<T> implements Specification<T> {
     }
 
     public <R extends Filter<?>> R _and(Filter<?> filter) {
+        this.initializeOriginalNamesMap();
         this.operations.addAll(filter.getOperations());
         this.fieldWhiteList.addAll(
                 filter.getOperations()
                         .stream()
                         .map(FilterBasicOperation::field)
                         .toList());
+        if (filter.originalNames != null) {
+            filter.originalNames.forEach(
+                    (field, filters) -> {
+                        if (this.originalNames.containsKey(field)) {
+                            this.originalNames.get(field).addAll(filters);
+                        } else {
+                            this.originalNames.put(field, filters);
+                        }
+                    }
+            );
+        }
         return _this();
     }
 
@@ -328,8 +341,8 @@ public class Filter<T> implements Specification<T> {
     }
 
     private static Class<?> getFieldType(Field reflectionField, Function function) {
-        if(function != null){
-            if(function == Function.LENGTH || function == Function.SIZE){
+        if (function != null) {
+            if (function == Function.LENGTH || function == Function.SIZE) {
                 return Long.class;
             }
         }
@@ -454,7 +467,7 @@ public class Filter<T> implements Specification<T> {
         }
 
         // Конвертация между числовыми типами
-        if(Number.class.isAssignableFrom(targetType) && value instanceof Number number) {
+        if (Number.class.isAssignableFrom(targetType) && value instanceof Number number) {
 
             if (targetType.equals(Integer.class) || targetType.equals(int.class)) {
                 return number.intValue();
@@ -476,7 +489,7 @@ public class Filter<T> implements Specification<T> {
         }
 
         // Конвертация строк в числа
-        if(Number.class.isAssignableFrom(targetType) && value instanceof String) {
+        if (Number.class.isAssignableFrom(targetType) && value instanceof String) {
             String stringValue = ((String) value).trim();
 
             if (targetType.equals(Integer.class) || targetType.equals(int.class)) {
@@ -594,7 +607,8 @@ public class Filter<T> implements Specification<T> {
         if (reflectionField != null && Collection.class.isAssignableFrom(reflectionField.getType())) {
             if (function != null) {
                 return switch (function) {
-                    case LENGTH, SIZE -> getComparisonPredicate(cb, operation, comparablePath,(Long)convertValue(value, Long.class));
+                    case LENGTH, SIZE ->
+                            getComparisonPredicate(cb, operation, comparablePath, (Long) convertValue(value, Long.class));
                 };
             }
 
@@ -611,6 +625,47 @@ public class Filter<T> implements Specification<T> {
 
 
     //region Utility Methods
+
+    public boolean isParameterPresent(String paramName) {
+        initializeOriginalNamesMap();
+        return originalNames.containsKey(paramName);
+    }
+
+    public FilterBasicOperation getFirst(String paramName) {
+        initializeOriginalNamesMap();
+        return originalNames.get(paramName)
+                .stream()
+                .findFirst()
+                .get();
+    }
+
+    public Set<FilterBasicOperation> get(String paramName) {
+        return originalNames.get(paramName);
+    }
+
+    private Map<String, Set<FilterBasicOperation>> fieldFiltersIndex() {
+        Map<String, Set<FilterBasicOperation>> index = new HashMap<>();
+        for (var operation : operations) {
+            if (index.containsKey(operation.field())) {
+                index.get(operation.field()).add(operation);
+            } else {
+                index.put(operation.field(), new HashSet<>(Set.of(operation)));
+            }
+        }
+        return index;
+    }
+
+    private Map<String, Set<FilterOperation>> fieldOperationIndex() {
+        Map<String, Set<FilterOperation>> index = new HashMap<>();
+        for (var operation : operations) {
+            if (index.containsKey(operation.field())) {
+                index.get(operation.field()).add(operation.operation());
+            } else {
+                index.put(operation.field(), new HashSet<>(Set.of(operation.operation())));
+            }
+        }
+        return index;
+    }
 
     private Predicate parseContainsPredicate(CriteriaBuilder cb, Expression<?> selection, String stringValue) {
         Expression<String> stringSelection = cb.lower(getTypedExpression(selection, String.class));
@@ -640,20 +695,23 @@ public class Filter<T> implements Specification<T> {
         return (SameType) this;
     }
 
+    private Map<String, Set<FilterBasicOperation>> originalNames;
+
+
     public void mapFilterByAllies() {
         if (this.getClass() == Filter.class) {
             return;
         }
-
+        initializeOriginalNamesMap();
         Field[] fields = this.getClass().getDeclaredFields();
         for (Field field : fields) {
             FieldParamMapping fieldParamMapping = field.getAnnotation(FieldParamMapping.class);
             if (fieldParamMapping == null
-                    || fieldParamMapping.sqlMapping().equals(FieldParamMapping.NO_MAPPING)) {
+                    || fieldParamMapping.sqlMapping().equals(NO_MAPPING)) {
                 continue;
             }
             String alliesName = fieldParamMapping.sqlMapping();
-            String fieldName = Objects.equals(fieldParamMapping.requestParamMapping(), FieldParamMapping.NO_MAPPING)
+            String fieldName = Objects.equals(fieldParamMapping.requestParamMapping(), NO_MAPPING)
                     ? field.getName() : fieldParamMapping.requestParamMapping();
             String regexSafeFieldName = Pattern.quote(fieldName);
 
@@ -679,22 +737,35 @@ public class Filter<T> implements Specification<T> {
         if ((limit = this.getClass().getAnnotation(ParamCountLimit.class)) != null
                 && limit.value() != ParamCountLimit.UNLIMITED
                 && operations.size() > limit.value()) {
-            throw new InvalidParameterException("Недопустимое кол-во фильтров: ");
+            throw new InvalidParameterException("Недопустимое общее кол-во фильтров: " + operations.size()
+                    + ". Допустимое значение: " + limit.value());
         }
+        initializeOriginalNamesMap();
+        Set<String> paramsNames = originalNames.keySet();
 
-        Set<String> paramsNames = operations.stream()
-                .map(FilterBasicOperation::field)
-                .collect(Collectors.toSet());
-
-        Set<String> allowedFields = Arrays.stream(this.getClass().getDeclaredFields())
+        Field[] declaredFields = this.getClass().getDeclaredFields();
+        Set<String> allowedFields = Arrays.stream(declaredFields)
                 .map(f -> {
+
+
                     FieldParamMapping allies;
+                    String paramName;
                     if ((allies = f.getAnnotation(FieldParamMapping.class)) != null
-                            && !Objects.equals(allies.requestParamMapping(), FieldParamMapping.NO_MAPPING)) {
-                        return allies.requestParamMapping();
+                            && !Objects.equals(allies.requestParamMapping(), NO_MAPPING)) {
+                        paramName = allies.requestParamMapping();
                     } else {
-                        return f.getName();
+                        paramName = f.getName();
                     }
+
+                    ParamCountLimit paramLimit = f.getAnnotation(ParamCountLimit.class);
+                    if (paramLimit != null && isParameterPresent(paramName)
+                            && get(paramName).size() > paramLimit.value()) {
+                        throw new InvalidParameterException("Недопустимое кол-во фильтров для параметра %s: "
+                                .formatted(paramName) + operations.size() + ". Допустимое значение: " + paramLimit.value());
+                    }
+
+
+                    return paramName;
                 })
                 .collect(Collectors.toSet());
 
@@ -705,11 +776,55 @@ public class Filter<T> implements Specification<T> {
         }
     }
 
+    private void initializeOriginalNamesMap() {
+        if (originalNames == null) {
+            originalNames = fieldFiltersIndex();
+        }
+    }
+
+    public void checkAllowedFilterOperations() {
+        if (this.getClass() == Filter.class) {
+            return;
+        }
+        Map<String, Set<FilterOperation>> index = fieldOperationIndex();
+        Field[] fields = this.getClass().getDeclaredFields();
+
+        for (Field field : fields) {
+            if (!field.isAnnotationPresent(AllowedOperations.class)) {
+                continue;
+            }
+
+            String originalName = field.getName();
+            String checkingName = field.getName();
+            if (field.isAnnotationPresent(FieldParamMapping.class)) {
+                FieldParamMapping fieldParamMapping = field.getAnnotation(FieldParamMapping.class);
+                if (!fieldParamMapping.sqlMapping().equals(NO_MAPPING)) {
+                    checkingName = fieldParamMapping.sqlMapping();
+                }
+                if (!fieldParamMapping.requestParamMapping().equals(NO_MAPPING)) {
+                    originalName = fieldParamMapping.requestParamMapping();
+                }
+            }
+
+            AllowedOperations allowedOperationsAnnotation = field.getAnnotation(AllowedOperations.class);
+
+            if (index.containsKey(checkingName)) {
+                Set<FilterOperation> usedOperations = index.get(checkingName);
+                Set<FilterOperation> allowedOperations = Arrays.stream(allowedOperationsAnnotation.value())
+                        .collect(Collectors.toSet());
+
+                for (FilterOperation usedOp : usedOperations) {
+                    if (!allowedOperations.contains(usedOp)) {
+                        throw new InvalidParameterException("Недопустимая операция " + usedOp + " для параметра " + originalName);
+                    }
+                }
+            }
+        }
+    }
+
     @Override
     public String toString() {
-        return "Filter = " +
-                "AND(" + operations +
-                ')';
+        return "Filter = AND" + operations;
     }
 
     //endregion

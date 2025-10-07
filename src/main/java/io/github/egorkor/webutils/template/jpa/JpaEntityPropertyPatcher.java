@@ -21,7 +21,6 @@ import java.util.stream.Collectors;
  * @version 1.0.4
  * @since 2025
  */
-
 public class JpaEntityPropertyPatcher {
     @Getter
     private static final Map<Class<?>, List<Field>> fieldCache = new ConcurrentHashMap<>();

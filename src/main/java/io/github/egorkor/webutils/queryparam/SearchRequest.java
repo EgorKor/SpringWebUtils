@@ -60,6 +60,7 @@ public class SearchRequest {
         this.pagination = parsePagination(params);
         this.filter = parseFilter(params, filterClass);
         this.filter.checkAllowedFilterFields();
+        this.filter.checkAllowedFilterOperations();
         this.filter.mapFilterByAllies();
         this.sorting = parseSorting(params, sortingClass);
         this.sorting.checkAllowedSortFields();

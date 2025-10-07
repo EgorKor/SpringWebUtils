@@ -31,6 +31,7 @@ import java.util.List;
 import static io.github.egorkor.webutils.queryparam.Filter.*;
 import static io.github.egorkor.webutils.queryparam.Sorting.sb;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @Import({TestEntityCrudServiceImpl.class, TestNestedEntityServiceImpl.class, LocalValidatorFactoryBean.class})
 @DataJpaTest
@@ -79,10 +80,12 @@ public class JpaCrudServiceTests {
     @Test
     public void shouldThrowExceedLimitParametersCountExceptionForFilter() {
         UserFilter filter = fb.and(UserFilter.class,
-                fb.equals("id", "1"),
+                fb.equals("id", 1),
                 fb.equals("orders_name", "name"));
-        //TODO
-        //Assertions.assertThrows(InvalidParameterException.class, filter::toSQLFilter);
+        System.out.println(filter);
+        filter.mapFilterByAllies();
+        var exception = assertThrows(InvalidParameterException.class, filter::checkAllowedFilterOperations);
+        System.out.println(exception.getMessage());
     }
 
     @Test

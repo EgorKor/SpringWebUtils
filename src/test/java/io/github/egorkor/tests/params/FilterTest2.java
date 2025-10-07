@@ -1,5 +1,7 @@
 package io.github.egorkor.tests.params;
 
+import io.github.egorkor.params.UserFilter;
+import io.github.egorkor.webutils.exception.InvalidParameterException;
 import io.github.egorkor.webutils.queryparam.Filter;
 import io.github.egorkor.webutils.queryparam.filterInternal.FilterBasicOperation;
 import jakarta.persistence.criteria.CriteriaBuilder;
@@ -43,7 +45,7 @@ public class FilterTest2 {
     @Test
     void testConstructorWithFilterList() {
         List<FilterBasicOperation> filters =
-                List.of(fb.contains("name","John"), fb.greater("age",30));
+                List.of(fb.contains("name", "John"), fb.greater("age", 30));
         Filter<TestEntity> filter = new Filter<>(filters);
         assertEquals(2, filter.getOperations().size());
     }
@@ -51,7 +53,7 @@ public class FilterTest2 {
     @Test
     void testIsFiltered() {
         Filter<TestEntity> filter = new Filter<>(List.of(
-                fb.contains("name","John")));
+                fb.contains("name", "John")));
         assertTrue(filter.isFiltered());
     }
 
@@ -63,8 +65,8 @@ public class FilterTest2 {
 
     @Test
     void testAnd() {
-        Filter<TestEntity> filter1 = new Filter<>(List.of(fb.contains("name","John")));
-        Filter<TestEntity> filter2 = new Filter<>(List.of(fb.greater("age",30)));
+        Filter<TestEntity> filter1 = new Filter<>(List.of(fb.contains("name", "John")));
+        Filter<TestEntity> filter2 = new Filter<>(List.of(fb.greater("age", 30)));
 
         Filter<TestEntity> result = filter1._and(filter2);
         assertEquals(2, result.getOperations().size());
@@ -84,7 +86,7 @@ public class FilterTest2 {
         when(cb.and(any())).thenReturn(predicate);
 
         Filter<TestEntity> filter = new Filter<>(List.of(
-                fb.equals("name","John")
+                fb.equals("name", "John")
                 //"name:=:John"
         ));
         filter.setEntityType(TestEntity.class);
@@ -101,7 +103,7 @@ public class FilterTest2 {
         when(cb.and(any())).thenReturn(predicate);
 
         Filter<TestEntity> filter = new Filter<>(List.of(
-                fb.contains("name","John")
+                fb.contains("name", "John")
                 //"name:like:John"
         ));
         filter.setEntityType(TestEntity.class);
@@ -120,7 +122,7 @@ public class FilterTest2 {
         when(cb.and(any())).thenReturn(predicate);
 
         Filter<TestEntity> filter = new Filter<>(List.of(
-                fb.equals("nested.property","value")
+                fb.equals("nested.property", "value")
                 //"nested.property:=:value"
         ));
         filter.setEntityType(TestEntity.class);
@@ -140,7 +142,7 @@ public class FilterTest2 {
 
         // Test
         Filter<TestEntity> filter = new Filter<>(List.of(
-            fb.is("active", TRUE)
+                fb.is("active", TRUE)
                 //        "active:is:true"
         ));
         filter.setEntityType(TestEntity.class);
@@ -158,6 +160,28 @@ public class FilterTest2 {
 
         assertEquals(1, filter.getOperations().size());
         FilterBasicOperation first = filter.getOperations().getFirst();
+    }
+
+    @Test
+    void testFilterIndex() {
+        UserFilter userFilter = fb.and(UserFilter.class,
+                fb.equals("orders_name", "something")
+        );
+        assertTrue(userFilter.isParameterPresent("orders_name"));
+        FilterBasicOperation op1 = userFilter.getFirst("orders_name");
+        userFilter.mapFilterByAllies();
+        FilterBasicOperation op2 = userFilter.getFirst("orders_name");
+        assertSame(op1, op2);
+    }
+
+    @Test
+    void testFilterParamCountConstraint() {
+        UserFilter userFilter = fb.and(UserFilter.class,
+                fb.equals("orders_name", "something"),
+                fb.like("orders_name", "something")
+        );
+        var ex = assertThrows(InvalidParameterException.class, () -> userFilter.checkAllowedFilterFields());
+        System.out.println(ex.getMessage());
     }
 
     @Test
